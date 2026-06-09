@@ -107,9 +107,12 @@ CELEBRATE**.
       + trust graph actually provide today.
 - [x] `intake-prompt.md` — requirements-intake instrument for **Tree** (and her
       Claude), capturing real-world needs that feed DESIGN.
-- [ ] **GATE: owner + Tree intake** before opening `03-design/`. DESIGN must
-      not start until Tree's responses (or an explicit owner waiver) are in
-      `02-research/intake-responses/`.
+- [x] `intake-prompt-simon.md` — architecture-intake instrument for **Simon**
+      (Atlas Research Group), eliciting higher-level model + design decisions
+      and confirming/correcting the "Atlas" reference.
+- [ ] **GATE: owner + intake** before opening `03-design/`. DESIGN must not start
+      until intake responses (Tree's needs and/or Simon's architecture — or an
+      explicit owner waiver) are in `02-research/intake-responses/`.
 
 ## Open questions carried into DESIGN (see research for detail)
 
@@ -137,7 +140,7 @@ CELEBRATE**.
 | M-row | Intent | Status |
 | --- | --- | --- |
 | M1-RESEARCH | Prior-art corpus + foundations + design primitives | ✅ this session |
-| M2-INTAKE | `intake-prompt.md` for Tree; collect responses | 🔄 prompt written; responses pending |
+| M2-INTAKE | `intake-prompt.md` (Tree, needs) + `intake-prompt-simon.md` (Simon, architecture/Atlas); collect responses | 🔄 both prompts written; responses pending |
 | M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ⏳ gated on M2 + owner align |
 | M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ⏳ |
 | M5-ALIGN | Owner + Tree alignment | ⏳ |
