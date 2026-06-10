@@ -140,7 +140,7 @@ CELEBRATE**.
 | M-row | Intent | Status |
 | --- | --- | --- |
 | M1-RESEARCH | Prior-art corpus + foundations + design primitives | ✅ this session |
-| M2-INTAKE | `intake-prompt.md` (Tree, needs) + `intake-prompt-simon.md` (Simon, architecture/Atlas); collect responses | 🔄 both prompts written; responses pending |
+| M2-INTAKE | `intake-prompt.md` (Tree) + `intake-prompt-simon.md` (Simon); collect responses | 🔄 Tree received + synthesised (`02-research/intake-synthesis-tree.md`); Simon pending |
 | M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ⏳ gated on M2 + owner align |
 | M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ⏳ |
 | M5-ALIGN | Owner + Tree alignment | ⏳ |
