@@ -196,6 +196,16 @@ the **D2 fork** (equal / need-weighted / proximity / quadratic / holon-defined)
 — defaulted to *need-weighted with a per-claimant cap* (anti-capture, open-Q D4),
 owner ratifies at ALIGN.
 
+**Risk-integrated bounds (from 04-risk — woven here, not an addendum).** Two caps
+bound the blast radius (FMEA F3/F7, STRIDE D1/S1): a **per-claimant cap** (no
+single claimant — including a sybil-farmed one — captures a holon's surplus;
+allocation targets are gated on **existing 030–031 trust edges**, so farmed edges
+carry low weight → **DE-23**) and a **per-epoch outflow cap** (a deep transitive
+cascade cannot drain a holon faster than its configured rate; settlement is
+bounded by active channel count, not the global graph → **DE-24**). Convergence
+**terminates** and refuses LOUD on non-convergence/non-conservation (never a
+silent clamp — Honesty axiom AX-H1; open-Q B4 → DE-09).
+
 ### 6.5 Simulation / dry-run harness (owner experimentation requirement)
 
 A holon runs a FlowPolicy variant over **synthetic or historical** flow events
@@ -227,6 +237,16 @@ capability as its authorization, bounded by the cap. Revocation is immediate
 (a new policy version disarming the engine). This is the primary security surface
 and the focus of the 04-risk security-auditor lens (runaway flow, drain attack,
 consent bypass, capability over-scope).
+
+**Privacy posture (STRIDE I1 / FMEA F9 — woven in).** Flow topology reveals
+who-depends-on-whom (below-floor = in-need), which is socially sensitive. MVP
+discloses **outcome-transparency + story-upstream only** — the network perceives
+that value was created and that need exists, *without* per-edge dependency detail
+in the clear; visibility is **relationship-scoped**, keeping faith with the
+encrypted-default (010–016). A test asserts non-disclosure of per-edge detail
+under the chosen transparency level (**DE-25**). The exact disclosure scope
+(relationship-scoped vs ecosystem-wide; identities vs terms vs amounts) is the
+**H1/H2/H3 owner fork**; ZK proof-of-need is the named post-MVP `M-1644-ZK-NEED`.
 
 ## 9. UI surfaces (mock-first — extends the 1627 wallet, NOT a new app)
 

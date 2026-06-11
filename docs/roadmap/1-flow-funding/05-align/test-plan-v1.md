@@ -45,6 +45,9 @@ line cov → E2E driving 100% of MVP design intents. `DEFERRED`/`TODO`/`t.step.s
 | DE-20 | simulation surface matches mock; runs real engine in-process | e2e | M6.S6.4 | real-pointer + mock-fidelity |
 | DE-21 | partition: flow provisional until attested; over-flow detected on reconnect | integ | M3 | offline-first OTR-2 posture |
 | DE-22 | whole-design narrative: node supports a dependent end-to-end | e2e | M7 | drives 100% MVP intents |
+| DE-23 | sybil trust-edge farming bounded by per-claimant cap + trust-edge gate | integ | M3 | trust-edge-gated allocation (STRIDE S1/FMEA F7) |
+| DE-24 | runaway cascade bounded by per-epoch outflow cap | integ | M3 | per-epoch cap, channel-count bound (STRIDE D1/FMEA F3) |
+| DE-25 | flow-topology privacy: no per-edge dependency detail disclosed under chosen transparency level | integ | M4 | relationship-scoped disclosure (STRIDE I1/FMEA F9) |
 
 ## Tier detail
 
@@ -69,10 +72,19 @@ Every `*-failure-mode.test.ts` pairs with a `*-success.test.ts`:
 - DE-14 auth: `flow-vault-unlocked-success` + `flow-vault-locked-no-ocap-refused-failure`.
 - DE-11 race: `headroom-single-flow-success` + `headroom-double-flow-second-refused-failure`.
 
-## Open risk-driven rows (added at 04-RISK-MITIGATE)
+## Risk-driven rows — ADDED at 04-RISK-MITIGATE (no longer placeholders)
 
-Placeholders the risk lenses will populate:
-- Runaway-flow blast-radius cap (risk-assessor FMEA).
-- Drain-attack via trust-edge farming (security-auditor STRIDE — Spoofing/EoP).
-- Privacy: flow topology disclosure vs encrypted-default (security-auditor Info-Disclosure; ethics Honesty).
-- Demurrage→investment-flight axiom tension (ethics Wholeness/Honesty).
+The three risk lenses (`04-risk/{stride,fmea,ethics}-v1.md`) + triad converged on
+six themes; the new contract rows are now concrete:
+- **DE-24** runaway-flow blast-radius cap (FMEA F3 / STRIDE D1).
+- **DE-23** drain via trust-edge farming bounded (STRIDE S1 / FMEA F7).
+- **DE-25** flow-topology privacy under chosen transparency level (STRIDE I1 /
+  FMEA F9 / ethics Honesty).
+- **DE-09** strengthened: conservation **refuse-loud** is the ethics AX-H1
+  CRITICAL guard (no silent clamp), paired with `epoch-settle-imbalance-refused`.
+- **DE-16** demurrage simulation-only posture (FMEA F6 / ethics AX-W3) —
+  mechanism-asserted sim-path.
+
+Residual owner-decisions (transparency scope H1/H2/H3, demurrage-go-live, A0
+sequencing) are ALIGN forks, NOT test rows — they change *what* we build, decided
+at the human gate.
