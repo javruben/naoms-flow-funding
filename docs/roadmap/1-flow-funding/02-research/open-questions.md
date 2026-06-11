@@ -12,8 +12,12 @@ prior-art studies (`prior-art-spore-flow-funding.md`, inspiration entries
 - **A1. One "flow agreement" primitive with a formality dial?** Unify Tree's
   negotiated contract and Simon's relational trust-weight as one object (formal ↔
   informal ends). *Recommended: yes.*
-- **A2. Holon as the universal node?** person / hive-org / land / pool / goal all
-  as holons with channels. *Recommended: yes.*
+- **A2. Holon as the universal node?** *RESOLVED-BY-REUSE (owner + code, 2026-06-10):*
+  "holon" is a lens over NAOMS's **existing** identity taxonomy — person / hive /
+  agent / device — NOT a new node type. Land/river/ecosystem = a **`stewardship`
+  hive** (`hives/templates.ts:183`, `linked_entity_did`, collective governance);
+  pool/goal = hive + treasury. Residual: confirm pool/goal need no thin new
+  hive-subtype.
 - **A3. Which anti-accumulation mechanisms are in the MVP?** Three distinct ones:
   (1) gradient outflow, (2) activity-decay of entitlement (Tree), (3) demurrage
   on idle balances (owner brief / Gesell / Sarafu). *Recommended: 1+2 in;
@@ -160,8 +164,10 @@ prior-art studies (`prior-art-spore-flow-funding.md`, inspiration entries
   needed.
 - **J4. Compost Capital ground-truth source** — Benjamin Life essay vs. internal
   Simon/ARG doc for the flywheel + tithe (CC-R1).
-- **J5. Place as a primitive?** — bioregion/watershed load-bearing for Hub
-  Cultivator; first-class NAOMS primitive or chain metadata?
+- **J5. Place as a primitive?** *RESOLVED-BY-REUSE (2026-06-10):* place/land/
+  river/ecosystem is already a **`stewardship` hive** with `linked_entity_did` +
+  collective governance — not a new primitive. Bioregion = a hive (possibly of
+  hives). Residual: scale/nesting of stewardship hives only.
 
 ## K. Maturity / reuse realism (cross-cutting)
 

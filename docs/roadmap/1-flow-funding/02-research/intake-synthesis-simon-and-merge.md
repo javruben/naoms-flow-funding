@@ -59,10 +59,30 @@ end.
 Flow does not distinguish recipient *kinds*. A channel can terminate in a
 **person, a hive/org, a piece of land, a buffer pool, a savings goal, a purpose
 pool** — any **holon**. "Supporting a person" and "contributing to the commons"
-are the same gesture aimed at different nodes. → The package's core node type is
-**holon**, with kinds {person, hive/org, land/ecology, pool, goal}. Tree's
-"organisation revenue stream" and Simon's "person" and "the earth" are all just
-holons with channels.
+are the same gesture aimed at different nodes.
+
+**→ "Holon" is NOT a new node type — it maps onto NAOMS's EXISTING identity
+taxonomy (owner correction + code-verified 2026-06-10):**
+
+- **person** — an identity.
+- **device**, **agent** — identities (agents are flow-capable endpoints; devices
+  typically are not).
+- **hive** — the collective identity, and it already spans **group / company /
+  community / club** AND a **stewarded non-human entity (land / river /
+  ecosystem)**. NAOMS ships a **`stewardship` hive template**
+  (`src/packages/hives/templates.ts:183`: *"Stewardship of a non-human entity
+  (land, river, ecosystem)…"*) with `linked_entity_did`
+  (`src/packages/hives/types.ts:32`: *"non-human entity this hive stewards"*),
+  collective governance (proposals + steward confirmation + VRC + roles), and a
+  treasury (1596 wallet-treasury).
+
+So: **Simon's "flow to the earth" = flow to a stewardship hive** whose
+`linked_entity_did` is the river/mountain/tree, collectively governed by its
+stewards — not a new "land holon kind." **A buffer/purpose pool = a hive with a
+treasury + release-rule governance.** Tree's "organisation revenue stream" = a
+hive. "Holon" is the *unifying lens* over {person, hive, agent, device}; the
+package does not introduce a parallel node type (Rule 8 reuse; PC-471
+default-is-EXTEND).
 
 ## Anti-accumulation: THREE distinct mechanisms (do not conflate)
 
@@ -140,7 +160,7 @@ experimentation/simulation harness as part of the package — not an afterthough
 
 | Need | Reuse |
 | --- | --- |
-| Holon nodes | DID/chain per person/hive (1596); new holon kinds for land/pool/goal |
+| Holon nodes | **EXISTING** identity taxonomy: person / hive / agent / device. Land/river/ecosystem = **`stewardship` hive** (`hives/templates.ts:183` + `linked_entity_did`, collective governance). Pool/goal = hive + treasury. No new node type (Rule 8 / PC-471). |
 | Trust channels (weights) | trust graph + propagation (030–031) |
 | Flow agreement (formal end) | token `MintingAgreement` + consent/VC/ocap (040–042); spore promises/obligations as model |
 | Money movement | token `token.pay` + splits/streams (1596); Superfluid/TBFF as streaming reference |
