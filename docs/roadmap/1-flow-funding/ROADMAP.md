@@ -109,7 +109,10 @@ CELEBRATE**.
       (`docs/design/inspiration/`): `flow-funding.md`, `tbff-protocol.md`,
       `commitment-pooling.md`, `spore-bkc.md`, `compost-capital.md` (+ INDEX).
 - [x] `02-research/open-questions.md` — consolidated living open-questions log
-      for ALIGN (forks A1–A5, plus B–K).
+      for ALIGN (forks A1–A5, plus B–L).
+- [x] `02-research/ui-surfaces-and-mock-first-plan.md` — **mock-first** UI plan
+      (spirit of 1668): binding mocks as ground-truth + per-M-row mock-fidelity
+      gate on the real backend, for the wallet flow-funding surfaces.
 - [x] `intake-prompt.md` — requirements-intake instrument for **Tree** (and her
       Claude), capturing real-world needs that feed DESIGN.
 - [x] `intake-prompt-simon.md` — architecture-intake instrument for **Simon**
@@ -149,6 +152,6 @@ CELEBRATE**.
 | M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ⏳ gated on M2 + owner align |
 | M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ⏳ |
 | M5-ALIGN | Owner + Tree alignment | ⏳ |
-| M6-IMPLEMENT | `src/packages/flow-funding/` package | ⏳ |
-| M7-TEST | unit → combined-tier → E2E (narrative: a node supports a dependent end-to-end) | ⏳ |
+| M6-IMPLEMENT | `src/packages/flow-funding/` package + **mock-first** wallet surfaces (extend 1627) | ⏳ |
+| M7-TEST | unit → combined-tier → E2E (narrative: a node supports a dependent end-to-end); **per-M-row mock-fidelity gate on the real daemon** (1668 spirit) | ⏳ |
 | M8-CELEBRATE | sign-off + close-gate | ⏳ |

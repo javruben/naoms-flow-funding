@@ -169,6 +169,22 @@ prior-art studies (`prior-art-spore-flow-funding.md`, inspiration entries
   collective governance — not a new primitive. Bioregion = a hive (possibly of
   hives). Residual: scale/nesting of stewardship hives only.
 
+## L. Mock-first UI discipline (owner, 2026-06-11; spirit of 1668)
+
+- **L1. 1668 mechanism dependency.** 1668 (mock discipline for PROC-NEW-FEATURE)
+  is at 05-align, NOT landed. Adopt its canonical mechanisms (`NAOMS_UI_MOCK`,
+  Critic Cat-14, `@mock-fidelity`, Layer 12, `D-PER-M-ROW-MOCK-FIDELITY`) once
+  landed, OR fall back to the per-item precedents it promotes (1650/1630/1607) +
+  PC-414. Decide at DESIGN based on land status. Either way mock-first stands.
+- **L2. Which wallet surfaces are MVP-mocked first?** Lean: flow-agreement
+  creation, FlowPolicy configuration, flow/velocity, simulation surface (the four
+  ◆ in `ui-surfaces-and-mock-first-plan.md`).
+- **L3. Simulation surface fidelity** — does the experimentation/dry-run UI run
+  the real engine over synthetic events (real write path) or a cheaper model?
+  (Composes with F3 + the demurrage tension C2.)
+- **L4. In-app mock flag scope** — reuse/extend `NAOMS_UI_MOCK` (1668) vs the
+  existing `NAOMS_E2E_MOCK_BLOBS`/PC-414 pattern; prod boot-refuse confirmed.
+
 ## K. Maturity / reuse realism (cross-cutting)
 
 - **K1.** Only Grassroots Economics commitment pooling is production; TBFF is
