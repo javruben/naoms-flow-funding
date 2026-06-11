@@ -147,7 +147,7 @@ CELEBRATE**.
 
 | M-row | Intent | Status |
 | --- | --- | --- |
-| M1-RESEARCH | Prior-art corpus + foundations + design primitives | ✅ this session |
+| M1-RESEARCH | Prior-art corpus + foundations + design primitives + **gate artifacts** (`findings.md` + `approaches-considered.md`) | ✅ RESEARCH gate satisfied — 03-design may open |
 | M2-INTAKE | `intake-prompt.md` (Tree) + `intake-prompt-simon.md` (Simon); collect responses | ✅ both received + synthesised (`02-research/intake-synthesis-{tree,simon-and-merge}.md`) + spore prior-art (`prior-art-spore-flow-funding.md`); owner alignment next |
 | M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ⏳ gated on M2 + owner align |
 | M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ⏳ |
