@@ -105,6 +105,11 @@ CELEBRATE**.
       economy), design-primitive distillation, open questions.
 - [x] `02-research/foundations-1596-1627.md` — what the token ledger + wallet UI
       + trust graph actually provide today.
+- [x] **Prior-art deep dives** added to the docs inspiration library
+      (`docs/design/inspiration/`): `flow-funding.md`, `tbff-protocol.md`,
+      `commitment-pooling.md`, `spore-bkc.md`, `compost-capital.md` (+ INDEX).
+- [x] `02-research/open-questions.md` — consolidated living open-questions log
+      for ALIGN (forks A1–A5, plus B–K).
 - [x] `intake-prompt.md` — requirements-intake instrument for **Tree** (and her
       Claude), capturing real-world needs that feed DESIGN.
 - [x] `intake-prompt-simon.md` — architecture-intake instrument for **Simon**
