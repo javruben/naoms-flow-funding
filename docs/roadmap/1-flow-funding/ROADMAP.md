@@ -1,7 +1,7 @@
 ---
 id: 1644-flow-funding
 title: "Each node sets thresholds that automatically flow surplus income to its dependents and draw support from them, so value keeps circulating and no one hoards"
-phase: 02-research
+phase: 05-align
 opened: 2026-06-09
 opened_by: 1644 (owner-initiated)
 star: "What if money knew when to keep moving — flowing on to those who depend on us, and back to us when we are the ones in need — so no node hoards while a dependent goes without?"
@@ -149,9 +149,9 @@ CELEBRATE**.
 | --- | --- | --- |
 | M1-RESEARCH | Prior-art corpus + foundations + design primitives + **gate artifacts** (`findings.md` + `approaches-considered.md`) | ✅ RESEARCH gate satisfied — 03-design may open |
 | M2-INTAKE | `intake-prompt.md` (Tree) + `intake-prompt-simon.md` (Simon); collect responses | ✅ both received + synthesised (`02-research/intake-synthesis-{tree,simon-and-merge}.md`) + spore prior-art (`prior-art-spore-flow-funding.md`); owner alignment next |
-| M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ⏳ gated on M2 + owner align |
-| M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ⏳ |
-| M5-ALIGN | Owner + Tree alignment | ⏳ |
+| M3-DESIGN | Consolidated design doc (chain/event model, threshold semantics, triggers, consent) | ✅ `03-design/design.md` + dimensions + impl-plan + DEPENDENCIES + product-designer (verdict/personas/mocks); systems-architect verdict APPROVED-WITH-OWNER-FORKS |
+| M4-RISK | Adversarial review (runaway flow, drain attacks, consent bypass, privacy leak) | ✅ `04-risk/{stride,fmea,ethics,risk-triad}-v1.md` + RISK-MITIGATE integration; PRE-ALIGN-GATE 11/12 (check-8 MCP-down) |
+| M5-ALIGN | Owner + Tree alignment | ⏳ **AT THE GATE** — fork walk A0/A1/A2-pkg/A3/A4/D2/E4/H1-3/A5 + check-8 disposition awaiting owner |
 | M6-IMPLEMENT | `src/packages/flow-funding/` package + **mock-first** wallet surfaces (extend 1627) | ⏳ |
 | M7-TEST | unit → combined-tier → E2E (narrative: a node supports a dependent end-to-end); **per-M-row mock-fidelity gate on the real daemon** (1668 spirit) | ⏳ |
 | M8-CELEBRATE | sign-off + close-gate | ⏳ |

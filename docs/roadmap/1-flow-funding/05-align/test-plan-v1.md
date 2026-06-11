@@ -24,11 +24,12 @@ line cov → E2E driving 100% of MVP design intents. `DEFERRED`/`TODO`/`t.step.s
 | DE | Requirement (design intent) | Tier | M-row | mechanism-asserted |
 | --- | --- | --- | --- | --- |
 | DE-01 | FlowPolicy arm + versioned read (no silent re-price) | integ | M1 | latest-active-version fold |
-| DE-02 | `flow.policy_set` declares `{type,nodeKind}`; materializer uses `graphQueryAsync` | unit+integ | M1 | async sibling (PC-700/701) |
+| DE-02 | `flow.policy_set` declares `{type,nodeKind}`; materializer uses `graphQueryAsync` | integ | M1 | async sibling (PC-700/701) |
 | DE-03 | flow-agreement bilateral two-lane accept + immediate revoke | integ | M2 | **two-lane bilateral accept** |
 | DE-04 | formality dial: one object spans relational-weight ↔ contract end | unit | M2 | — |
 | DE-05 | IOU end reuses `iou` kind → negative-until-cleared | integ | M2 | `iou` kind interpret |
-| DE-06 | accrual = rate × **attestedElapsed**, never `Date.now()` | unit+integ | M3 | **no wall-clock in fold** |
+| DE-06 | accrual fold = rate × **attestedElapsed**, never `Date.now()` (pure) | unit | M3 | **no wall-clock in fold** |
+| DE-06b | accrual settles correctly across a real heartbeat-attested epoch | integ | M3 | attested-elapsed end-to-end |
 | DE-07 | gradient outflow: smooth floor→ceiling curve | unit | M3 | — |
 | DE-08 | activity-decay of entitlement | unit | M3 | — |
 | DE-09 | epoch settlement conservation: Σ(out)==surplus, refuse-loud on imbalance | integ | M3 | conservation invariant |

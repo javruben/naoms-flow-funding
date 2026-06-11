@@ -2,9 +2,9 @@
 item: 1644-flow-funding
 title: "Flow Funding — LIVE plan (resumable)"
 updated: 2026-06-12
-current_phase: 04-risk → PRE-ALIGN-GATE (next stop = 05-align FIRST HUMAN GATE)
+current_phase: 05-align — AT FIRST HUMAN GATE (PRE-ALIGN-GATE 11/12; check-8 owner-disposition)
 lifecycle: PROC-NEW-FEATURE
-workflow_next: PROC-NEW-FEATURE-PRE-ALIGN-GATE → PROC-NEW-FEATURE-ALIGN-WITH-USER
+workflow_next: PROC-NEW-FEATURE-ALIGN-WITH-USER (owner walk; STOPPED here, awaiting owner)
 ---
 
 # 1644 Flow Funding — LIVE plan
