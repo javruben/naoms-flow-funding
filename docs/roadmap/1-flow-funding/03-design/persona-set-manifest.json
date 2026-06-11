@@ -1,0 +1,23 @@
+{
+  "item": "1644",
+  "personas": [
+    {
+      "name": "Tree Willard",
+      "file": "personas/tree-willard.md",
+      "goal": "Tree sets up a codified revenue-share flow agreement with a named founding contributor (2% NAO revenue, founding tier, no expiration, full transparency), watches a simulated 6-month epoch, then inspects the flow ledger to confirm the agreement terms are represented faithfully — not just that value moved."
+    },
+    {
+      "name": "Simon (QB)",
+      "file": "personas/simon-qb.md",
+      "goal": "Simon configures FlowPolicy for his AWIP core team context (floor=$7K, ceiling=$15K, gradient generous-early, demurrage=simulation-only), runs a 3-month synthetic epoch that dips below floor in month 2, and verifies gradient transitions, demurrage is visible but not live, and the cascade preview reaches the bioregional recipients."
+    },
+    {
+      "name": "Yara Osei",
+      "file": "personas/yara-osei.md",
+      "goal": "Yara sets up FlowPolicy in felt-threshold mode (no dollar amounts), confirms the system-derived range, enables 5% commons-pool tithe, then opens the velocity view and sees that a synthetic circle member in deficit is already receiving support from Yara's outflow — without Yara taking any manual action."
+    }
+  ],
+  "frozen_at": "2026-06-12",
+  "sha256": "c09a6b734917917d87b18da8623bcbb1e69910a15c2a220adcfe75d41bfc300d",
+  "_sha256_method": "Concatenation of persona files in alphabetical filename order (simon-qb.md + tree-willard.md + yara-osei.md), SHA-256 of the raw bytes. Reproduce: python3 -c \"import hashlib; files=sorted(['simon-qb.md','tree-willard.md','yara-osei.md']); data=b''.join(open(f,'rb').read() for f in files); print(hashlib.sha256(data).hexdigest())\" from within the personas/ directory."
+}
