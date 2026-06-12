@@ -37,9 +37,27 @@ workflow_next: PROC-NEW-FEATURE-BUILD — M1 (flow pkg + chain + FlowPolicy). Ne
 Each M-row carries ≥1 integ/e2e gate (see `implementation-plan.md` for steps +
 parallelization). Substrate is State A on origin/main (no substrate gate).
 
-- **M1 — flow chain + FlowPolicy:** new `flow-funding` pkg, `flow` chainType,
-  `flow.policy_set` + FlowPolicy materializer (`graphQueryAsync`), versioned read.
-  Gate: `integ-flow-policy-set-and-read`.
+- **M1 — flow chain + FlowPolicy:** IN PROGRESS. DONE+clean (commit accef74bca):
+  `types.ts` (FlowPolicy), `manifest.ts` (flow chainType, flow.policy_set
+  nodeKind flow_policy, eventTypePrefixes ["flow."] → generic triple materializer
+  projects flow_policy; wsMessageTypes/capabilities/deps[token,trust]/permissions),
+  `manifest-operations.ts` (flow.policy_set + flow.get_policy). Also fixed a real
+  core missed-await bug (control-socket-clone-prepare.ts isMember→isMemberSync,
+  leave-better). REMAINING: `handlers/` flow dispatch (resolve/create the holon's
+  flow chain via `src/core/chain/provision.ts:ensureChainLocal` + `securedAppend`
+  {chainId,branch:"content",type:"flow.policy_set",payload,tripleFormat:
+  {featureId:"flow-funding",entityId:flowPolicyEntityId(holon,context)},domain}),
+  `namespace.ts` (NamespaceHandler prefix "flow.", handler dispatches by msg.type;
+  ctx={dbHandle,graph:{query,queryAsync},chain:{append},callerDid}),
+  `register.ts` (registerPackage(_db:bigint)), `mod.ts`, and
+  `tests/integ-flow-policy-set-and-read.test.ts` (harness:
+  tests/helpers/browser-e2e.ts startDaemonFromFixture+waitForBootReady; pattern
+  template = src/packages/attention-inbox/tests/integ-inbox-pipeline.test.ts).
+  Gate: `integ-flow-policy-set-and-read`. **PRIME re-sync needed**: prime build
+  worktree (/Users/prime/dev/naoms/.claude/worktrees/1644-flow-funding) built the
+  dylib at b8655562a9 but is now 784-behind/superseded — `git fetch` +
+  `git rebase origin/main` it (matches MBP) before build/test. MBP is
+  build-FORBIDDEN; build+test on prime.
 - **M2 — flow-agreement (formality dial) + IOU:** bilateral two-lane accept,
   reuse `iou` kind. Gate: `integ-flow-agreement-bilateral` (mechanism: two-lane).
 - **M3 — engines (gradient + activity-decay LIVE):** heartbeat-attested accrual
