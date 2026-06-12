@@ -54,36 +54,39 @@ this (main-based) worktree. **State B** = exists only on a named unmerged branch
 (cite merge source; owner must sequence the dependency). **State C** = net-new;
 requires owner ratification at 05-align.
 
+> **CORRECTED at ALIGN (2026-06-12).** The first cut of this matrix tagged the
+> token ledger **State B** — an artifact of a **stale worktree base (5885 commits
+> behind `origin/main`)**, the STALE-LOCAL-MAIN-TREE trap. The owner corrected it
+> at the ALIGN gate ("they are already on main"); after `git rebase origin/main`
+> the substrate was re-verified. Token + wallet are **State A**. **Fork A0
+> dissolves.** Demurrage moved to **reuse 1645** (its own branch); transparency
+> moved to **reuse the `sharing` package (656)** auto-sharer + Biscuit (State A) —
+> the bespoke 1644 demurrage engine and bespoke transparency mechanism are
+> **removed from 1644 scope** (Rule 8).
+
 | Primitive | State | Evidence / merge source |
 | --- | --- | --- |
-| `stewardship` hive template (land/river/ecosystem) | **A** | `src/packages/hives/templates.ts:183` (verified 2026-06-12) |
-| `linked_entity_did` (non-human entity a hive stewards) | **A** | `src/packages/hives/types.ts:32` (verified 2026-06-12) |
+| `stewardship` hive template (land/river/ecosystem) | **A** | `src/packages/hives/templates.ts:183` (verified 2026-06-12 on origin/main) |
+| `linked_entity_did` (non-human entity a hive stewards) | **A** | `src/packages/hives/types.ts:32` |
 | Trust graph (asymmetric, quantitative, typed edges) | **A** | items 030–031 celebrated; `src/packages/trust/` present |
-| `token` chainType (single-writer token chains) | **B** | `origin/1596-token-branches-2026-06-06:src/packages/token/manifest.ts:438` (chainTypes:[{chainType:"token"}]) |
-| `token.pay` / `token.define` / `token.mint` ops (action-tier, `CORE_APPROVAL_REQUIRED`) | **B** | same manifest, ops table; HC-34 / PC-1491 action-tier |
-| CIKU **ceiling interpreter** — clock-free, heartbeat-attested elapsed accrual (`ceiling = floor(attestedElapsedHours)×unitsPerHour`, NEVER wall-clock, HC-21/DE-09) | **B** | `…token/kinds/ciku/ceiling.ts` (read 2026-06-12) |
-| `iou` kind (expiry-posture, verdicts) | **B** | `…token/kinds/iou/{expiry-posture,verdicts,iou-package}.ts` |
-| `token_balance` materialized node | **B** | 1596 fold/materialize; re-verify symbol at IMPLEMENT |
-| Wallet UI microapp (`wallet-{home,send,request,detail,activity,treasury,create}.js`, `wallet.css`) | **B** | `origin/1627-wallet-ui-browser:src/packages/token/ui/` (16 files, listed 2026-06-12) |
+| `token` chainType (single-writer token chains) | **A** | `origin/main:src/packages/token/manifest.ts` chainTypes:[{chainType:"token"}] (re-verified post-rebase 2026-06-12) |
+| `token.pay` / `token.define` / `token.mint` ops (action-tier, `CORE_APPROVAL_REQUIRED`) | **A** | same manifest, ops table; HC-34 / PC-1491 action-tier |
+| CIKU **ceiling interpreter** — clock-free, heartbeat-attested elapsed accrual (`ceiling = floor(attestedElapsedHours)×unitsPerHour`, NEVER wall-clock, HC-21/DE-09) | **A** | `src/packages/token/kinds/ciku/ceiling.ts` (origin/main) |
+| `iou` kind (expiry-posture, verdicts) | **A** | `src/packages/token/kinds/iou/{expiry-posture,verdicts,iou-package}.ts` (origin/main) |
+| `token_balance` materialized node | **A** | token fold/materialize on origin/main; confirm exact symbol at IMPLEMENT |
+| Wallet UI microapp (`token/ui/wallet-*.js`, `wallet.css`) | **A** | `src/packages/token/ui/` on origin/main |
+| **`sharing` package (656) auto-sharer** — `engine/auto-share.ts` (`triggerAutoShare`/`triggerHiveAutoShare`), `engine/sharing-engine.ts:evaluateReshare` (reshare/N-hop), `sharers/sharer-friends.ts` (direct-relationship sharer) | **A** | `src/packages/sharing/` on origin/main (verified 2026-06-12); the owner's "auto-sharer" — REUSE |
+| **Biscuit** attenuable capability tokens (N-hop sharing contract) | **A** | wired in `sharing/agent-access.ts`, `sharing/sharers/`, `sharing/docs/contracts.md`; consent 040 / ocap 042 |
 | `NAOMS_E2E_MOCK_BLOBS` / PC-414 test-only-mock pattern | **A** | `src/packages/sdk/checking/rules/pc-414-mock-blobs-test-only.ts` |
-| `NAOMS_UI_MOCK` flag + Critic Cat-14 + `@mock-fidelity` (1668 mock discipline) | **B** | item 1668 @ 05-align, NOT landed — `origin/1668-*` (fallback: per-item precedents 1650/1630/1607 + PC-414) |
+| **1645 demurrage** (idle-balance decay engine) | **B** (reuse) | `1645-token-demurrage` branch, 07-verification build-complete-readiness-2026-06-11; NOT yet on origin/main — 1644 CONSUMES it, does not rebuild |
+| `NAOMS_UI_MOCK` flag + Critic Cat-14 + `@mock-fidelity` (1668 mock discipline) | **B** | item 1668 @ 05-align, not landed (fallback: per-item precedents 1650/1630/1607 + PC-414) |
 | **`flow-funding` package** | **C** | net-new; PC-471 boundary justified in §3 |
 | **`flow` chainType** (FlowPolicy + flow-agreement + story state) | **C** | net-new; §4 |
 | **FlowPolicy(holon, context, version)** object | **C** | net-new; §5 |
 | **flow-agreement** primitive (formality dial) | **C** | net-new; §6 |
-| **gradient outflow / activity-decay / demurrage** engines | **C** | net-new; §6 (demurrage simulation-first) |
-| **simulation / dry-run harness** | **C** | net-new; §6.5 |
-
-> **Independent-inventory correction (D-INDEPENDENT-INVENTORY-PASS).** The
-> 02-research artifacts treated the token ledger as ambient substrate. The
-> independent re-grep at DESIGN found `src/packages/token/` is **absent from this
-> worktree** — it lives only on `origin/1596-token-branches-2026-06-06`. The
-> token ledger is therefore **State B, not State A**, and 1644's BUILD has a
-> hard **sequencing dependency** on 1596 (+1627 for the wallet) landing first.
-> This is the single most load-bearing fact for the implementation plan and is
-> surfaced as **fork A0** at ALIGN. (Found in research's favour: the CIKU ceiling
-> interpreter and the `iou` kind are real and directly reusable — better prior
-> art than the research claimed.)
+| **gradient outflow / activity-decay** engines | **C** | net-new; §6 (demurrage is reuse-1645, NOT a net-new 1644 engine) |
+| **simulation / dry-run harness** | **C** | net-new; §6.5 (may surface 1645 demurrage as a consumer) |
+| **flow-funding sharing domain** (registers with `sharing` 656; auto-share flow outcome to direct relationships; Biscuit-attenuated N-hop) | **C** | net-new domain registration over State-A `sharing`; §7 transparency |
 
 ## 3. Package shape (Axis 1 → lean A2-pkg)
 
@@ -166,12 +169,15 @@ end reuses the **`iou` kind** (State B).
 | --- | --- | --- | --- |
 | **Gradient outflow** | surplus above ceiling | threshold crossing | **LIVE** |
 | **Activity-decay of entitlement** | a node's *claim* (Tree "stay in the river") | inactivity | **LIVE** |
-| **Demurrage** | idle *balances* (Gesell/Sarafu ~2%/mo) | elapsed-idle | **SIMULATION-ONLY first** |
+| **Demurrage** | idle *balances* (Gesell/Sarafu ~2%/mo) | elapsed-idle | **REUSE 1645** (not a 1644 engine) |
 
-Demurrage carries Simon's LIVE investment-flight tension; it ships behind the
-simulation surface (§6.5) so a holon experiments per-context before any
-network-wide live decay. This keeps the star's "no hoarding" guarantee via
-gradient + activity-decay while de-risking the contested mechanism.
+**Demurrage is item 1645's deliverable, not 1644's** (owner ALIGN decision; Rule
+8). `1645-token-demurrage` is build-complete on its own branch. Flow funding does
+NOT implement a demurrage engine; it **consumes 1645** — and may surface it in the
+simulation surface (§6.5) as a consumer so a holon can preview decay per-context.
+1644's own anti-hoarding contribution is **gradient outflow + activity-decay**
+(both LIVE). 1644 BUILD has a soft dependency on 1645 for any live-demurrage
+preview; absent 1645, gradient + activity-decay alone still satisfy the star.
 
 ### 6.3 Flow accrual model (Axis 6 → lean B2, now substrate-grounded)
 
@@ -211,8 +217,9 @@ silent clamp — Honesty axiom AX-H1; open-Q B4 → DE-09).
 A holon runs a FlowPolicy variant over **synthetic or historical** flow events
 through the **real engine on the real write path** (not a cheaper model — open-Q
 L3 resolved toward fidelity) and watches a full flow epoch before committing real
-value. This is where demurrage lives pre-live, and where the owner's
-"experimentation per person/hive per context" requirement is discharged.
+value. This is where a holon can **preview 1645 demurrage** as a consumer (no
+1644 demurrage engine), and where the owner's "experimentation per person/hive
+per context" requirement is discharged.
 
 ## 7. Story → trust signal (Axis E4 — the hardest unresolved build)
 
@@ -238,15 +245,26 @@ capability as its authorization, bounded by the cap. Revocation is immediate
 and the focus of the 04-risk security-auditor lens (runaway flow, drain attack,
 consent bypass, capability over-scope).
 
-**Privacy posture (STRIDE I1 / FMEA F9 — woven in).** Flow topology reveals
-who-depends-on-whom (below-floor = in-need), which is socially sensitive. MVP
-discloses **outcome-transparency + story-upstream only** — the network perceives
-that value was created and that need exists, *without* per-edge dependency detail
-in the clear; visibility is **relationship-scoped**, keeping faith with the
-encrypted-default (010–016). A test asserts non-disclosure of per-edge detail
-under the chosen transparency level (**DE-25**). The exact disclosure scope
-(relationship-scoped vs ecosystem-wide; identities vs terms vs amounts) is the
-**H1/H2/H3 owner fork**; ZK proof-of-need is the named post-MVP `M-1644-ZK-NEED`.
+**Privacy / transparency posture (owner ALIGN decision — local-first, reuse the
+`sharing` package).** The owner ratified: *local-first, no centralization, each
+node owns its own information; an auto-sharer shares with direct relationships and
+a Biscuit contract governs N-hop sharing.* This maps onto **reuse of the State-A
+`sharing` package (656)** — flow funding registers a **sharing domain** for flow
+outcome/velocity that:
+- **auto-shares with direct relationships** via the existing `sharer-friends`
+  builtin + `engine/auto-share.ts` (`triggerAutoShare`) — no central transparency
+  service; each node pushes its own outcome to its direct edges (**DE-26**);
+- **governs N-hop sharing with a Biscuit-attenuated capability** — the reshare
+  path (`engine/sharing-engine.ts:evaluateReshare`) carries a Biscuit token whose
+  caveats bound the hop-count and scope, so transitive disclosure is *contracted*,
+  not ambient (**DE-27**).
+
+Flow topology (who-depends-on-whom; below-floor = in-need) is therefore never in
+a central clear; per-edge detail travels only along Biscuit-authorized edges,
+keeping faith with the encrypted-default (010–016) and the Wholeness axiom
+(local-first, no central node). ZK proof-of-need remains the named post-MVP
+`M-1644-ZK-NEED`. (Forks H1/H2/H3 resolved by this decision; DE-25 generalizes to
+"no disclosure beyond the Biscuit-authorized hop scope".)
 
 ## 9. UI surfaces (mock-first — extends the 1627 wallet, NOT a new app)
 
@@ -285,38 +303,45 @@ Cross-package invariants and axiom alignment, reviewed against the whole system:
    04-risk security lens.**
 5. **Package boundary (PC-471).** ✔ §3 justification holds (own chainType +
    substrate + release boundary).
-6. **Substrate sequencing.** ⛔ **1644 BUILD cannot start before 1596 (+1627)
-   land** (State B). This is a real cross-item dependency, not a design defect —
-   surfaced as **fork A0**.
-7. **Wholeness axiom.** ✔ Flow funding coordinates over its own ledger; external
-   capital (open-Q A5) is out of MVP scope — no external runtime dependency for
-   core function.
+6. **Substrate sequencing.** ✔ **RESOLVED at ALIGN.** The ⛔ in the first cut
+   ("BUILD blocked on 1596/1627") was a **stale-worktree artifact** (5885 commits
+   behind). Token + wallet are **State A on origin/main** (re-verified post-rebase
+   2026-06-12). Fork A0 dissolved; no sequencing block. Soft dependency: 1645
+   demurrage (its own branch) for live-demurrage preview only.
+7. **Wholeness axiom.** ✔ Flow funding coordinates over its own ledger (A5 =
+   own-ledger MVP, external capital a planned follow-on); transparency is
+   **local-first** (reuse `sharing` 656 auto-sharer + Biscuit, no central node).
+   No external runtime dependency for core function.
 
-**Verdict: APPROVED-WITH-OWNER-FORKS.** The design is internally coherent and
-axiom-aligned. Two ⚠ invariants (conservation-loudness, ocap-bounding) are
-delegated to 04-risk with named test contracts. One ⛔ is a sequencing
-dependency (A0) the owner must acknowledge. No REWORK-REQUIRED finding.
+**Verdict: APPROVED-WITH-OWNER-FORKS → forks now RESOLVED at ALIGN (2026-06-12).**
+The design is internally coherent and axiom-aligned. Two ⚠ invariants
+(conservation-loudness, ocap-bounding) are delegated to 04-risk with named test
+contracts. The one ⛔ (A0 sequencing) dissolved on substrate re-verification. No
+REWORK-REQUIRED finding.
 
-## 11. Owner-ratification forks for ALIGN (the one-at-a-time walk)
+## 11. Owner-ratification forks — RESOLVED at ALIGN (2026-06-12)
 
-Carried from `approaches-considered.md`, plus A0 found at DESIGN. The design
-proceeds on the **lean**; the owner ratifies or overrides each at the human gate.
+Walked at the FIRST HUMAN GATE; decisions recorded in
+`05-align/alignment-decisions.md`. Each fork's resolution:
 
-- **A0 (new).** Sequencing: 1644 BUILD depends on 1596 + 1627 landing first
-  (State B). *Lean:* gate BUILD on those merges; DESIGN/mocks/test-plan proceed
-  now. **Owner must acknowledge the dependency.**
-- **A1.** One flow-agreement with a formality dial. *Lean: yes.*
-- **A2-pkg.** One `flow-funding` package, modalities as engines. *Lean: yes.*
-- **A3.** Gradient + activity-decay LIVE; demurrage SIMULATION-first. *Lean: yes.*
-- **A4.** New `flow` chain for policy/agreement/story; reuse `token.pay` for
-  value. *Lean: yes.*
-- **D2.** Fairness-under-scarcity rule. *Lean: need-weighted + per-claimant cap.*
-- **E4.** Story → trust-signal (nudges terrain, never releases value; numeric
-  fold deferred to a named post-MVP M-row). *Lean: as stated.*
-- **H2.** Private-edge vs perceive-need (ZK scope). *Lean: outcome-transparency +
-  story-upstream in MVP; ZK proof-of-need a post-MVP M-row, not MVP.*
+- **A0.** Sequencing → **DISSOLVED.** Token + wallet are State A on origin/main
+  ("they are already on main"); my State-B call was a stale-worktree artifact.
+- **A1.** One flow-agreement, formality dial → **RATIFIED** (facilitator-default,
+  not overridden).
+- **A2-pkg.** One `flow-funding` package, engines inside → **RATIFIED.**
+- **A3.** Demurrage → **REUSE 1645** (not a 1644 engine; owner pointed to
+  `1645-token-demurrage` build-complete). Gradient + activity-decay LIVE remain
+  1644's anti-hoarding contribution.
+- **A4.** New `flow` chain + reuse `token.pay` → **RATIFIED.**
+- **D2.** Fairness = need-weighted + per-claimant cap → **RATIFIED.**
+- **E4.** Story → trust-signal (nudge terrain, never release value; numeric fold
+  post-MVP) → **RATIFIED.**
+- **H1/H2/H3.** Transparency → **local-first; reuse `sharing` 656 auto-sharer for
+  direct relationships + Biscuit-attenuated capability for N-hop** (§8). ZK
+  post-MVP.
+- **A5.** Capital → **own-ledger MVP; external capital a planned follow-on item.**
 
-All other open questions (`open-questions.md` B–L minus the above) are
+All other open questions (`open-questions.md` B–L) remain
 `[blocks-implementation]` or facilitator-defaulted and recorded there.
 
 ## 12. Cross-references

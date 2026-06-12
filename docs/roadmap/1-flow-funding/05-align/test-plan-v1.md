@@ -39,7 +39,7 @@ line cov → E2E driving 100% of MVP design intents. `DEFERRED`/`TODO`/`t.step.s
 | DE-13 | revoke via policy-version disarm stops future flow | integ | M4 | — |
 | DE-14 | vault-locked flow w/o valid pre-ocap refuses LOUD (no silent-drop) | integ | M4 | authorization-context refuse |
 | DE-15 | simulation epoch: zero `flow.*`/`token.pay` chain writes | integ | M5 | **sim path, no commit** |
-| DE-16 | demurrage decays idle balance ONLY in sim path | integ | M5 | **simulation-only posture** |
+| DE-16 | simulation surface CONSUMES 1645 demurrage (no 1644 demurrage engine) | integ | M5 | **reuse-1645, not a 1644 engine** |
 | DE-17 | flow-agreement creation UI matches binding mock | e2e | M6.S6.1 | real-pointer + mock-fidelity |
 | DE-18 | FlowPolicy config UI + context switcher matches mock | e2e | M6.S6.2 | real-pointer + mock-fidelity |
 | DE-19 | flow/velocity view (deficit / cup-full / cascade) matches mock | e2e | M6.S6.3 | real-pointer + mock-fidelity |
@@ -48,7 +48,9 @@ line cov → E2E driving 100% of MVP design intents. `DEFERRED`/`TODO`/`t.step.s
 | DE-22 | whole-design narrative: node supports a dependent end-to-end | e2e | M7 | drives 100% MVP intents |
 | DE-23 | sybil trust-edge farming bounded by per-claimant cap + trust-edge gate | integ | M3 | trust-edge-gated allocation (STRIDE S1/FMEA F7) |
 | DE-24 | runaway cascade bounded by per-epoch outflow cap | integ | M3 | per-epoch cap, channel-count bound (STRIDE D1/FMEA F3) |
-| DE-25 | flow-topology privacy: no per-edge dependency detail disclosed under chosen transparency level | integ | M4 | relationship-scoped disclosure (STRIDE I1/FMEA F9) |
+| DE-25 | flow-topology privacy: no disclosure beyond Biscuit-authorized hop scope | integ | M-TRANSPARENCY | local-first, no central clear (STRIDE I1/FMEA F9) |
+| DE-26 | flow outcome/velocity auto-shares to DIRECT relationships via `sharing` 656 (`sharer-friends`/`triggerAutoShare`) | integ | M-TRANSPARENCY | **reuse sharing-656 auto-sharer** |
+| DE-27 | N-hop reshare carries a Biscuit-attenuated capability bounding hop-count + scope | integ | M-TRANSPARENCY | **Biscuit caveat bounds the hops** |
 
 ## Tier detail
 

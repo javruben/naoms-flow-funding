@@ -13,22 +13,15 @@ Steps (S-NN.K, one per agent delegation). Independent steps are
 **parallel-eligible** (‖); only true dependencies sequence. Refined at
 04-RISK-MITIGATE alongside the test plan, in hand before 05-align opens.
 
-## Critical-path dependency (fork A0 — owner must acknowledge)
+## Critical-path dependency — RESOLVED at ALIGN (A0 dissolved)
 
-> **1644 BUILD is gated on State-B substrate landing on `origin/main`:** the
-> **`token`** package (1596) and the **wallet UI** (1627). DESIGN, mocks, and the
-> test plan proceed now; **M-row execution starts only after 1596 (+1627) merge.**
-> If the owner wants 1644 to proceed in parallel, the alternative is to base
-> 1644's BUILD branch on the 1596 branch tip (cascade-merge) — an ALIGN decision.
+> **No substrate gate.** Token + wallet are **State A on `origin/main`** (owner
+> confirmed; re-verified post-rebase 2026-06-12). 1644 BUILD bases on origin/main
+> directly. **Soft** dependency only: `1645-token-demurrage` (its own branch) is
+> needed for the M5 live-demurrage *preview*; absent it, gradient + activity-decay
+> still satisfy the star. Transparency reuses the State-A `sharing` package (656).
 
 ## Milestones
-
-### M0 — Substrate landing gate (dependency, not 1644 code)
-- **Gate:** `git branch --merged origin/main` shows 1596 (+1627), OR owner
-  authorizes basing the BUILD branch on the 1596 tip. No 1644 code lands before
-  this resolves.
-- Not an M-row in the test sense (no 1644 test) — a **precondition** tracked here
-  so the parallelization graph is honest.
 
 ### M1 — `flow` chain + FlowPolicy substrate (State C foundation)
 - **Intent:** new `flow-funding` package, `flow` chainType, `flow.policy_set`
@@ -87,17 +80,36 @@ Steps (S-NN.K, one per agent delegation). Independent steps are
   **mechanism-asserted: token.pay `CORE_APPROVAL_REQUIRED` gate fired, capability
   bounded the amount.**
 
-### M5 — Simulation / dry-run harness (+ demurrage simulation-only)
+### M5 — Simulation / dry-run harness (+ 1645 demurrage as a CONSUMER)
 - **Intent:** run a FlowPolicy variant over synthetic/historical events through
-  the real engine, in-process (no chain commit); demurrage lives here.
+  the real engine, in-process (no chain commit). Demurrage is **reused from 1645**
+  (not built here) and surfaced as a preview.
 - **Steps:**
   - S5.1 — sim driver: real engine over in-process synthetic state; no
     `token.pay`, no chain commit. depends M3
-  - S5.2 — demurrage engine, **simulation-only** (D-FF-ENGINE-POSTURE). depends S5.1
+  - S5.2 — **consume 1645 demurrage** in the sim preview (Rule 8 — no 1644
+    demurrage engine). Soft-dep on 1645 branch; degrade gracefully if absent.
 - **Gate (integ):** `integ-flow-simulation-no-commit` — a sim epoch produces an
   allocation report while asserting **zero `flow.*`/`token.pay` chain writes
-  occurred**; demurrage decays an idle balance **only in the sim path**.
-  **mechanism-asserted: simulation path, not live ledger.**
+  occurred**; the demurrage preview **invokes 1645**, not a 1644 engine (DE-16).
+  **mechanism-asserted: simulation path + reuse-1645.**
+
+### M-TRANSPARENCY — local-first auto-share (reuse `sharing` 656) + Biscuit N-hop
+- **Intent:** flow outcome/velocity is shared local-first — auto-shared to direct
+  relationships, Biscuit-governed for N-hops. NO new auto-sharer, NO central
+  transparency service (owner ALIGN decision).
+- **Steps:**
+  - ST.1 — register a flow-funding **sharing domain** with `sharing` 656
+    (`registerDomain`); auto-share flow outcome to direct relationships via
+    `sharer-friends` / `engine/auto-share.ts:triggerAutoShare`. ‖ (after M3)
+  - ST.2 — N-hop reshare path carries a **Biscuit-attenuated capability**
+    (caveats bound hop-count + scope) via `engine/sharing-engine.ts:evaluateReshare`.
+    depends ST.1
+- **Gate (integ):** `integ-flow-transparency-local-first` — flow outcome
+  auto-shares to a direct relationship (DE-26); an N-hop reshare beyond the
+  Biscuit-authorized hop scope is **refused** (DE-27); no disclosure to a node
+  outside the authorized scope (DE-25). **mechanism-asserted: sharing-656
+  auto-share + Biscuit caveat enforcement.**
 
 ### M6 — Wallet UI surfaces (mock-first; extends 1627; the four ◆)
 - **Intent:** flow-agreement creation, FlowPolicy config, flow/velocity view,
@@ -126,19 +138,21 @@ Steps (S-NN.K, one per agent delegation). Independent steps are
 ## Parallelization graph
 
 ```
-M0 (substrate land) ──> M1 ──> M2 ──┐
-                          │         ├─> M6.S6.1 (agreement UI)
-                          ├──> M3 ──┼─> M6.S6.3 (velocity UI)
-                          │    │    └─> M5 ──> M6.S6.4 (sim UI)
-                          │    └──> M4 ──────────────────────┐
-                          └──> M6.S6.2 (policy UI)            │
-M1..M6 ──────────────────────────────────────────────> M7 (narrative E2E)
+(base on origin/main; no M0 gate) ──> M1 ──> M2 ──┐
+                                        │          ├─> M6.S6.1 (agreement UI)
+                                        ├──> M3 ──┬─> M6.S6.3 (velocity UI)
+                                        │    │    ├─> M5 ──> M6.S6.4 (sim UI)  [soft-dep 1645]
+                                        │    │    └─> M-TRANSPARENCY (sharing-656 + Biscuit)
+                                        │    └──> M4 ───────────────────────────┐
+                                        └──> M6.S6.2 (policy UI)                 │
+M1..M6 + M-TRANSPARENCY ──────────────────────────────────────────> M7 (narrative E2E)
 ```
 
 - M1 is the foundation (everything depends on it).
 - M2, M3, M4(after M3 for settlement), M6.S6.2 fan out from M1 — parallel-eligible.
-- M5 depends on M3 (real engine). UI steps depend on their backend M-row.
-- M7 gates on all MVP M-rows.
+- M5 depends on M3 (real engine) + soft-dep 1645 (demurrage preview).
+- M-TRANSPARENCY depends on M3 (outcome to share) — reuses State-A `sharing` 656.
+- UI steps depend on their backend M-row. M7 gates on all MVP M-rows.
 
 ## Demoted / deferred (compression + Honor no-headers-as-deferral)
 
