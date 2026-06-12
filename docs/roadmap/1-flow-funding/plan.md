@@ -2,9 +2,9 @@
 item: 1644-flow-funding
 title: "Flow Funding — LIVE plan (resumable)"
 updated: 2026-06-12
-current_phase: 05-align — AT FIRST HUMAN GATE (PRE-ALIGN-GATE 11/12; check-8 owner-disposition)
+current_phase: 05-align — owner walk DONE; awaiting critic plan-review verdict → then frozen-plan → BUILD
 lifecycle: PROC-NEW-FEATURE
-workflow_next: PROC-NEW-FEATURE-ALIGN-WITH-USER (owner walk; STOPPED here, awaiting owner)
+workflow_next: REDUNDANCY-CHECK (done via ALIGN integration) → frozen-plan.md (on plan-approved) → BUILD M1
 ---
 
 # 1644 Flow Funding — LIVE plan
@@ -22,26 +22,21 @@ workflow_next: PROC-NEW-FEATURE-ALIGN-WITH-USER (owner walk; STOPPED here, await
   `persona-set-manifest.json` + `mockup/` (binding mocks).
 - **RISK (04-risk)** ✅ — `stride/fmea/ethics/risk-triad-v1.md` + RISK-MITIGATE
   `open-questions.md`; HIGH+ findings integrated into design (no addendum).
-- **TEST PLAN DRAFT** ✅ — `05-align/test-plan-v1.md` (DE-01..25). Phase-1
-  plan-review fires at ALIGN entry (queue-elected critic).
-- **NEXT:** PRE-ALIGN-GATE (12 checks) → **STOP at ALIGN human gate.** Do NOT
-  open BUILD; do NOT submit to merge queue.
+- **TEST PLAN DRAFT** ✅ — `05-align/test-plan-v1.md` (DE-01..27).
+- **ALIGN (05-align)** ✅ owner walk DONE 2026-06-12 — `05-align/alignment-decisions.md`.
+  Forks resolved: A0 dissolved (token/wallet State A on main) · A3 reuse-1645 ·
+  H1/H2/H3 reuse sharing-656 auto-sharer + Biscuit N-hop · A5 own-ledger-MVP ·
+  A1/A2-pkg/A4/D2/E4 ratified. Worktree REBASED onto origin/main.
+- **NEXT:** await critic plan-review verdict (`scripts/critic-queue.sh`, entry
+  `ec-20260612T131832-p1-…`) → on `plan-approved`, write `frozen-plan.md`
+  (SHA-pin) → BUILD M1. On `plan-rework`, fold findings first. Do NOT submit to
+  merge queue until owner CELEBRATE.
 
-## The ALIGN walk (what the owner decides — one at a time)
-
-Forks (from `design.md` §11 + `04-risk/open-questions.md` [blocks-design]):
-A0 substrate-sequencing · A1 formality-dial · A2-pkg one-package · A3
-gradient+decay-live/demurrage-sim-first · A4 new `flow` chain+reuse `token.pay` ·
-D2 fairness-rule · E4 story→trust-signal · H1/H2/H3 transparency-scope · A5
-external-capital. Each: full context + candidate answers + recommendation.
-
-## BUILD milestones (execute ONLY after ALIGN ratifies + M0 substrate lands)
+## BUILD milestones (execute after frozen-plan; base on origin/main, NO M0 gate)
 
 Each M-row carries ≥1 integ/e2e gate (see `implementation-plan.md` for steps +
-parallelization). Copy-pasteable briefs:
+parallelization). Substrate is State A on origin/main (no substrate gate).
 
-- **M0 (precondition):** confirm 1596+1627 merged to origin/main OR owner authorizes
-  basing BUILD on 1596 tip. No 1644 code before this.
 - **M1 — flow chain + FlowPolicy:** new `flow-funding` pkg, `flow` chainType,
   `flow.policy_set` + FlowPolicy materializer (`graphQueryAsync`), versioned read.
   Gate: `integ-flow-policy-set-and-read`.
@@ -51,17 +46,22 @@ parallelization). Copy-pasteable briefs:
   (CIKU pattern, no wall-clock), conservation-loud, caps (DE-23/24).
   Gate: `integ-flow-epoch-settle-conservation`.
 - **M4 — consent / scoped ocap:** bounded capability rides `token.pay`
-  (CORE_APPROVAL_REQUIRED non-bypass), privacy DE-25.
-  Gate: `e2e-flow-consent-bounded` (2 daemons).
-- **M5 — simulation harness (+ demurrage sim-only):** real engine over in-process
-  synthetic state, zero chain writes. Gate: `integ-flow-simulation-no-commit`.
+  (CORE_APPROVAL_REQUIRED non-bypass). Gate: `e2e-flow-consent-bounded` (2 daemons).
+- **M5 — simulation harness (CONSUMES 1645 demurrage, no 1644 engine):** real
+  engine over in-process synthetic state, zero chain writes; soft-dep 1645.
+  Gate: `integ-flow-simulation-no-commit` (DE-16 reuse-1645).
+- **M-TRANSPARENCY — local-first share (reuse sharing 656) + Biscuit N-hop:**
+  register flow sharing-domain, auto-share to direct relationships
+  (`sharer-friends`/`triggerAutoShare`), Biscuit caveat bounds N-hop reshare.
+  Gate: `integ-flow-transparency-local-first` (DE-25/26/27).
 - **M6 — wallet UI (4 ◆ surfaces, mock-first):** build FROM `03-design/mockup/`,
   real-pointer e2e + per-M-row mock-fidelity on real daemon. Gates: `e2e-<surface>`.
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
-  `M-1644-ZK-NEED` (H2), ○ later UI surfaces.
+  `M-1644-ZK-NEED` (H2), external-capital bridge (A5), ○ later UI surfaces.
 
 ## Standing constraints
-Zero Rule (this worktree only); push ≠ merge; don't touch 3147; don't edit the
-1668 worktree; re-grep State-B token symbols at IMPLEMENT (unmerged branch).
+Zero Rule (this worktree only); push ≠ merge (force-with-lease OK on own branch
+post-rebase); don't touch 3147; don't edit the 1668 worktree. Substrate now
+State A on origin/main (worktree rebased) — no re-grep-on-branch needed.
