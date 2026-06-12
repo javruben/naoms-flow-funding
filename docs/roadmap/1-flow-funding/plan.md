@@ -2,9 +2,9 @@
 item: 1644-flow-funding
 title: "Flow Funding — LIVE plan (resumable)"
 updated: 2026-06-12
-current_phase: 05-align — owner walk DONE; awaiting critic plan-review verdict → then frozen-plan → BUILD
+current_phase: 06-implement (BUILD) — ALIGN passed, critic plan-approved, frozen-plan SEALED → BUILD opens at M1
 lifecycle: PROC-NEW-FEATURE
-workflow_next: REDUNDANCY-CHECK (done via ALIGN integration) → frozen-plan.md (on plan-approved) → BUILD M1
+workflow_next: PROC-NEW-FEATURE-BUILD — M1 (flow pkg + chain + FlowPolicy). Next human gate = CONVERGE (2nd)
 ---
 
 # 1644 Flow Funding — LIVE plan
