@@ -64,8 +64,19 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   `scripts/worktree-wasm-ready.sh` + `scripts/worktree-fixtures-ready.sh`; run
   `NAOMS_FFI_LIB_PATH=rust/target/release/ /Users/prime/.deno/bin/deno test
   --allow-all --unstable-ffi --unstable-worker-options --no-check <test>`.
-- **M2 — flow-agreement (formality dial) + IOU:** bilateral two-lane accept,
-  reuse `iou` kind. Gate: `integ-flow-agreement-bilateral` (mechanism: two-lane).
+- **M2 — flow-agreement (formality dial) + IOU:** integ GREEN + PUSHED
+  (origin/1644-flow-funding @ a8305186f2). `integ-flow-agreement-bilateral` GREEN on
+  prime (2 daemons, cross-peer fold active→revoke; RED-proven by disabling
+  flowAgreementFold). 3 prod fixes landed: friendship-branch-allowlist admits
+  flow.agreement_*; handler drops `domain` (sharing-domain-key gate rejected peer
+  replication); bilateral chain signs both lanes w/ shared content-signer (two-lane
+  witness = payload author, handler-gated). PUSH-GATE LESSON: post-rescission
+  pre-push gates surfaced fleet-main debt (1670 dup, stale catalogue, unreserved
+  1693) as if mine (DIFF_BASE=old-tip); fix = absorb LATEST origin/main (fleet had
+  deduped 1670; rebase auto-drops redundant commits) — NOT bypass. REMAINING M2:
+  e2e-flow-agreement-cli (real CLI both sides, T-03e) + IOU-end arm (terms.iou →
+  token.define kind:"iou" via tools-define.ts → negative-until-cleared, T-05).
+  Old gate line: bilateral two-lane accept, reuse `iou` kind.
   **REUSE MAP (verified 2026-06-14):** the bilateral two-lane = token's co-present
   dual-sign — `validateCoPresentEntry(entry,{payerHead})`
   (token/domain/ceremony.ts:71: both sigs atomic, distinct DIDs, payer-head in
