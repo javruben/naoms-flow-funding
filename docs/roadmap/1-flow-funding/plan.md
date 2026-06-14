@@ -4,7 +4,7 @@ title: "Flow Funding — LIVE plan (resumable)"
 updated: 2026-06-12
 current_phase: 06-implement (BUILD) — ALIGN passed, critic plan-approved, frozen-plan SEALED → BUILD opens at M1
 lifecycle: PROC-NEW-FEATURE
-workflow_next: PROC-NEW-FEATURE-BUILD — M1 (flow pkg + chain + FlowPolicy). Next human gate = CONVERGE (2nd)
+workflow_next: PROC-NEW-FEATURE-BUILD — M1 ✅ GREEN (82936b80e1); next M2 (flow-agreement bilateral + IOU). Human gate = CONVERGE (2nd)
 ---
 
 # 1644 Flow Funding — LIVE plan
@@ -37,27 +37,33 @@ workflow_next: PROC-NEW-FEATURE-BUILD — M1 (flow pkg + chain + FlowPolicy). Ne
 Each M-row carries ≥1 integ/e2e gate (see `implementation-plan.md` for steps +
 parallelization). Substrate is State A on origin/main (no substrate gate).
 
-- **M1 — flow chain + FlowPolicy:** IN PROGRESS. DONE+clean (commit accef74bca):
-  `types.ts` (FlowPolicy), `manifest.ts` (flow chainType, flow.policy_set
-  nodeKind flow_policy, eventTypePrefixes ["flow."] → generic triple materializer
-  projects flow_policy; wsMessageTypes/capabilities/deps[token,trust]/permissions),
-  `manifest-operations.ts` (flow.policy_set + flow.get_policy). Also fixed a real
-  core missed-await bug (control-socket-clone-prepare.ts isMember→isMemberSync,
-  leave-better). REMAINING: `handlers/` flow dispatch (resolve/create the holon's
-  flow chain via `src/core/chain/provision.ts:ensureChainLocal` + `securedAppend`
-  {chainId,branch:"content",type:"flow.policy_set",payload,tripleFormat:
-  {featureId:"flow-funding",entityId:flowPolicyEntityId(holon,context)},domain}),
-  `namespace.ts` (NamespaceHandler prefix "flow.", handler dispatches by msg.type;
-  ctx={dbHandle,graph:{query,queryAsync},chain:{append},callerDid}),
-  `register.ts` (registerPackage(_db:bigint)), `mod.ts`, and
-  `tests/integ-flow-policy-set-and-read.test.ts` (harness:
-  tests/helpers/browser-e2e.ts startDaemonFromFixture+waitForBootReady; pattern
-  template = src/packages/attention-inbox/tests/integ-inbox-pipeline.test.ts).
-  Gate: `integ-flow-policy-set-and-read`. **PRIME re-sync needed**: prime build
-  worktree (/Users/prime/dev/naoms/.claude/worktrees/1644-flow-funding) built the
-  dylib at b8655562a9 but is now 784-behind/superseded — `git fetch` +
-  `git rebase origin/main` it (matches MBP) before build/test. MBP is
-  build-FORBIDDEN; build+test on prime.
+- **M1 — flow chain + FlowPolicy:** ✅ DONE + GREEN (commit 82936b80e1, pushed
+  origin/1644-flow-funding). Package complete: `types.ts`, `manifest.ts` (flow
+  chainType single-writer, flow.policy_set nodeKind flow_policy, eventTypePrefixes
+  ["flow."] → generic triple materializer; deps[token,trust]),
+  `manifest-operations.ts`, `handlers/policy-set.ts` (flow.policy_set provisions
+  the holon's own flow chain via `createChain` + `securedAppend` content branch w/
+  tripleFormat entityId=flow-policy-<holon>-<context>-v<n>; self-set only F5;
+  flow.get_policy folds latest-active via ctx.graph.queryAsync), `namespace.ts`
+  (prefix "flow."), `materializers/flow-policy.ts` (flowPolicySupersede POST
+  enricher — awaits scope.graphQueryAsync, demotes prior versions is_latest:false;
+  PC-700/701; the C3 mechanism), `enrichers/index.ts`, `register.ts`. `mod.ts`
+  deliberately NOT created (loader discovers files individually; Compression).
+  Gate `integ-flow-policy-set-and-read`: GREEN on prime (1 passed, 57s). RED proof
+  (enricher disabled → latestActiveCount 2≠1) confirms the mechanism assertion
+  bites (HC-10). Core missed-await fix from accef74bca DROPPED on rebase —
+  SUPERSEDED on origin/main (selfIsRepoMember now async + awaits isMember).
+  **PRIME TEST RECIPE (reuse for M2+):** MBP can't run flow integ tests (build-
+  forbidden + CoW-cloned-dylib/copied-fixture crypto mismatch → vault.unlock
+  aead::Error before the test body). Run on prime: `ssh prime`; reset its worktree
+  `/Users/prime/dev/naoms/.claude/worktrees/1644-flow-funding` to origin/main
+  (`git fetch origin && git reset --hard origin/main`); `rsync -az --delete
+  src/packages/flow-funding/` MBP→prime; CoW-clone prime main dylib
+  (`cp -c -R /Users/prime/dev/naoms/rust/target/release/. rust/target/release/` —
+  hash matches origin/main rust/src, no cargo, freshness guard passes) +
+  `scripts/worktree-wasm-ready.sh` + `scripts/worktree-fixtures-ready.sh`; run
+  `NAOMS_FFI_LIB_PATH=rust/target/release/ /Users/prime/.deno/bin/deno test
+  --allow-all --unstable-ffi --unstable-worker-options --no-check <test>`.
 - **M2 — flow-agreement (formality dial) + IOU:** bilateral two-lane accept,
   reuse `iou` kind. Gate: `integ-flow-agreement-bilateral` (mechanism: two-lane).
 - **M3 — engines (gradient + activity-decay LIVE):** heartbeat-attested accrual
