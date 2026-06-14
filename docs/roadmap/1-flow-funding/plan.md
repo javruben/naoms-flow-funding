@@ -82,6 +82,27 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   peer-pair, two DISTINCT ownerDids (NOT the agent-hallucinated
   spawnTwoDaemonCall/n4-daemon-harness). e2e-cli spawn helper TBV (PC-323 bans
   inline Deno.Command). Build+test on prime per the M1 recipe above.
+  **LOCKED DESIGN (verified 2026-06-14):** the agreement lives on the BILATERAL
+  FRIENDSHIP CHAIN `fcAB` (`deriveFriendshipChainId(ownerDid,peerDid)` from
+  contacts/friendship-chain-id.ts; probe `ctx.chain.get(fcId)`), NOT each holon's
+  owner-local flow chain — fcAB is created AT pair-time so it provably replicates
+  (chat canary proves it); a post-pair owner-local chain's chain-identity key is
+  NOT in the pairing blob → would NOT replicate (silent-drop-classes.md:60). Mirror
+  chat-send.ts: `securedAppend(db,{chainId:fcId,branch:<flow branch>,type:
+  "flow.agreement_*",payload,signerDid,signerKeyId:\`${signerDid}#key-0\`})` DIRECTLY
+  (cross-chain event — flow-funding doesn't own fcAB; bypasses package cap gate like
+  chat does for message.sent). Declare flow.agreement_proposed/accepted/revoked as
+  manifest `crossChainEventTypes` (1111 — events emitted onto a chain of a DIFFERENT
+  type than the package owns) → nodeKind `flow_agreement`. Custom materializer folds
+  both lanes: status `active` iff proposer-terms AND counterparty-acceptance both on
+  the node (handles either arrival order); `revoked` on flow.agreement_revoked.
+  Mechanism (HC-10): active ONLY because two distinct commits (signer A proposed +
+  signer B accepted) both landed+replicated on fcAB — assert via chain.query{fcAB}.
+  IOU end = token.define kind:"iou" (tools-define.ts wired) → negative-until-cleared.
+  Harness: `withDevices({groups:[{identity:"founder",devices:1},{identity:"invitee-a",
+  devices:1}]})`; `env.allHandles`=[A,B] (.ws/.ownerDid distinct), `env.friendshipChainIds["0-1"]`
+  =fcAB; cross-peer assert via `chain.query{chainId:fcAB}` + load-invariant pollUntil
+  (pattern: tests/features/canaries/integ-canary-chat-edit-retract.test.ts).
 - **M3 — engines (gradient + activity-decay LIVE):** heartbeat-attested accrual
   (CIKU pattern, no wall-clock), conservation-loud, caps (DE-23/24).
   Gate: `integ-flow-epoch-settle-conservation`.

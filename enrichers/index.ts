@@ -6,7 +6,9 @@
 
 import type { MaterializerEnricher } from "@naoms/core/enrichers/types.ts";
 import { flowPolicySupersede } from "../materializers/flow-policy.ts";
+import { flowAgreementFold } from "../materializers/flow-agreement.ts";
 
 export const packageEnrichers: MaterializerEnricher[] = [
-  flowPolicySupersede,
+  flowPolicySupersede, // M1: latest-active FlowPolicy version
+  flowAgreementFold, // M2: bilateral two-lane agreement status fold
 ];

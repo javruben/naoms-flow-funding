@@ -57,11 +57,24 @@ export const MANIFEST: NaomsFeatureManifest = {
 
   graphTypes: [
     { nodeType: "flow_policy", access: "read-write" },
+    { nodeType: "flow_agreement", access: "read-write" },
+  ],
+
+  // M2 (1111 cross-chain hygiene): the flow-agreement events are emitted onto the
+  // BILATERAL FRIENDSHIP CHAIN (a chain of type "friendship", not "flow") — the
+  // proven cross-peer replication lane — so they are declared on the cross-chain
+  // surface, not under chainTypes[].eventTypes[]. Both lanes project to one
+  // `flow_agreement` node keyed by agreementId; the flow-agreement fold enricher
+  // (materializers/flow-agreement.ts) computes the bilateral status.
+  crossChainEventTypes: [
+    { type: "flow.agreement_proposed", nodeKind: "flow_agreement" },
+    { type: "flow.agreement_accepted", nodeKind: "flow_agreement" },
+    { type: "flow.agreement_revoked", nodeKind: "flow_agreement" },
   ],
 
   // flow.policy_set projects flow_policy via the generic triple materializer
-  // (prefix declared here + nodeKind on the eventType above). No custom
-  // materializer for M1; M3+ settlement adds its own.
+  // (prefix declared here + nodeKind on the eventType above). The flow.agreement_*
+  // events project flow_agreement the same way (prefix "flow." + nodeKind above).
   eventTypePrefixes: ["flow."],
 
   wsMessageTypes: [
@@ -69,6 +82,14 @@ export const MANIFEST: NaomsFeatureManifest = {
     { type: "flow.policy_set.result", direction: "outbound", description: "Ack with commit id" },
     { type: "flow.get_policy", direction: "inbound", description: "Read latest FlowPolicy" },
     { type: "flow.get_policy.result", direction: "outbound", description: "Latest FlowPolicy" },
+    { type: "flow.agreement_propose", direction: "inbound", description: "Propose a bilateral flow-agreement" },
+    { type: "flow.agreement_propose.result", direction: "outbound", description: "Ack with agreementId" },
+    { type: "flow.agreement_accept", direction: "inbound", description: "Accept a proposed flow-agreement" },
+    { type: "flow.agreement_accept.result", direction: "outbound", description: "Ack acceptance" },
+    { type: "flow.agreement_revoke", direction: "inbound", description: "Revoke a flow-agreement" },
+    { type: "flow.agreement_revoke.result", direction: "outbound", description: "Ack revoke" },
+    { type: "flow.get_agreement", direction: "inbound", description: "Read folded agreement status" },
+    { type: "flow.get_agreement.result", direction: "outbound", description: "Agreement status + terms" },
   ],
 
   capabilities: [
