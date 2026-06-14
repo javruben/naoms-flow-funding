@@ -66,6 +66,22 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   --allow-all --unstable-ffi --unstable-worker-options --no-check <test>`.
 - **M2 — flow-agreement (formality dial) + IOU:** bilateral two-lane accept,
   reuse `iou` kind. Gate: `integ-flow-agreement-bilateral` (mechanism: two-lane).
+  **REUSE MAP (verified 2026-06-14):** the bilateral two-lane = token's co-present
+  dual-sign — `validateCoPresentEntry(entry,{payerHead})`
+  (token/domain/ceremony.ts:71: both sigs atomic, distinct DIDs, payer-head in
+  prevHashes, spend-nonce replay guard) + cross-daemon t=2 quorum via
+  `appendTokenCommit`→`coordinateQuorumSign` (chain-quorum-wire.ts). **token.pay
+  IS WIRED** at `token/tools-pay.ts:handlePay` (real `appendTokenCommit(db,node,
+  "token.transfer",…)` + membership co-sign gate; NOT the `token/ops.ts` op-
+  registry which is the newer NotYetWired layer — reuse the LANDED tools.ts/
+  tools-pay.ts/tools-define.ts handlers, never ops.ts). IOU end = `iou` kind
+  (token/kinds/iou/{verdicts.ts:iouMutualCreditMintVerdict/iouTransferVerdict,
+  iou-package.ts:IOU_TOKEN_KIND="iou"}) — mutual-credit, negative-until-cleared,
+  cleared via the wired token.pay transfer. **2-identity integ harness =
+  `withDevices(...)` (tests/helpers/with-devices.ts:106)** — founder + invitee
+  peer-pair, two DISTINCT ownerDids (NOT the agent-hallucinated
+  spawnTwoDaemonCall/n4-daemon-harness). e2e-cli spawn helper TBV (PC-323 bans
+  inline Deno.Command). Build+test on prime per the M1 recipe above.
 - **M3 — engines (gradient + activity-decay LIVE):** heartbeat-attested accrual
   (CIKU pattern, no wall-clock), conservation-loud, caps (DE-23/24).
   Gate: `integ-flow-epoch-settle-conservation`.
