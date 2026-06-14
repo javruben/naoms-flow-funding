@@ -97,12 +97,17 @@ async function appendAgreementEvent(
   payload: Record<string, unknown>,
   entityId: string,
 ): Promise<string> {
+  // NO `domain` field: a `domain` triggers the sharing-domain-key gate, and the
+  // peer rejects the replicated commit ("sender lacks domain key for <domain>")
+  // unless <domain> is a registered sharing domain with exchanged keys. A
+  // bilateral agreement is already scoped by friendship-chain membership (both
+  // parties are members), so it replicates plainly like message.sent / task.* —
+  // which also omit `domain`. tripleFormat still drives the graph projection.
   const commit = await securedAppend(ctx.dbHandle, {
     chainId: fcId,
     branch: "content",
     type,
     payload: JSON.stringify(payload),
-    domain: "flow-funding",
     signerDid,
     signerKeyId: `${signerDid}#key-0`,
     tripleFormat: { featureId: "flow-funding", entityId },
