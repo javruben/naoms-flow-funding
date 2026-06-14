@@ -77,6 +77,29 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   e2e-flow-agreement-cli (real CLI both sides, T-03e) + IOU-end arm (terms.iou →
   token.define kind:"iou" via tools-define.ts → negative-until-cleared, T-05).
   Old gate line: bilateral two-lane accept, reuse `iou` kind.
+  **e2e-cli BLOCKED on prime (2026-06-15)**: test authored + deno-checks clean
+  (reuses chat two-daemon-cli-harness — `spawnTwoDaemonCliHarness`/`peerPair`/`cli`;
+  op flags are verbatim `--agreementId`/`--counterparty`/`--terms`<json>;
+  PeerPairResult.chainId). BUT the harness's `spawnFreshFounderDaemon` (FULL fresh
+  onboarding, NO fixture) exits **code 78 (EX_CONFIG)** on prime under the CoW-dylib
+  passthrough — full crypto/signer init needs a CONSISTENT real-built dylib, which
+  the no-cargo-on-prime passthrough can't give. The FIXTURE-based withDevices integ
+  works on prime precisely because fixtures bypass onboarding. RESOLUTION OPTIONS
+  (owner/next): (a) real cargo build on prime for this arm (against no-cargo
+  guidance), (b) run e2e-cli on a build-capable host, or (c) a fixture-based 2-daemon
+  CLI harness. Test left UNCOMMITTED (ratchet needs a GREEN run). NOT a test/prod
+  defect — purely the fresh-founder prime-boot environment.
+  **IOU arm — tractable but DEFERRED (compose with M4):** the negative-balance
+  genuinely needs the full 2-daemon token co-present pay ceremony (token.define
+  kind:iou + token.admit + token.pay → debtor token_balance negative;
+  src/packages/token/tests/integ-token-pay-payee-credit.test.ts is the pattern). Its
+  harness `tests/helpers/two-daemon-call.ts` is FIXTURE-based (alice/bob pre-onboard)
+  → DOES run on prime. But value-movement is M4's surface ("flow rides token.pay"),
+  so the IOU-end (iou define + reference + negative balance via the co-present pay)
+  composes naturally with M4 — deferred there, not faked here. M2 is PARTIAL:
+  integ-gate ✅ done+pushed; e2e-cli prime-blocked; IOU arm deferred to M4.
+  **→ PIVOT to M3 (engines) — depends only on M1 (done), the core anti-hoarding
+  value-circulation logic (the star), fixture-harness works on prime.**
   **REUSE MAP (verified 2026-06-14):** the bilateral two-lane = token's co-present
   dual-sign — `validateCoPresentEntry(entry,{payerHead})`
   (token/domain/ceremony.ts:71: both sigs atomic, distinct DIDs, payer-head in
