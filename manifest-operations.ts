@@ -213,4 +213,36 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       required: ["context", "balance"],
     },
   },
+  {
+    name: "simulate",
+    description:
+      "Preview a flow epoch by running the real engines over synthetic state — " +
+      "returns an allocation report and commits NOTHING (dry-run before arming value).",
+    version: 1,
+    method: "ws_message",
+    messageType: "flow.simulate",
+    pattern: "send",
+    returns: "flow.simulate.result",
+    category: "read",
+    trustLevel: "owner",
+    cli: { name: "simulate" },
+    intent_tags: ["flow", "flow-funding", "simulate", "preview", "dry-run"],
+    when_to_use:
+      "Owner wants to experiment — preview how surplus would flow over a set of holons + policies before committing real value.",
+    when_not_to_use:
+      "Use flow.epoch_settle to commit a real settlement; use flow.policy_set to arm a band.",
+    completionEvents: [],
+    inputSchema: {
+      type: "object",
+      properties: {
+        holons: {
+          type: "array",
+          description: "Synthetic holons [{id, balance, floor, ceiling, gradient?, rate?, channels?}]",
+        },
+        epochs: { type: "number", description: "Epochs to simulate (default 1)" },
+        attestedElapsedPerEpoch: { type: "number", description: "Attested elapsed per epoch (accrual)" },
+      },
+      required: ["holons"],
+    },
+  },
 ];

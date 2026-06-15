@@ -96,6 +96,8 @@ export const MANIFEST: NaomsFeatureManifest = {
     { type: "flow.get_agreement.result", direction: "outbound", description: "Agreement status + terms" },
     { type: "flow.epoch_settle", direction: "inbound", description: "Settle one flow epoch (run engines, conserved)" },
     { type: "flow.epoch_settle.result", direction: "outbound", description: "Conserved allocation or loud refusal" },
+    { type: "flow.simulate", direction: "inbound", description: "Preview a flow epoch over synthetic state (no commit)" },
+    { type: "flow.simulate.result", direction: "outbound", description: "Allocation report (committed:false)" },
   ],
 
   capabilities: [
