@@ -137,14 +137,30 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   devices:1}]})`; `env.allHandles`=[A,B] (.ws/.ownerDid distinct), `env.friendshipChainIds["0-1"]`
   =fcAB; cross-peer assert via `chain.query{chainId:fcAB}` + load-invariant pollUntil
   (pattern: tests/features/canaries/integ-canary-chat-edit-retract.test.ts).
-- **M3 — engines (gradient + activity-decay LIVE):** heartbeat-attested accrual
-  (CIKU pattern, no wall-clock), conservation-loud, caps (DE-23/24).
-  Gate: `integ-flow-epoch-settle-conservation`.
+- **M3 — engines (gradient + activity-decay LIVE):** ✅ core done + PUSHED. Pure
+  engines (engine/{accrual,gradient,activity-decay,allocate}.ts) UNIT-GREEN on MBP
+  (13/13, RED-proven by stubbing the allocator) — CIKU heartbeat-attested accrual
+  (no wall-clock, structural), gradient outflow, claim activity-decay, conserved
+  (Σ(out)==surplus, refuse-loud) + per-claimant-cap water-fill allocator. handlers/
+  epoch-settle.ts + `integ-flow-epoch-settle-conservation` GREEN on prime (55s,
+  RED-proven by swapping the refuse path) — settles balance 800→surplus 300 conserved,
+  refuses loud (residual 250) on unconservable. Gate ✅. REMAINING M3: multi-daemon
+  partition arm (T-21, over-flow detect on reconnect) + e2e-flow-settle-cli (shares
+  the M2 e2e-cli fresh-founder prime blocker). **→ M5 next (sim; depends M3).**
 - **M4 — consent / scoped ocap:** bounded capability rides `token.pay`
   (CORE_APPROVAL_REQUIRED non-bypass). Gate: `e2e-flow-consent-bounded` (2 daemons).
-- **M5 — simulation harness (CONSUMES 1645 demurrage, no 1644 engine):** real
-  engine over in-process synthetic state, zero chain writes; soft-dep 1645.
-  Gate: `integ-flow-simulation-no-commit` (DE-16 reuse-1645).
+- **M5 — simulation harness (CONSUMES 1645 demurrage, no 1644 engine):** ✅ done +
+  PUSHED. sim/driver.ts (pure, reuses M3 engines over synthetic state, conserved,
+  no-mutation, refusal-recording) + sim/demurrage-preview.ts (1645 soft-dep via
+  variable dynamic import, degrades — 1645 absent on main, HC-06 no 1644 engine) +
+  handlers/simulate.ts (flow.simulate, committed:false). Unit GREEN MBP (5/5,
+  RED-proven); `integ-flow-simulation-no-commit` GREEN prime (55s, RED-proven):
+  real engine ran (300 flowed conserved), ZERO flow_settlement node, demurrage
+  degraded (T-15/T-16). Gate ✅.
+  **NIGHT PROGRESS (PROC-NIGHT 2026-06-14/15):** M1 ✅, M2-core (integ) ✅, M3
+  (engines+settle) ✅, M5 (sim) ✅ — all GREEN+pushed. Deferred/blocked: M2 e2e-cli
+  (fresh-founder prime boot exit-78), M2 IOU arm (→M4), M3 partition arm + e2e-settle-cli.
+  NEXT: M-TRANSPARENCY (reuse sharing-656 + Biscuit) and/or M4 (ocap on token.pay).
 - **M-TRANSPARENCY — local-first share (reuse sharing 656) + Biscuit N-hop:**
   register flow sharing-domain, auto-share to direct relationships
   (`sharer-friends`/`triggerAutoShare`), Biscuit caveat bounds N-hop reshare.
