@@ -179,4 +179,38 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       required: ["agreementId"],
     },
   },
+  {
+    name: "epoch_settle",
+    description:
+      "Settle one flow epoch for a (holon, context): run the gradient + allocation " +
+      "engines over the holon's balance and below-floor claimants, committing a " +
+      "conserved flow.epoch_settled event (refuses loud on imbalance).",
+    version: 1,
+    method: "ws_message",
+    messageType: "flow.epoch_settle",
+    pattern: "send",
+    returns: "flow.epoch_settle.result",
+    category: "write",
+    trustLevel: "owner",
+    cli: { name: "epoch-settle" },
+    intent_tags: ["flow", "flow-funding", "epoch", "settle", "conservation"],
+    when_to_use:
+      "Run a flow settlement epoch — distribute a holon's surplus above its ceiling to below-floor claimants, conserved and capped.",
+    when_not_to_use:
+      "Use flow.policy_set to arm the band first; this settles against the armed policy.",
+    completionEvents: ["flow.epoch_settled"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        holon: { type: "string", description: "Holon DID (defaults to self)" },
+        context: { type: "string" },
+        balance: { type: "number", description: "The holon's balance this epoch" },
+        claimants: {
+          type: "array",
+          description: "Below-floor claimants [{id, need, trustWeight}]",
+        },
+      },
+      required: ["context", "balance"],
+    },
+  },
 ];

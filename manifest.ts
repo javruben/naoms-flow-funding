@@ -51,6 +51,9 @@ export const MANIFEST: NaomsFeatureManifest = {
         // materializer (nodeKind declared) — versions update the node in place,
         // keyed by entityId flow-policy-<holon>-<context> (types.ts).
         { type: "flow.policy_set", nodeKind: "flow_policy" },
+        // M3: an epoch settlement is an explicit, auditable event on the holon's
+        // own flow chain (HC-04 — settlement is an event, not an implicit clock).
+        { type: "flow.epoch_settled", nodeKind: "flow_settlement" },
       ],
     },
   ],
@@ -58,6 +61,7 @@ export const MANIFEST: NaomsFeatureManifest = {
   graphTypes: [
     { nodeType: "flow_policy", access: "read-write" },
     { nodeType: "flow_agreement", access: "read-write" },
+    { nodeType: "flow_settlement", access: "read-write" },
   ],
 
   // M2 (1111 cross-chain hygiene): the flow-agreement events are emitted onto the
@@ -90,6 +94,8 @@ export const MANIFEST: NaomsFeatureManifest = {
     { type: "flow.agreement_revoke.result", direction: "outbound", description: "Ack revoke" },
     { type: "flow.get_agreement", direction: "inbound", description: "Read folded agreement status" },
     { type: "flow.get_agreement.result", direction: "outbound", description: "Agreement status + terms" },
+    { type: "flow.epoch_settle", direction: "inbound", description: "Settle one flow epoch (run engines, conserved)" },
+    { type: "flow.epoch_settle.result", direction: "outbound", description: "Conserved allocation or loud refusal" },
   ],
 
   capabilities: [

@@ -17,10 +17,14 @@ import {
   handleAgreementRevoke,
   handleGetAgreement,
 } from "./handlers/agreement.ts";
+import {
+  type EpochSettleContext,
+  handleEpochSettle,
+} from "./handlers/epoch-settle.ts";
 
-// The router context satisfies both handler slices (dbHandle/ownerDid/callerDid/
+// The router context satisfies all handler slices (dbHandle/ownerDid/callerDid/
 // graph + chain). Widen to their union at the dispatch boundary.
-type FlowCtx = FlowHandlerContext & AgreementHandlerContext;
+type FlowCtx = FlowHandlerContext & AgreementHandlerContext & EpochSettleContext;
 
 async function handleFlow(
   ctx: FlowCtx,
@@ -41,6 +45,8 @@ async function handleFlow(
       return await handleAgreementRevoke(ctx, msg, respond);
     case "flow.get_agreement":
       return await handleGetAgreement(ctx, msg, respond);
+    case "flow.epoch_settle":
+      return await handleEpochSettle(ctx, msg, respond);
     default:
       return respond({ type, error: `Unknown message type: ${type}` });
   }
