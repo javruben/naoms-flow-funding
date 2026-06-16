@@ -167,6 +167,27 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   Gate: `integ-flow-transparency-local-first` (DE-25/26/27).
 - **M6 — wallet UI (4 ◆ surfaces, mock-first):** build FROM `03-design/mockup/`,
   real-pointer e2e + per-M-row mock-fidelity on real daemon. Gates: `e2e-<surface>`.
+  **M6.0 mock-in-app ✅ DONE + OWNER-APPROVED + PUSHED (38656fb2b3f).** The four
+  surfaces render NATIVELY in a "Flow Funding" feature tab behind `NAOMS_UI_MOCK`
+  (the canonical pattern — `docs/build/standards/browser-app-mock-implementation.md`;
+  NOT a standalone file/iframe/port, which got 1258 cancelled). Built: absorbed
+  origin/main for the 1668 serving path (`isUiMockEnabled`/`_maybeInjectUiMockConfig`/
+  screen-routing bypass); `scripts/build-flow-mock-ui.ts` transform (binding
+  `ui/mock/*.html` → scoped `ui/flow-mock.{css,js}`, served==source via regen);
+  `ui/flow-tab.js` (registers `flow-funding`, uiMock branch mounts); registered in
+  `feature-registry.js` + `nav-rail.js` DRAWER_CATEGORIES.Money (icon+label).
+  Verified in-app by driving Chrome vs the NAOMS_UI_MOCK daemon. **Owner-directed
+  scope (2026-06-16/17):** (3) currency/token-kind selector ADDED to Policy (IN
+  MVP) → **FlowPolicy becomes per-(holon, context, token-kind); fold the token-kind
+  dimension into M1's policy entityId when wiring**; velocity first-run empty-state
+  ADDED (hide hero/Simulate/band/nav/tabs when no flows; fixed latent missing
+  `.hidden`); (1) hive-treasury UI + (2) multi-signer treasuries SPLIT to new item
+  **1696**. **M6.1+ REMAINING — wire each surface to real `flow.*` ops** (non-uiMock
+  path of flow-tab.js): policy→`flow.policy_set`/`get_policy` (M1 handlers exist);
+  velocity→`flow.epoch_settle` reads + agreement folds; agreement→`flow.agreement_*`
+  (M2); simulation→`flow.simulate` (M5). Per-surface real-pointer e2e + Cat-14
+  `@mock-fidelity`/`@mock-sha`. PC-439 competitor-reference authored
+  (`docs/design/flow-funding-competitor-reference.md`).
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
