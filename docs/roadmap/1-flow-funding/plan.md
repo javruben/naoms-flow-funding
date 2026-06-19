@@ -213,9 +213,16 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
     (synthetic-network dry-run, real engine report; `864c87ff846`);
     Velocity→`ctx.graphQuery` over flow_agreement/settlement/policy + M6-R1
     empty-state (`9d0db4544b4`). flow-tab.js has a 4-surface nav.
-  - **M6.2 verification REMAINING — four-surface real-onboarding browser e2e** on
-    build-host (the uiMock app-entry bypass is mock-only → the live wired path
-    needs a real onboarded daemon). Per-surface Cat-14 `@mock-fidelity`/`@mock-sha`.
+  - **M6.2 verification ✅ DONE — all four real-gesture browser e2e legs GREEN on
+    build-host** (real founder onboarding, real Chrome/puppeteer, real WS auth; no
+    NAOMS_UI_MOCK bypass; backend-fold witnesses, RED→GREEN each):
+    Policy `6441b2abeaf` (Save → flow.policy_set → get_policy fold),
+    Velocity `e499c551a75` (river renders real flow_policy band),
+    Simulation `6475bc55797` (Run → flow.simulate; UI == independent engine report),
+    Agreement `8ea784508a7` (Create → agreement_propose loud no-friendship refusal;
+    success ceremony covered at integ tier by integ-flow-agreement-bilateral —
+    economics-ratified tier split). **M6 is now verified at every tier (DOM unit
+    14/14 + backend integ + real-gesture e2e ×4).**
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
