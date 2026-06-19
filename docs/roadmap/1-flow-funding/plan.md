@@ -207,9 +207,15 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
     synthetic-as-real). DOM unit test `uc-flow-policy-surface-wired.test.ts`
     (deno-dom, MBP) RED→GREEN 4/4. Live browser e2e (real onboarding) folds into
     M6.2 verification.
-  - **M6.2 NEXT — wire Velocity (epoch reads) / Agreement (flow.agreement_*) /
-    Simulation (flow.simulate)** with the same renderer-reuse + honest-placeholder
-    discipline, then a real-onboarding browser e2e covering all four surfaces.
+  - **M6.2 ✅ DONE + PUSHED — all four surfaces wired** (mock renderer fed real
+    flow.* data, honest stripping of synthetic figures, 14/14 DOM unit RED→GREEN):
+    Agreement→`agreement_propose` (`8b016073e65`); Simulation→`flow.simulate`
+    (synthetic-network dry-run, real engine report; `864c87ff846`);
+    Velocity→`ctx.graphQuery` over flow_agreement/settlement/policy + M6-R1
+    empty-state (`9d0db4544b4`). flow-tab.js has a 4-surface nav.
+  - **M6.2 verification REMAINING — four-surface real-onboarding browser e2e** on
+    build-host (the uiMock app-entry bypass is mock-only → the live wired path
+    needs a real onboarded daemon). Per-surface Cat-14 `@mock-fidelity`/`@mock-sha`.
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
