@@ -109,4 +109,10 @@
   }
 
   window.mountFlowMock = mountFlowMock;
+  // Expose the surface registry (scoped HTML + labels) so the wired feature tab
+  // can mount a surface's OWN renderer and feed it real flow.* data — the mock
+  // IS the production UI (docs/build/standards/browser-app-mock-implementation.md),
+  // not a throwaway. The wired path mounts the html and binds real handlers
+  // instead of re-injecting the surface's demo script.
+  window.__flowMockSurfaces = FLOW_SURFACES;
 })();
