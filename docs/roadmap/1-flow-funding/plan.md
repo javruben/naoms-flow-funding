@@ -188,6 +188,20 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
   (M2); simulation→`flow.simulate` (M5). Per-surface real-pointer e2e + Cat-14
   `@mock-fidelity`/`@mock-sha`. PC-439 competitor-reference authored
   (`docs/design/flow-funding-competitor-reference.md`).
+  - **M6.1a ✅ DONE + PUSHED (`d1c965a6946`) — backend: FlowPolicy keyed per
+    (holon, context, token-kind).** `tokenKind` free string default `"custom"`
+    (matches token substrate) threaded through `policy_set`/`get_policy` schema +
+    handler entityId + supersede materializer (scoped by `token_kind` so one
+    kind's new version can't demote another's). Unit test RED→GREEN on MBP (3/3);
+    integ per-token-kind isolation block added (real round-trip running on
+    build-host). Implements owner ALIGN scope item (3). economics confirmed
+    free-string + package-constant model (no registry exists).
+  - **M6.1b NEXT — frontend: data-bind the Policy surface** via the non-uiMock
+    path, REUSING the mock's own Policy renderer fed real `ctx.api.get_policy` /
+    `policy_set` (NOT a rebuilt parallel form — 1677 lesson). Floor/ceiling/
+    gradient binding is kind-independent; the currency selector→`tokenKind`
+    mapping ($/NAO-hrs/care-cr ↔ custom/iou/ciku) is routed to economics for
+    ratification before it writes a kind string on chain.
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
