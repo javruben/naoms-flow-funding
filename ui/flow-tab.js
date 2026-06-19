@@ -169,6 +169,7 @@
     if (name === "policy") return mountPolicy();
     if (name === "agreement") return mountAgreement();
     if (name === "simulate") return mountSimulate();
+    if (name === "velocity") return mountVelocity();
     return mountPlaceholder(name);
   }
 
@@ -419,6 +420,156 @@
         h.appendChild(previewTag());
       }
     });
+  }
+
+  // ── Velocity surface (M6.2) — the flow "river", a READ aggregation ───────────
+
+  function vq(sel) {
+    return document.querySelector("#flow-mock-velocity " + sel);
+  }
+
+  function mountVelocity() {
+    var c = contentEl();
+    if (!c) return;
+    if (typeof ctx.graphQuery !== "function") return mountPlaceholder("velocity");
+    c.innerHTML = '<div id="flow-mock-velocity" class="fm-surface">' +
+      window.__flowMockSurfaces.velocity.html + "</div>";
+    // reuse the mock's own state/tab handlers (incl. the M6-R1 firstrun toggle)
+    bindVelocityGlobals();
+    loadVelocity();
+  }
+
+  function bindVelocityGlobals() {
+    window.switchTab = function (el) {
+      var bs = document.querySelectorAll("#flow-mock-velocity .tabstrip button");
+      Array.prototype.forEach.call(bs, function (b) {
+        b.classList.remove("on");
+      });
+      if (el) el.classList.add("on");
+    };
+    // Real first-run toggle (the mock's setState lives in its un-injected demo
+    // script). Only the firstrun CHROME branch — no synthetic balance/state
+    // numbers; the populated case is rendered by renderVelocity from real data.
+    window.setState = function (s) {
+      var firstrun = s === "firstrun";
+      var fr = vq("#firstRun");
+      var rc = vq("#riverContent");
+      if (fr) setHidden(fr, !firstrun);
+      if (rc) setHidden(rc, firstrun);
+      [vq("#stateHero"), vq("#periodNav"), vq("#tabStrip")].forEach(
+        function (e) {
+          if (e) setHidden(e, firstrun);
+        },
+      );
+    };
+  }
+
+  function nodesOf(res) {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.nodes)) return res.nodes;
+    return [];
+  }
+
+  function propsOf(n) {
+    return (n && (n.properties || n.props)) || n || {};
+  }
+
+  function loadVelocity() {
+    var self = ctx.ownerDid || "";
+    showStatus("Loading your flows…", "");
+    Promise.all([
+      ctx.graphQuery({ type: "flow_agreement" }),
+      ctx.graphQuery({ type: "flow_settlement", where: { holon: self } }),
+      ctx.graphQuery({ type: "flow_policy", where: { holon: self } }),
+    ]).then(function (rs) {
+      var agreements = nodesOf(rs[0]).map(propsOf).filter(function (a) {
+        return !self || a.proposer === self || a.counterparty === self;
+      });
+      var settlements = nodesOf(rs[1]).map(propsOf);
+      var policies = nodesOf(rs[2]).map(propsOf);
+
+      if (
+        agreements.length === 0 && settlements.length === 0 &&
+        policies.length === 0
+      ) {
+        if (typeof window.setState === "function") window.setState("firstrun");
+        showStatus(
+          "No flows yet — arm a FlowPolicy or propose an agreement to begin.",
+          "",
+        );
+        return;
+      }
+      renderVelocity(agreements, settlements, policies, self);
+    }, function (err) {
+      showStatus("Could not load flows: " + errMsg(err), "warn");
+    });
+  }
+
+  function renderVelocity(agreements, settlements, policies, self) {
+    // Show the river, hide the empty state + the synthetic "cup full" hero (its
+    // balance/state numbers depend on token balance, out of this surface's data).
+    var fr = vq("#firstRun");
+    if (fr) fr.classList.add("hidden");
+    var rc = vq("#riverContent");
+    var hero = vq("#stateHero");
+    if (hero) hero.classList.add("hidden");
+
+    // Real aggregates from settlement history (Honesty: only what we can read).
+    var totalOut = settlements.reduce(function (s, x) {
+      return s + (Number(x.settledTotal) || 0);
+    }, 0);
+    var received = settlements.reduce(function (s, x) {
+      var allocs = [];
+      try {
+        allocs = x.allocations
+          ? (typeof x.allocations === "string"
+            ? JSON.parse(x.allocations)
+            : x.allocations)
+          : [];
+      } catch (_e) { /* tolerate */ }
+      return s + (Array.isArray(allocs)
+        ? allocs.reduce(function (a, al) {
+          return a + (al && al.id === self ? Number(al.amount) || 0 : 0);
+        }, 0)
+        : 0);
+    }, 0);
+    var band = policies.filter(function (p) {
+      return p.is_latest === true || p.is_latest === "true";
+    })[0] || policies[0];
+
+    var agRows = agreements.map(function (a) {
+      var who = a.proposer === self ? a.counterparty : a.proposer;
+      return "<li><strong>" + esc(who || "peer") + "</strong> · " +
+        esc(a.status || "proposed") + "</li>";
+    }).join("");
+
+    if (rc) {
+      rc.classList.remove("hidden");
+      rc.innerHTML =
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">' +
+        simCard("Settlements", String(settlements.length)) +
+        simCard("Flowed out", fmtNum(totalOut)) +
+        simCard("Received", fmtNum(received)) +
+        (band
+          ? simCard(
+            "Band",
+            fmtNum(band.floor) + "–" + fmtNum(band.ceiling),
+          )
+          : "") +
+        "</div>" +
+        '<div style="font-size:.8rem;color:var(--text2,#8b949e);margin-bottom:6px">' +
+        "Active flow agreements</div><ul style='margin:0;padding-left:18px'>" +
+        (agRows ||
+          "<li style='list-style:none;color:var(--text3,#8b939d)'>none yet</li>") +
+        "</ul>";
+    }
+    showStatus(
+      "Your flows: " + agreements.length + " agreement(s), " +
+        settlements.length + " settlement(s), flowed out " + fmtNum(totalOut) +
+        ".",
+      "ok",
+    );
   }
 
   // ── Simulation surface (M6.2) ────────────────────────────────────────────────
@@ -775,6 +926,14 @@
 
   function errMsg(err) {
     return err && err.message ? err.message : String(err);
+  }
+
+  // Explicit hidden toggle (deno-dom's classList.toggle(token, force) is
+  // unreliable; add/remove is portable).
+  function setHidden(el, hide) {
+    if (!el) return;
+    if (hide) el.classList.add("hidden");
+    else el.classList.remove("hidden");
   }
 
   function showStatus(msg, kind) {
