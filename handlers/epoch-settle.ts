@@ -27,6 +27,7 @@ import {
   FlowConservationError,
 } from "../engine/allocate.ts";
 import { flowPolicyEntityId } from "../types.ts";
+import { triggerFlowReshareAfterSettle } from "../sharing/reshare-trigger.ts";
 
 const L = createLogger("flow-funding:epoch-settle");
 
@@ -168,6 +169,14 @@ export async function handleEpochSettle(
     } as Parameters<typeof securedAppend>[1]);
 
     L.info("flow epoch settled", { holon, context, surplus, settledTotal });
+
+    // M-TRANSPARENCY: deterministically reshare the flow-funding outcome to direct
+    // peers after this settlement. Fire-and-forget — survives the reactive sharing
+    // path's _sharingSuppress window (which would otherwise silently drop a
+    // settlement landing during a concurrent reshare, e.g. a settle shortly after
+    // an opt-in). Idempotent with the reactive reshare; no self-loop.
+    triggerFlowReshareAfterSettle(ctx.dbHandle, entityId);
+
     return respond({
       type: "flow.epoch_settle.result",
       ok: true,
