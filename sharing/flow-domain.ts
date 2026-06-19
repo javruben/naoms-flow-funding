@@ -23,6 +23,11 @@ import type {
   SharerMaterializeContext,
 } from "@naoms/plugins";
 import type { SharerPluginSection } from "@naoms/plugins";
+import {
+  authorizeReshare,
+  type FlowShareCapability,
+  mintFlowShareCapability,
+} from "./biscuit-nhop.ts";
 
 // ── Manifest Metadata ───────────────────────────────────────────────────
 
@@ -109,7 +114,83 @@ export async function build(
     epoch_count: nodes.length,
   };
   if (ctx.level === "detailed") data.by_context = byContext;
+
+  // Mint the N-hop redistribution capability that bounds onward reshare of THIS
+  // outcome (T-27). Fail-closed: if the Biscuit FFI is unavailable, `cap` is
+  // null and we share direct-only (no reshare authority) — the privacy baseline.
+  const cap = mintFlowShareCapability();
+  if (cap) data._capability = capabilityToWire(cap);
+
+  // N-hop relay: forward outcomes we RECEIVED from other peers, each gated by
+  // its own Biscuit caveat. `authorizeReshare` REFUSES (fail-closed) any outcome
+  // whose hop budget is spent or whose token denies — that outcome is simply not
+  // forwarded (T-25). Never relay an outcome back to its own origin peer.
+  const forwarded = await buildForwardedOutcomes(gq, ctx.peerDid);
+  if (forwarded.length > 0) data._forwarded = forwarded;
+
   return data;
+}
+
+interface WireCapability {
+  contract: string;
+  root_pub_hex: string;
+  max_hops_remaining: number;
+}
+
+function capabilityToWire(cap: FlowShareCapability): WireCapability {
+  return {
+    contract: cap.tokenHex,
+    root_pub_hex: cap.rootPubHex,
+    max_hops_remaining: cap.hopsRemaining,
+  };
+}
+
+interface ForwardedOutcome extends WireCapability {
+  origin_peer: string;
+  total_flowed: number | null;
+  epoch_count: number | null;
+}
+
+/**
+ * Read our received `flow_outcome` nodes and, for each whose Biscuit capability
+ * still authorizes a reshare, produce an attenuated forwarded entry. Outcomes
+ * that fail the gate (spent budget / denied token) are dropped (T-25).
+ */
+async function buildForwardedOutcomes(
+  gq: (q: Record<string, unknown>) => Promise<{ nodes?: unknown[] } | undefined>,
+  excludePeer: string,
+): Promise<ForwardedOutcome[]> {
+  const res = await gq({
+    type: "flow_outcome",
+    where: { source: "received" },
+    limit: 10000,
+  });
+  // naoms-check-ignore: PC-489 graphQueryAsync optional-call result may be undefined on async arm
+  const nodes = (res?.nodes ?? []) as Array<{ properties?: Record<string, unknown> }>;
+  const out: ForwardedOutcome[] = [];
+  for (const node of nodes) {
+    const p = node.properties ?? {};
+    const originPeer = typeof p.peer_did === "string" ? p.peer_did : "";
+    if (!originPeer || originPeer === excludePeer) continue; // no loop-back
+    const tokenHex = typeof p.contract === "string" ? p.contract : "";
+    const rootPubHex = typeof p.biscuit_root_pub_hex === "string"
+      ? p.biscuit_root_pub_hex
+      : "";
+    const hopsRemaining = typeof p.max_hops_remaining === "number"
+      ? p.max_hops_remaining
+      : 0;
+    if (!tokenHex || !rootPubHex) continue; // outcome arrived without a capability
+
+    const decision = authorizeReshare({ tokenHex, rootPubHex, hopsRemaining });
+    if (!decision.ok) continue; // out-of-scope — NOT forwarded (T-25)
+    out.push({
+      origin_peer: originPeer,
+      total_flowed: typeof p.total_flowed === "number" ? p.total_flowed : null,
+      epoch_count: typeof p.epoch_count === "number" ? p.epoch_count : null,
+      ...capabilityToWire(decision.next),
+    });
+  }
+  return out;
 }
 
 // ── Materializer ────────────────────────────────────────────────────────
@@ -130,7 +211,15 @@ export function materialize(
   const ttlDays = (payload.ttl_days as number) ?? 7;
   const sharedAt = (payload.shared_at as string) ?? new Date().toISOString();
   const expiresMs = new Date(sharedAt).getTime() + ttlDays * 86400000;
+  const expiresAt = new Date(expiresMs).toISOString();
+  const level = payload.level as string;
+  const termsJson = JSON.stringify(terms);
 
+  const cap = data._capability as
+    | { contract?: unknown; root_pub_hex?: unknown; max_hops_remaining?: unknown }
+    | undefined;
+
+  // The direct outcome from this peer (keyed per origin peer DID).
   // naoms-check-ignore: PC-10 materializer output
   ctx.graphPut({
     type: "flow_outcome",
@@ -143,13 +232,56 @@ export function materialize(
       by_context_json: data.by_context
         ? JSON.stringify(data.by_context)
         : null,
-      level: payload.level as string,
-      terms_json: JSON.stringify(terms),
+      level,
+      terms_json: termsJson,
       shared_at: sharedAt,
-      expires_at: new Date(expiresMs).toISOString(),
+      expires_at: expiresAt,
       chain_id: ctx.chainId,
+      // The N-hop capability that bounds OUR onward reshare of this outcome.
+      contract: typeof cap?.contract === "string" ? cap.contract : null,
+      biscuit_root_pub_hex: typeof cap?.root_pub_hex === "string"
+        ? cap.root_pub_hex
+        : null,
+      max_hops_remaining: typeof cap?.max_hops_remaining === "number"
+        ? cap.max_hops_remaining
+        : null,
     },
   });
+
+  // N-hop relay receive side: each forwarded outcome carries its OWN (already
+  // attenuated) capability and is keyed by its true origin peer, so a relayed
+  // outcome supersedes any direct copy of the same origin and keeps its bound.
+  const forwarded = Array.isArray(data._forwarded)
+    ? (data._forwarded as Array<Record<string, unknown>>)
+    : [];
+  for (const f of forwarded) {
+    const originPeer = typeof f.origin_peer === "string" ? f.origin_peer : "";
+    if (!originPeer || originPeer === ctx.ownerDid) continue;
+    // naoms-check-ignore: PC-10 materializer output
+    ctx.graphPut({
+      type: "flow_outcome",
+      id: `flow-outcome-${originPeer}`,
+      properties: {
+        peer_did: originPeer,
+        source: "received",
+        relayed_by: peerDid,
+        total_flowed: (f.total_flowed as number) ?? null,
+        epoch_count: (f.epoch_count as number) ?? null,
+        level,
+        terms_json: termsJson,
+        shared_at: sharedAt,
+        expires_at: expiresAt,
+        chain_id: ctx.chainId,
+        contract: typeof f.contract === "string" ? f.contract : null,
+        biscuit_root_pub_hex: typeof f.root_pub_hex === "string"
+          ? f.root_pub_hex
+          : null,
+        max_hops_remaining: typeof f.max_hops_remaining === "number"
+          ? f.max_hops_remaining
+          : null,
+      },
+    });
+  }
 }
 
 // ── Revoke ──────────────────────────────────────────────────────────────
