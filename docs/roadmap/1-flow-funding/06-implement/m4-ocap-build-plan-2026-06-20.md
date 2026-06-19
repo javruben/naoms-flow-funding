@@ -119,6 +119,28 @@ installActionApprovalAutoGrant as the prod mechanism (test-only; theatre in prod
    namespace collision as T-26e/T-03e (kronos flowCommand shadows flow verbs);
    gated on economics' ruling. Author it; green when the namespace is resolved.
 
+## STATUS 2026-06-20 — ocap PRIMITIVE DONE; gate-satisfaction + wiring DEFERRED post-E1
+- **DONE (committed `2945914dd15`):** `domain/flow-ocap.ts` + `uc-flow-ocap.test.ts`
+  **10/10 real-Ed25519-FFI GREEN**. mint (token.pay scope + receipt + expiry +
+  bounds-in-signed-domains) + `verifyFlowOcapForAllocation` with LOUD refusals on
+  over-per-claimant-cap / over-per-epoch-cap (T-12) / stale-policy-version (T-13) /
+  wrong-context / vault-locked (T-14) / no-receipt / tampered-sig / foreign-signer /
+  expired. The tampered-token test proves the Ed25519 SIGNATURE is the tamper-
+  evidence (forged wider cap → bad-signature), not a JS field check.
+- **gate-satisfaction proof is NOT unit-provable** — confirmed empirically:
+  `requiresActionApproval("token.pay")` returns FALSE in a non-booted unit context
+  because token.pay's approval requirement is BOOT-REGISTERED from the token manifest
+  (`requiresApproval:true`), NOT hardcoded in CORE_APPROVAL_REQUIRED. So
+  `checkActionGate("token.pay", receipt)` only meaningfully fires with the approval
+  registry booted (daemon). The gate-satisfaction-with-real-receipt is therefore an
+  INTEG concern, intertwined with the real token.pay path → DEFERRED with the
+  settlement→token.pay wiring (post-E1/1596, owner-/fc-gated).
+- **DEFERRED post-E1 (1596, day-queue):** epoch-settle→token.pay integration (present
+  the ocap on the co-signed transfer); `integ-flow-consent` (gate FIRED via real
+  receipt on a booted daemon + cap-bounded refusals end-to-end); `e2e-flow-consent-
+  bounded` (T-12e, also shares the `naoms flow` CLI block). Same defer-shape as
+  M-TRANSPARENCY's CLI/tokens-move legs. fc-independent M4 work = COMPLETE.
+
 ## Cross-cutting note
 T-12e shares the `naoms flow` CLI namespace block (see 07-test/m-transparency-
 verify-2026-06-20.md). M2/M3/M4/M-TRANSPARENCY e2es all gated on the same ruling.
