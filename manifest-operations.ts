@@ -39,6 +39,11 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holon: { type: "string", description: "Holon DID (defaults to self)" },
         context: { type: "string", description: "Context label, e.g. 'nao'" },
+        tokenKind: {
+          type: "string",
+          description:
+            "Value substrate this band governs (free string — the token-kind id, e.g. 'custom', 'iou', 'ciku'; defaults to 'custom'). One FlowPolicy per (holon, context, token-kind).",
+        },
         params: {
           type: "object",
           description: "FlowPolicyParams (floor, ceiling, gradient, …)",
@@ -76,6 +81,11 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holon: { type: "string" },
         context: { type: "string" },
+        tokenKind: {
+          type: "string",
+          description:
+            "Value substrate to read the band for (free string; defaults to 'custom').",
+        },
       },
       required: ["context"],
     },

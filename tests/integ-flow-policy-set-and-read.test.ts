@@ -101,14 +101,18 @@ async function cleanupDaemon(): Promise<void> {
 }
 
 /** Poll get_policy until the projection settles (load-invariant wait — the
- *  query IS the materializer signal, never a fixed sleep). */
+ *  query IS the materializer signal, never a fixed sleep). tokenKind keys the
+ *  fold so each value substrate is read independently. */
 async function getPolicy(
   context: string,
   expectActive = 1,
+  tokenKind?: string,
 ): Promise<Record<string, unknown>> {
   let last: Record<string, unknown> = {};
+  const msg: Record<string, unknown> = { type: "flow.get_policy", context };
+  if (tokenKind !== undefined) msg.tokenKind = tokenKind;
   for (let attempt = 0; attempt < 20; attempt++) {
-    last = await _wsSend(_ws, { type: "flow.get_policy", context });
+    last = await _wsSend(_ws, msg);
     if (last.ok && (last.latestActiveCount as number) === expectActive) {
       return last;
     }
@@ -170,6 +174,52 @@ Deno.test({
         (read2.params as { ceiling: number }).ceiling,
         600,
         "v2 params folded back (no mid-epoch re-price of v1)",
+      );
+
+      // ── A second token-kind is an INDEPENDENT band ─────────────────
+      // M6.1: FlowPolicy is keyed per (holon, context, token-kind). Arming an
+      // "iou" band for the SAME (holon, context) must start its own version
+      // sequence at v1 and must NOT supersede the existing "custom" band — the
+      // supersede materializer is scoped by token_kind.
+      const setIou = await _wsSend(_ws, {
+        type: "flow.policy_set",
+        context,
+        tokenKind: "iou",
+        params: { floor: 10, ceiling: 50 },
+      });
+      assert(setIou.ok, `policy_set iou ok (got ${JSON.stringify(setIou)})`);
+      assertEquals(setIou.tokenKind, "iou", "kind echoed back");
+      assertEquals(
+        setIou.version,
+        1,
+        "iou band starts its OWN version sequence at v1 (not 3)",
+      );
+
+      const readIou = await getPolicy(context, 1, "iou");
+      assert(readIou.ok, `get_policy iou ok (got ${JSON.stringify(readIou)})`);
+      assertEquals(readIou.found, true, "iou band found");
+      assertEquals(readIou.version, 1, "iou latest-active is v1");
+      assertEquals(readIou.versionsTotal, 1, "exactly one iou version exists");
+      assertEquals(readIou.latestActiveCount, 1, "one active iou node");
+      assertEquals(
+        (readIou.params as { ceiling: number }).ceiling,
+        50,
+        "iou params folded (independent of custom band)",
+      );
+
+      // MECHANISM (M6.1): the custom band is UNTOUCHED by the iou arm — its
+      // latest-active is still v2/ceiling 600. A cross-kind supersede would have
+      // demoted it; the token_kind-scoped query in the materializer prevents that.
+      const readCustomAfter = await getPolicy(context, 1, "custom");
+      assertEquals(
+        readCustomAfter.version,
+        2,
+        "custom band still v2 — iou arm did not supersede it",
+      );
+      assertEquals(
+        (readCustomAfter.params as { ceiling: number }).ceiling,
+        600,
+        "custom band params intact across a different-kind arm",
       );
     } finally {
       await cleanupDaemon();

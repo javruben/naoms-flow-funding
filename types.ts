@@ -39,20 +39,35 @@ export interface FlowPolicyParams {
   transparencyLevel?: "relationship-scoped" | "ecosystem-outcome";
 }
 
+/** The value substrate a FlowPolicy is denominated in. A free string — the same
+ *  `tokenKind` the token package uses (authoring-package id, e.g. "iou", "ciku",
+ *  or the generic "custom"); NOT a closed enum (no registry exists). Defaults to
+ *  the token substrate's own default ("custom", token/tools-define.ts) so a
+ *  policy armed without naming a kind governs the generic unit. */
+export const DEFAULT_TOKEN_KIND = "custom";
+
 /** The event payload appended as `flow.policy_set`. */
 export interface FlowPolicySetPayload {
   holon: string; // holon DID (person/hive/agent/device — existing identity)
   context: string; // holon-local scope label (e.g. "nao", "household")
-  version: number; // monotonic per (holon, context)
+  tokenKind: string; // value substrate (token-kind) this band governs
+  version: number; // monotonic per (holon, context, tokenKind)
   params: FlowPolicyParams;
 }
 
-/** The projected `flow_policy` graph node (latest active version per holon+context). */
+/** The projected `flow_policy` graph node (latest active version per
+ *  holon+context+tokenKind). */
 export interface FlowPolicyNode extends FlowPolicySetPayload {
   nodeType: "flow_policy";
 }
 
-/** Stable graph entity id for a (holon, context) policy — versions update in place. */
-export function flowPolicyEntityId(holon: string, context: string): string {
-  return `flow-policy-${holon}-${context}`;
+/** Stable graph entity id for a (holon, context, tokenKind) policy — versions
+ *  update in place. tokenKind defaults to {@link DEFAULT_TOKEN_KIND} so a policy
+ *  armed without a kind keys consistently on set and read. */
+export function flowPolicyEntityId(
+  holon: string,
+  context: string,
+  tokenKind: string = DEFAULT_TOKEN_KIND,
+): string {
+  return `flow-policy-${holon}-${context}-${tokenKind}`;
 }

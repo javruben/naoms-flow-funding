@@ -38,11 +38,16 @@ export const flowPolicySupersede: MaterializerEnricher = {
     const data = extractPayloadDeep(ctx);
     const holon = data.holon as string | undefined;
     const context = data.context as string | undefined;
+    const tokenKind = data.token_kind as string | undefined;
     const version = Number(data.version ?? 0);
-    if (!holon || !context || !Number.isFinite(version) || version <= 0) {
-      L.warn("flow-policy supersede: missing holon/context/version", {
+    if (
+      !holon || !context || !tokenKind || !Number.isFinite(version) ||
+      version <= 0
+    ) {
+      L.warn("flow-policy supersede: missing holon/context/token_kind/version", {
         holon,
         context,
+        tokenKind,
         version,
       });
       return;
@@ -58,9 +63,11 @@ export const flowPolicySupersede: MaterializerEnricher = {
     }
     if (!q) return;
 
+    // Scope the supersede to (holon, context, tokenKind): a new version of one
+    // token-kind's band must NOT demote another kind's latest-active node.
     const res = await (q as NonNullable<typeof ctx.scope.graphQueryAsync>)({
       type: "flow_policy",
-      where: { holon, context },
+      where: { holon, context, token_kind: tokenKind },
       limit: 10000,
     });
     if (res.error) {
@@ -85,6 +92,7 @@ export const flowPolicySupersede: MaterializerEnricher = {
         L.info("flow-policy superseded", {
           holon,
           context,
+          tokenKind,
           demoted: nodeVersion,
           by: version,
         });

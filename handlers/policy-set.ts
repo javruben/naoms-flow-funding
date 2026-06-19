@@ -20,7 +20,11 @@ import { createChain, getChain } from "@naoms/core/chain/index.ts";
 import { securedAppend } from "@naoms/core/chain/secured.ts";
 import { createLogger } from "@naoms/logging";
 
-import { type FlowPolicyParams, flowPolicyEntityId } from "../types.ts";
+import {
+  DEFAULT_TOKEN_KIND,
+  type FlowPolicyParams,
+  flowPolicyEntityId,
+} from "../types.ts";
 
 const L = createLogger("flow-funding:handler");
 
@@ -82,6 +86,8 @@ export async function handlePolicySet(
   const actor = actorDid(ctx);
   const holon = (typeof msg.holon === "string" && msg.holon) || actor;
   const context = typeof msg.context === "string" ? msg.context : "";
+  const tokenKind = (typeof msg.tokenKind === "string" && msg.tokenKind) ||
+    DEFAULT_TOKEN_KIND;
   const params = msg.params as FlowPolicyParams | undefined;
 
   if (!context) {
@@ -107,10 +113,12 @@ export async function handlePolicySet(
   }
 
   try {
-    // Next version = max existing version for (holon, context) + 1.
+    // Next version = max existing version for (holon, context, tokenKind) + 1.
+    // Each token-kind carries its own independent version sequence — arming an
+    // "iou" band does not bump the "custom" band's version.
     const existing = await ctx.graph.queryAsync({
       type: "flow_policy",
-      where: { holon, context },
+      where: { holon, context, token_kind: tokenKind },
       limit: 10000,
     });
     if (existing.error) {
@@ -134,14 +142,17 @@ export async function handlePolicySet(
       });
     }
 
-    const entityId = `${flowPolicyEntityId(holon, context)}-v${version}`;
-    // Scalars (floor/ceiling) stay top-level for queryability; the full param
-    // object rides as a JSON string so nested fields don't fan out into
-    // sub-nodes under triple materialization.
+    const entityId = `${
+      flowPolicyEntityId(holon, context, tokenKind)
+    }-v${version}`;
+    // Scalars (floor/ceiling/token_kind) stay top-level for queryability; the
+    // full param object rides as a JSON string so nested fields don't fan out
+    // into sub-nodes under triple materialization.
     const nodeProps = {
       id: entityId,
       holon,
       context,
+      token_kind: tokenKind,
       version,
       is_latest: true,
       floor: params!.floor,
@@ -160,12 +171,13 @@ export async function handlePolicySet(
       tripleFormat: { featureId: "flow-funding", entityId },
     });
 
-    L.info("flow policy set", { holon, context, version, entityId });
+    L.info("flow policy set", { holon, context, tokenKind, version, entityId });
     return respond({
       type: "flow.policy_set.result",
       ok: true,
       holon,
       context,
+      tokenKind,
       version,
       entityId,
       commit: commit.id,
@@ -193,6 +205,8 @@ export async function handleGetPolicy(
   const actor = actorDid(ctx);
   const holon = (typeof msg.holon === "string" && msg.holon) || actor;
   const context = typeof msg.context === "string" ? msg.context : "";
+  const tokenKind = (typeof msg.tokenKind === "string" && msg.tokenKind) ||
+    DEFAULT_TOKEN_KIND;
 
   if (!context) {
     return respond({
@@ -205,7 +219,7 @@ export async function handleGetPolicy(
   try {
     const res = await ctx.graph.queryAsync({
       type: "flow_policy",
-      where: { holon, context },
+      where: { holon, context, token_kind: tokenKind },
       limit: 10000,
     });
     if (res.error) {
@@ -229,6 +243,7 @@ export async function handleGetPolicy(
       ok: true,
       holon,
       context,
+      tokenKind,
       found: !!latest,
       version: latest ? Number(latest.properties?.version ?? 0) : null,
       params: latest
