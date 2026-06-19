@@ -196,12 +196,20 @@ parallelization). Substrate is State A on origin/main (no substrate gate).
     integ per-token-kind isolation block added (real round-trip running on
     build-host). Implements owner ALIGN scope item (3). economics confirmed
     free-string + package-constant model (no registry exists).
-  - **M6.1b NEXT — frontend: data-bind the Policy surface** via the non-uiMock
-    path, REUSING the mock's own Policy renderer fed real `ctx.api.get_policy` /
-    `policy_set` (NOT a rebuilt parallel form — 1677 lesson). Floor/ceiling/
-    gradient binding is kind-independent; the currency selector→`tokenKind`
-    mapping ($/NAO-hrs/care-cr ↔ custom/iou/ciku) is routed to economics for
-    ratification before it writes a kind string on chain.
+  - **M6.1b ✅ DONE + PUSHED (`92c76ac402e`) — frontend: wired Policy surface.**
+    Real-app path of flow-tab.js mounts the Policy surface's OWN renderer
+    (`window.__flowMockSurfaces.policy`, exposed from the generator) fed real
+    `ctx.api.get_policy`/`policy_set` (1677 renderer-reuse, not a rebuilt form).
+    Selector→`humanLabel` (denomination; economics ratified — NOT a token-kind
+    id); `tokenKind` stays `custom` (mechanism-switching = 1696). Unbacked
+    sections (anti-hoarding/tithe/transparency = M-TRANSPARENCY) tagged
+    "preview · not yet saved"; mock synthetic figures stripped (no
+    synthetic-as-real). DOM unit test `uc-flow-policy-surface-wired.test.ts`
+    (deno-dom, MBP) RED→GREEN 4/4. Live browser e2e (real onboarding) folds into
+    M6.2 verification.
+  - **M6.2 NEXT — wire Velocity (epoch reads) / Agreement (flow.agreement_*) /
+    Simulation (flow.simulate)** with the same renderer-reuse + honest-placeholder
+    discipline, then a real-onboarding browser e2e covering all four surfaces.
 - **M7 — whole-design narrative E2E:** node supports a dependent end-to-end,
   drives 100% MVP intents. Gate: `e2e-flow-funding-narrative`.
 - **post-MVP (named, not silent):** `M-1644-STORY-WEIGHT-FOLD` (E6),
