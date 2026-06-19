@@ -168,6 +168,7 @@
     }
     if (name === "policy") return mountPolicy();
     if (name === "agreement") return mountAgreement();
+    if (name === "simulate") return mountSimulate();
     return mountPlaceholder(name);
   }
 
@@ -417,6 +418,173 @@
       ) {
         h.appendChild(previewTag());
       }
+    });
+  }
+
+  // ── Simulation surface (M6.2) ────────────────────────────────────────────────
+
+  function sq(sel) {
+    return document.querySelector("#flow-mock-simulate " + sel);
+  }
+
+  function mountSimulate() {
+    var c = contentEl();
+    if (!c) return;
+    if (typeof ctx.api.simulate !== "function") {
+      return mountPlaceholder("simulate");
+    }
+    c.innerHTML = '<div id="flow-mock-simulate" class="fm-surface">' +
+      window.__flowMockSurfaces.simulate.html + "</div>";
+    // The mock's results panel is fabricated history. Run the REAL engine over a
+    // clearly-labelled synthetic network instead (flow.simulate is a dry-run over
+    // synthetic state by design — design §6.5).
+    bindSimulateGlobals();
+    showStatus(
+      "Choose a scenario and run — the real flow engine simulates an illustrative network (commits nothing).",
+      "",
+    );
+  }
+
+  // Scenario → the self holon's starting balance for an illustrative 3-holon
+  // network (self + two below-floor claimants). Synthetic INPUT to a dry-run; the
+  // report rendered below is the real engine's output.
+  var SCENARIO_BALANCE = {
+    steady: 12000,
+    volatile: 4500,
+    growth: 16000,
+    hard: 5000,
+    historical: 11000,
+  };
+
+  function buildSimHolons(scenario) {
+    var selfBal = SCENARIO_BALANCE[scenario] || 12000;
+    return [
+      {
+        id: "you",
+        balance: selfBal,
+        floor: 7000,
+        ceiling: 10000,
+        gradient: state.gradient,
+        channels: [
+          { to: "peer-a", trustWeight: 1 },
+          { to: "peer-b", trustWeight: 0.6 },
+        ],
+      },
+      { id: "peer-a", balance: 2000, floor: 5000, ceiling: 8000 },
+      { id: "peer-b", balance: 1000, floor: 4000, ceiling: 7000 },
+    ];
+  }
+
+  function bindSimulateGlobals() {
+    window.updateScenarioDesc = function () {
+      var v = (sq("#simScenario") || {}).value;
+      var descs = {
+        steady: "Stable income — no floor/ceiling crossings.",
+        volatile: "Income dips below floor — tests deficit + recovery.",
+        growth: "Revenue grows — tests ceiling crossing + outflow ramp.",
+        hard: "Below floor most epochs — tests floor adequacy.",
+        historical: "An illustrative recent-history shape.",
+      };
+      var el = sq("#scenarioDesc");
+      if (el) el.textContent = descs[v] || "";
+    };
+    window.selectVariant = function (el, id) {
+      var bs = document.querySelectorAll("#flow-mock-simulate .variant-btn");
+      Array.prototype.forEach.call(bs, function (b) {
+        b.classList.remove("on");
+      });
+      el.classList.add("on");
+      var diff = sq("#variantDiff");
+      if (diff) diff.classList.toggle("hidden", id !== "modified");
+    };
+    window.updateDemurrageRate = function () {};
+    window.runSimulation = runSimulation;
+  }
+
+  function runSimulation() {
+    var scenario = (sq("#simScenario") || {}).value || "steady";
+    var holons = buildSimHolons(scenario);
+    showStatus("Running the flow engine…", "");
+    var btn = sq("#runBtn");
+    if (btn) btn.textContent = "Running…";
+    return ctx.api.simulate({ holons: holons, epochs: 3 }).then(function (res) {
+      if (btn) btn.textContent = "⊕ Run simulation";
+      if (res && res.ok && res.report) {
+        renderSimReport(res.report, res.committed === false);
+      } else {
+        showStatus(
+          "Simulation failed: " + ((res && res.error) || "unknown"),
+          "warn",
+        );
+      }
+    }, function (err) {
+      if (btn) btn.textContent = "⊕ Run simulation";
+      showStatus("Simulation failed: " + errMsg(err), "warn");
+    });
+  }
+
+  // Replace the mock's fabricated results panel with the REAL engine report.
+  function renderSimReport(report, committedNothing) {
+    var prompt = sq("#promptState");
+    if (prompt) prompt.classList.add("hidden");
+    var results = sq("#resultsState");
+    if (!results) return;
+    results.classList.remove("hidden");
+
+    var rows = (report.perHolon || []).map(function (h) {
+      return "<tr><td>" + esc(h.id) + "</td><td style='text-align:right'>" +
+        fmtNum(h.startBalance) + "</td><td style='text-align:right'>" +
+        fmtNum(h.outflow) + "</td><td style='text-align:right'>" +
+        fmtNum(h.received) + "</td><td style='text-align:right'>" +
+        fmtNum(h.endBalance) + "</td></tr>";
+    }).join("");
+
+    results.innerHTML =
+      '<div style="padding:4px 0 12px;font-size:.8rem;color:var(--text3,#8b939d)">' +
+      "Illustrative synthetic network · real flow engine · " +
+      (committedNothing ? "committed nothing" : "preview") + "</div>" +
+      '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">' +
+      simCard("Epochs", String(report.epochs)) +
+      simCard("Total flowed", fmtNum(report.totalFlowed)) +
+      simCard("Conserved", report.conserved ? "yes" : "no") +
+      "</div>" +
+      '<table style="width:100%;border-collapse:collapse;font-size:.84rem">' +
+      "<thead><tr style='color:var(--text2,#8b949e);text-align:left'>" +
+      "<th>Holon</th><th style='text-align:right'>Start</th>" +
+      "<th style='text-align:right'>Out</th><th style='text-align:right'>In</th>" +
+      "<th style='text-align:right'>End</th></tr></thead><tbody>" + rows +
+      "</tbody></table>" +
+      ((report.refusals && report.refusals.length)
+        ? '<div style="margin-top:10px;color:var(--yellow,#d29922);font-size:.8rem">' +
+          report.refusals.length +
+          " unconservable epoch(s) refused (surplus the channels could not absorb).</div>"
+        : "");
+
+    showStatus(
+      "Simulated " + report.epochs + " epoch(s) — total flowed " +
+        fmtNum(report.totalFlowed) + ", conserved: " +
+        (report.conserved ? "yes" : "no") + ". Nothing committed.",
+      "ok",
+    );
+  }
+
+  function simCard(label, val) {
+    return '<div style="flex:1;min-width:120px;background:var(--bg2,#161b22);' +
+      "border:1px solid var(--border,#30363d);border-radius:10px;padding:10px 14px\">" +
+      '<div style="font-size:.7rem;color:var(--text3,#8b939d);text-transform:uppercase;letter-spacing:.04em">' +
+      esc(label) + '</div><div style="font-size:1.2rem;font-weight:700;margin-top:2px">' +
+      esc(val) + "</div></div>";
+  }
+
+  function fmtNum(n) {
+    return Number(n || 0).toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
   }
 
