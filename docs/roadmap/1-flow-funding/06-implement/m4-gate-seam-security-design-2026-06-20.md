@@ -93,6 +93,31 @@ reintroduce the (B) core→package coupling. So CORE owns it:
 - Confirm the gate's caller==owner invariant is never consulted (auth = the owner
   SIGNATURE on the chain, not caller identity) — design holds it; critic verifies.
 
+## REVISION (closing critic Phase-1 CONCERNS — see 07-test/...-critic-phase1-verdict)
+
+### B1 — bind ALL economically-material token.pay args (enumerated against handlePay)
+`handlePay` (tools-pay.ts) reads these msg fields; the economically-material set the
+leaf MUST bind (and core MUST arg-match exactly, fail-closed on any unbound material
+field present in args) is:
+- `token` / `tokenId` — **THE currency binding.** A tokenId identifies one token
+  chain = one kind/currency; binding it CLOSES the kindA→kindB substitution (B1's
+  core attack). REQUIRED.
+- `toDid` / `to` — recipient. REQUIRED.
+- `amount` — exact units. REQUIRED.
+- `lossBearer` / `loss_bearer` — who bears loss (DE-27 ghost-guarantor surface);
+  economically material → BIND (default = payee; a leaf must bind the resolved value).
+- `invoice` — if the pay cites an invoice, the cited invoice id is material → BIND
+  (a leaf without an invoice cite must NOT authorize an invoice-citing pay, and vice
+  versa; the at-sign re-render already rejects amount-mismatch, but the BINDING must
+  cover the cite identity).
+- NOT material (need not bind): `memo` (a free note; carries no value semantics).
+Core's check = ALLOWLIST: for every material field above, leaf.bound[field] ===
+args[field]; AND args carries NO *other* field that affects value (fail-closed: if a
+future token.pay arg appears that isn't in this allowlist, the gate REFUSES the
+capability path and falls through to interactive — so a new material arg can't slip
+through unbound). The leaf scope encodes these as a canonical bound-args object;
+core compares the canonicalized args. (B2/B3/B4 resolutions: TODO this revision.)
+
 ## Build order (post critic-PASS)
 1. core: generic capability-presentation acceptance in enforceApprovalGate
    (verify chain + arg-match + single-use nonce) + the consumed-nonce store.
