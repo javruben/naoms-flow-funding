@@ -183,6 +183,42 @@ as the explicit, bounded residual risk (bounded by aggregate_cap + expiry + revo
   unreachable for token.pay (it already is — checkActionGate isn't wired into
   enforceApprovalGate); the build asserts no second door to token.pay value movement.
 
+### N1 — the delegation bounds are EXPLICITLY checked, NOT via `isScopeSubset`
+`isScopeSubset` (capability-token.ts:187) compares ONLY `{tools, operations, domains,
+can_delegate, max_delegation_depth}` — it does NOT cover `aggregate_cap`,
+`delegated_key`, `expires_at`, or the leaf's bound-args, and a numeric ceiling needs
+`≤`, not set-subset. So those fields are carried in a dedicated **signed** sub-object
+on the token body (covered by `content_hash`, so the signature protects them):
+- root body: `delegation_bounds = { delegated_key, aggregate_cap, context,
+  policy_version }` (+ the token's own `expires_at`).
+- leaf body: `action_binding = { token, toDid, amount, loss_bearer, invoice|null,
+  nonce }`.
+`verifyDelegationChain` enforces these with EXPLICIT comparisons (NOT isScopeSubset):
+- `leaf.action_binding.* ` are the ONLY value-bearing fields the leaf may carry; a
+  leaf MUST NOT carry a `delegation_bounds` (it is `can_delegate:false`, a terminal
+  leaf) — reject if present (no re-delegation, no cap-widening).
+- `leaf.issuer_key_id === root.delegation_bounds.delegated_key` (exact; B4).
+- aggregate ceiling is enforced by the core per-root LEDGER (B3): `Σ(amount under
+  root) + leaf.amount ≤ root.delegation_bounds.aggregate_cap` — the root's signed cap,
+  never a leaf-supplied value.
+- `isScopeSubset(leaf.scope, root.scope)` is still used, but ONLY for the op-class
+  (`tools` must be `["token.pay"]` ⊆ root) — the security-critical numeric/key bounds
+  are the explicit checks above. The leaf cannot widen the cap or swap the key because
+  it carries neither — it carries only its single action_binding, and core reads the
+  ceiling + delegate-key from the OWNER-SIGNED ROOT, not the leaf.
+
+### N2 — core canonicalizes args with handlePay's EXACT default/alias resolution
+Before the B1 arg-match, core normalizes the op args using the SAME resolution
+`handlePay` applies (tools-pay.ts), so the gate matches the value the handler will
+actually move (no bind-vs-execute drift):
+- `tokenId := args.token ?? args.tokenId`
+- `toDid := args.toDid ?? args.to`
+- `lossBearer := args.lossBearer ?? args.loss_bearer ?? toDid` (the payee default)
+- `amount := Number(args.amount)`; `invoice := args.invoice || null`
+Then `leaf.action_binding.{token,toDid,amount,loss_bearer,invoice}` must EQUAL these
+canonicalized values (loss_bearer compared against the resolved default, so an omitted
+loss_bearer in args matches a leaf bound to payee). `memo` is not matched (non-material).
+
 ## Build order (post critic-PASS)
 1. core: generic capability-presentation acceptance in enforceApprovalGate
    (verify chain + arg-match + single-use nonce) + the consumed-nonce store.
