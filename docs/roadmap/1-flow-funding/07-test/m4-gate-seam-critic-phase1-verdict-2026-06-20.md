@@ -58,7 +58,35 @@ clears to PASS. (Validates the Phase-1 gate — these are real value-movement ho
   per-action child minter, and PROVABLY CLOSE the old receipt-allow door for token.pay
   (no two doors to the same value movement).
 
-## Next
-Revise the design to close B1-B4 (each a named subsection w/ the concrete check) →
-re-route to critic → on PASS, build (core verifyDelegationChain + arg-bind + nonce
-store; flow root+per-action mint) → green integ-flow-consent. Cross-identity E1-gated.
+## Round 2 (revised design) — CONCERNS → B1,B3,B4,A1-A4 CLOSED; B2 partial + N1/N2
+B1 (arg enumeration complete vs handlePay; tokenId closes currency-sub), B3 (core
+ledger removes flow-trust reduction), B4 (delegated_key closes rogue leaves), A1-A4
+CLOSED. New: N1 (blocking — aggregate_cap/delegated_key outside TokenScope, ignored
+by isScopeSubset → leaf could widen), N2 (canonicalize args per handlePay). Probes
+cleared (ledger-DoS bounded, TOCTOU closed by A1, owner-key-rotation = correct
+fail-closed, expiry checked at gate).
+
+## Round 3 (N1+N2 closed) — VERDICT: PASS — SOUND TO BUILD
+N1 CLOSED: bounds in SIGNED body sub-objects (delegation_bounds/root,
+action_binding/leaf) — computeContentHash covers the whole body so the signature
+protects them; verifyDelegationChain checks them EXPLICITLY (leaf carries NO
+delegation_bounds → reject; leaf.issuer_key_id===root.delegated_key; ceiling read
+from the OWNER-SIGNED ROOT, never a leaf value; isScopeSubset confined to op-class).
+N2 CLOSED: canonicalization matched field-by-field vs handlePay. Caller==owner never
+consulted; distinct from the 1611 loopback. 6 holes (B1-B4,N1,N2) caught + closed
+BEFORE any code — the Phase-1 gate did its job on the value-movement surface.
+
+## Build-notes (carry into implementation; fail-closed)
+- lossBearer canonicalizer MUST use handlePay's `length>0` empty-string guard, not a
+  literal `??` (`""` falls through to loss_bearer/payee).
+- verifyDelegationChain MUST structurally validate the new delegation_bounds (root) /
+  action_binding (leaf) sub-objects on deserialize, fail-closed.
+
+## Build order (PASS — cleared)
+core: extend CapabilityToken/TokenScope (delegation_bounds + action_binding);
+verifyDelegationChain; enforceApprovalGate capability path; per-root consumption
+ledger (`capability_nonce_consumed` core node kind); arg canonicalizer.
+flow: mintFlowOcap → delegation ROOT (delegated_key + aggregate_cap + expires_at) +
+per-action child minter; epoch-settle presents leaves on token.pay. → green
+integ-flow-consent (build-host) → Phase-2 critic on the implementation.
+Cross-identity 2-daemon arm stays E1/1596-gated.
