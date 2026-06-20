@@ -118,6 +118,71 @@ capability path and falls through to interactive — so a new material arg can't
 through unbound). The leaf scope encodes these as a canonical bound-args object;
 core compares the canonicalized args. (B2/B3/B4 resolutions: TODO this revision.)
 
+### B2 — `verifyDelegationChain` (new core primitive) + auth rests on the owner SIGNATURE
+`verifyToken(token, pubkey)` (capability-token.ts) checks ONE signature; no chain
+walk. Add a core primitive `verifyDelegationChain(leaf, root, ownerPubkey, opArgs)`:
+1. **Root** (owner-rooted): `verifyToken(root, ownerPubkey)` where `ownerPubkey` is
+   resolved from the ON-GRAPH owner identity (the SAME source `_resolveOwnerSigner`
+   uses — NEVER a key carried in the token) + `!isExpired(root)` + root.scope
+   authorizes op-class token.pay + root carries `delegated_key` + `aggregate_cap` +
+   `expires_at` (B3/B4).
+2. **Leaf**: `verifyToken(leaf, K)` where `K`'s fingerprint == `leaf.issuer_key_id`
+   AND `leaf.issuer_key_id === root.delegated_key` (B4 — the leaf MUST be signed by
+   the owner-delegated engine key, not any key) + `leaf.parent_hash ===
+   root.content_hash` + `isScopeSubset(leaf.scope, root.scope)` re-checked at VERIFY
+   (not trusted from mint) + `!isExpired(leaf)`.
+3. **Arg-bind (B1)**: every economically-material `opArgs` field === `leaf.bound[field]`
+   (allowlist; fail-closed on unbound material field present).
+**Authorization rests on the owner SIGNATURE on the root** (only the owner key can
+mint a root). The `approval_receipt` is the AUDIT LINK to the policy-arm owner
+approval, NOT the sole evidence — so we do NOT inherit action-gate.ts:69's
+"any non-null receipt passes" (a forged receipt string is worthless without the
+owner signature on the root). State the receipt is checked for presence + audit
+provenance; authorization = the signature chain.
+
+### B3 — owner-signed AGGREGATE + TIME ceiling on the root, core-enforced
+The root's owner-signed scope carries `aggregate_cap` (total value authorized over
+the root's life) + `expires_at` (short, owner-chosen; renewal = a fresh owner
+approval at `flow.policy_set`). The core consumption store (below) becomes a
+per-ROOT consumption LEDGER: each allowed leaf records `(root_id, leaf_nonce,
+amount)`; the gate REFUSES if `Σ(amount under root_id) + leaf.amount > aggregate_cap`
+OR the root is expired. So even a misbehaving/compromised flow engine CANNOT mint
+leaves whose CUMULATIVE authorized value exceeds what the OWNER signed — core's
+defense no longer reduces to "trust the flow engine." (Flow's
+`verifyFlowOcapForAllocation` per-claimant/per-epoch caps remain as the finer,
+mint-time bound; the root aggregate_cap is core's independent coarse ceiling.)
+
+### B4 — root-replay closed: owner-signed delegate key + aggregate ceiling
+The standing root is `can_delegate:true` and DELEGATES to a SPECIFIC engine key `K`
+(`root.scope.delegated_key`), owner-signed. Leaves are valid ONLY if signed by `K`
+AND parented to the root (B2 step 2). So a stolen root + a RANDOM key cannot mint
+valid leaves (the random key's fingerprint ≠ `root.delegated_key`). The root IS the
+on-graph delegate registration (owner-signed — no separate registry needed). Residual:
+stolen root AND the engine key `K` together → mitigated by (a) `K` lives in the
+signer subprocess / in-process (not a transportable artifact; same protection as the
+owner key), and (b) the B3 `aggregate_cap` + short `expires_at` BOUND the blast
+radius and TIME-window even if `K` leaks. Document the "engine key K compromise"
+as the explicit, bounded residual risk (bounded by aggregate_cap + expiry + revoke).
+
+### A1-A4 (build-time, confirmed in design)
+- A1: consumption store = SINGLE ATOMIC conditional-insert keyed on leaf_nonce
+  (insert-if-absent), carrying `(root_id, amount)`; mark-then-act fail-closed; a
+  crash between mark and token.pay STRANDS that allocation — ACCEPTABLE because the
+  conserved allocator re-derives it next epoch (NOT a lost payment); name it
+  (safety > liveness). The aggregate-ledger sum is read in the same atomic step.
+- A2: the `capability_nonce_consumed` write is a canonical write-path (1567)
+  securedAppend in the gate's handler-context (NOT a materializer → PC-788 N/A);
+  declare it a CORE infra node kind (PC-329/326, not package-redeclarable); AWAIT to
+  completion before `allowed:true` (no fire-and-forget).
+- A3: mark the nonce ONLY on the all-pass allow path, after chain+arg verify; never
+  on any fail branch; on cap-FAIL fall through to interactive WITHOUT leaking the
+  failure reason to the caller (log it; surface generic "requires interactive approval").
+- A4: shut the legacy door (1594) — repurpose `mintFlowOcap` into the delegation ROOT
+  (`can_delegate:true` + delegated_key + aggregate_cap + expires_at) + add the
+  per-action child minter; the OLD action-gate.ts:68-72 receipt-allow path stays
+  unreachable for token.pay (it already is — checkActionGate isn't wired into
+  enforceApprovalGate); the build asserts no second door to token.pay value movement.
+
 ## Build order (post critic-PASS)
 1. core: generic capability-presentation acceptance in enforceApprovalGate
    (verify chain + arg-match + single-use nonce) + the consumed-nonce store.
