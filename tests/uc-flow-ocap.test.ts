@@ -34,11 +34,20 @@ import * as ed from "jsr:@noble/ed25519@2";
 import { sha512 } from "jsr:@noble/hashes@1/sha512";
 import {
   type FlowOcapBounds,
+  mintFlowActionLeaf,
+  mintFlowDelegationRoot,
   mintFlowOcap,
   type SettlementCheck,
   verifyFlowOcapForAllocation,
 } from "../domain/flow-ocap.ts";
-import type { MintSignFn } from "@naoms/core/ucan/capability-token.ts";
+import type {
+  ActionBinding,
+  MintSignFn,
+} from "@naoms/core/ucan/capability-token.ts";
+import {
+  canonicalizePayArgs,
+  verifyDelegationChain,
+} from "@naoms/core/ucan/delegation-chain.ts";
 
 // noble ed25519 v2 needs a sync sha512 registered (mirror biscuit-contract.ts).
 (ed.etc as unknown as {
@@ -192,4 +201,87 @@ Deno.test("flow-ocap: expired token REFUSES", SR, async () => {
   const v = verifyFlowOcapForAllocation(token, check(pubkey));
   assertEquals(v.ok, false);
   if (!v.ok) assertEquals(v.reason, "expired");
+});
+
+// ── B-1: the flow minters COMPOSE with the core gate (delegation-chain) ─────────
+
+Deno.test("flow delegation: mintFlowDelegationRoot + mintFlowActionLeaf produce a chain the CORE gate ALLOWs", SR, async () => {
+  const owner = ownerKeypair();
+  const engine = ownerKeypair(); // the per-policy engine key K (distinct from owner, B4)
+  const root = await mintFlowDelegationRoot({
+    ownerSignFn: owner.signFn,
+    bounds: BOUNDS,
+    aggregateCap: 1000,
+    enginePubkey: engine.pubkey,
+    approvalReceipt: RECEIPT,
+    expiryMs: 3_600_000,
+    ownerPubkeyOverride: owner.pubkey,
+  });
+  const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
+  const canonical = canonicalizePayArgs(args);
+  const binding: ActionBinding = {
+    token: canonical.token,
+    toDid: canonical.toDid,
+    amount: canonical.amount,
+    loss_bearer: canonical.loss_bearer,
+    invoice: canonical.invoice,
+    nonce: crypto.randomUUID(),
+  };
+  const leaf = await mintFlowActionLeaf({
+    engineSignFn: engine.signFn,
+    root,
+    binding,
+    expiryMs: 3_600_000,
+    enginePubkeyOverride: engine.pubkey,
+  });
+  // The CORE gate (owner pubkey on-graph, K pubkey resolved) verifies the chain.
+  const v = await verifyDelegationChain(
+    leaf,
+    root,
+    owner.pubkey,
+    engine.pubkey,
+    canonical,
+    args,
+  );
+  assert(v.ok, `expected the core gate to ALLOW the flow-minted chain, got ${JSON.stringify(v)}`);
+  if (v.ok) {
+    assertEquals(v.amount, 120);
+    assertEquals(v.aggregateCap, 1000);
+    assertEquals(v.nonce, binding.nonce);
+  }
+});
+
+Deno.test("flow delegation: a leaf signed by a key the root did NOT delegate is REFUSED by core (B4)", SR, async () => {
+  const owner = ownerKeypair();
+  const engine = ownerKeypair();
+  const rogue = ownerKeypair(); // not the delegated key
+  const root = await mintFlowDelegationRoot({
+    ownerSignFn: owner.signFn,
+    bounds: BOUNDS,
+    aggregateCap: 1000,
+    enginePubkey: engine.pubkey, // root delegates `engine`
+    approvalReceipt: RECEIPT,
+    expiryMs: 3_600_000,
+    ownerPubkeyOverride: owner.pubkey,
+  });
+  const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
+  const canonical = canonicalizePayArgs(args);
+  const binding: ActionBinding = {
+    token: canonical.token,
+    toDid: canonical.toDid,
+    amount: canonical.amount,
+    loss_bearer: canonical.loss_bearer,
+    invoice: canonical.invoice,
+    nonce: crypto.randomUUID(),
+  };
+  const leaf = await mintFlowActionLeaf({
+    engineSignFn: rogue.signFn, // signed by rogue, not engine
+    root,
+    binding,
+    expiryMs: 3_600_000,
+    enginePubkeyOverride: rogue.pubkey,
+  });
+  const v = await verifyDelegationChain(leaf, root, owner.pubkey, rogue.pubkey, canonical, args);
+  assertEquals(v.ok, false);
+  if (!v.ok) assertEquals(v.reason, "leaf-not-signed-by-delegated-key");
 });

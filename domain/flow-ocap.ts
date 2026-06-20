@@ -31,8 +31,12 @@
 // provable in isolation against the gate layer.
 
 import {
+  type ActionBinding,
   type CapabilityToken,
   isExpired,
+  keyFingerprint,
+  mintActionLeaf,
+  mintDelegationRoot,
   mintToken,
   type MintSignFn,
   type TokenScope,
@@ -116,6 +120,93 @@ export async function mintFlowOcap(opts: {
     opts.approvalReceipt,
     opts.pubkeyOverride,
   );
+}
+
+// ── 1644 M4 build-step 2 (B-1): the delegation model ───────────────────────────
+//
+// The gate-seam (delegation-chain.ts, build-step 1) replaced the old "present the
+// standing owner-signed ocap directly + rely on action-gate receipt-allow" model
+// (that receipt path is NOT wired into enforceApprovalGate) with: an owner-signed
+// DELEGATION ROOT that authorizes a per-policy engine key `K` to mint single-use
+// per-action `token.pay` LEAVES. `mintFlowOcap` above is retained as the standing
+// ROOT shape (flow bounds in `scope.domains[0]` for the mint-time `verifyFlowOcap…`
+// gate); `mintFlowDelegationRoot` adds the core delegation_bounds; `mintFlowActionLeaf`
+// is the per-allocation child. (The old header's "rides E1/1596 handleTokenPay /
+// TokenOpNotYetWiredError" is STALE — `handlePay` (tools-pay.ts, tools.ts:636) is the
+// LIVE token.pay path; single-daemon epoch-settle presents the leaf on it.)
+
+/** Mint the owner-signed DELEGATION ROOT for a flow policy arm (B-1). The owner
+ *  signs ONCE at `flow.policy_set`; the root authorizes the per-policy engine key
+ *  `K` to mint per-action leaves within the owner-signed core ceiling. Carries BOTH
+ *  the flow bounds (in `scope.domains[0]`, for the finer mint-time
+ *  `verifyFlowOcapForAllocation` per-claimant/per-epoch gate) AND the core
+ *  `delegation_bounds` (delegated_key + aggregate_cap + context + policy_version,
+ *  for core's `verifyDelegationChain`).
+ *
+ * `aggregateCap` is the OWNER-SIGNED coarse ceiling over the root's WHOLE life
+ * (distinct from the flow `perEpochCap`, a per-epoch finer bound) — core's
+ * independent defense that never reduces to "trust the flow engine" (design B3).
+ */
+export async function mintFlowDelegationRoot(opts: {
+  ownerSignFn: MintSignFn;
+  bounds: FlowOcapBounds;
+  /** Owner-signed total value authorized over the root's life (B3). */
+  aggregateCap: number;
+  /** The per-policy engine key `K`'s pubkey — the root pins its fingerprint (B4). */
+  enginePubkey: Uint8Array;
+  approvalReceipt: string;
+  expiryMs: number;
+  ownerPubkeyOverride?: Uint8Array;
+}): Promise<CapabilityToken> {
+  const scope: TokenScope = {
+    tools: ["token.pay"],
+    operations: ["write"],
+    domains: [encodeBounds(opts.bounds)],
+    can_delegate: true,
+    max_delegation_depth: 1,
+  };
+  return await mintDelegationRoot({
+    signFn: opts.ownerSignFn,
+    scope,
+    expiryMs: opts.expiryMs,
+    approvalReceipt: opts.approvalReceipt,
+    delegationBounds: {
+      delegated_key: await keyFingerprint(opts.enginePubkey),
+      aggregate_cap: opts.aggregateCap,
+      context: opts.bounds.context,
+      policy_version: opts.bounds.policyVersion,
+    },
+    pubkeyOverride: opts.ownerPubkeyOverride,
+  });
+}
+
+/** Mint a per-action `token.pay` LEAF under a flow delegation root (B-1). Signed by
+ *  the per-policy engine key `K` (so its `issuer_key_id` === the root's pinned
+ *  `delegated_key`), parented to the root, `can_delegate:false`, `tools` EXACTLY
+ *  `["token.pay"]`, bound to THIS settlement's canonicalized args. Single-use via the
+ *  nonce. Mint ONLY after `verifyFlowOcapForAllocation` PASSes for the allocation. */
+export async function mintFlowActionLeaf(opts: {
+  engineSignFn: MintSignFn;
+  root: CapabilityToken;
+  binding: ActionBinding;
+  expiryMs: number;
+  enginePubkeyOverride: Uint8Array;
+}): Promise<CapabilityToken> {
+  const scope: TokenScope = {
+    tools: ["token.pay"],
+    operations: ["write"],
+    domains: [],
+    can_delegate: false,
+    max_delegation_depth: 0,
+  };
+  return await mintActionLeaf({
+    signFn: opts.engineSignFn,
+    scope,
+    expiryMs: opts.expiryMs,
+    parentHash: opts.root.content_hash,
+    actionBinding: opts.binding,
+    pubkeyOverride: opts.enginePubkeyOverride,
+  });
 }
 
 /** The settlement-time facts an allocation is checked against. */
