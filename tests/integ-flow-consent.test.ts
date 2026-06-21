@@ -255,9 +255,11 @@ Deno.test({
         reason?: string;
         paid: Array<{ id: string; amount: number; entryId?: string }>;
         refused: Array<{ id: string; amount: number; reason: string }>;
+        indeterminate: Array<{ id: string; amount: number; reason: string }>;
       };
       assert(vm && vm.attempted, `value movement must be attempted — ${JSON.stringify(vm)}`);
       assertEquals(vm.refused.length, 0, `no allocation refused (gate allowed non-interactively) — ${JSON.stringify(vm.refused)}`);
+      assertEquals(vm.indeterminate.length, 0, `no gated-pay timed out — both completed in time — ${JSON.stringify(vm.indeterminate)}`);
       assertEquals(vm.paid.length, 2, `both allocations rode the gated token.pay — ${JSON.stringify(vm.paid)}`);
       for (const p of vm.paid) {
         assert(

@@ -269,6 +269,16 @@ export function verifyFlowOcapForAllocation(
 
   // T-13: revocation = a new FlowPolicy version. The ocap is bound to the version
   // it was minted under; any disarm/re-arm bumps the version and strands it.
+  //
+  // NOTE (1644 Phase-2 critic finding #2): in the LIVE single-daemon epoch-settle
+  // path this check is redundant-with-K-discard, not the load-bearing revocation.
+  // epoch-settle reads BOTH the root and `currentPolicyVersion` off the SAME latest
+  // policy node, so they always agree here. The REAL revocation is the in-process K
+  // discard: a re-arm (new version) calls `armEngineKey` which overwrites K, so the
+  // superseded K's fingerprint no longer resolves at the gate (K-absent ⇒ interactive
+  // fall-through) AND the root lives only on the latest node. This check still fires
+  // for an INDEPENDENTLY-sourced stale root (e.g. a future caller presenting an old
+  // persisted root against a freshly-probed current version) — defense-in-depth, kept.
   if (b.policyVersion !== c.currentPolicyVersion) {
     return { ok: false, reason: "revoked-stale-policy-version" };
   }

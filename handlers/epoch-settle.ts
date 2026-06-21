@@ -76,6 +76,13 @@ interface ValueMovementSummary {
   reason?: string;
   paid: Array<{ id: string; amount: number; entryId?: string }>;
   refused: Array<{ id: string; amount: number; reason: string }>;
+  /** INDETERMINATE outcomes — a gated pay that did NOT return a clear result in
+   *  time (the 15s no-block deadline). Honesty axiom: a timeout MUST NOT be
+   *  reported as `refused`, because if the capability verified (the gate consumed
+   *  the single-use nonce, mark-then-act) and `handlePay` was merely slow, value
+   *  DID move. The operator reconciles via the per-root ledger / the token chain
+   *  (`entryId`), never assuming the transfer did not happen. */
+  indeterminate: Array<{ id: string; amount: number; reason: string }>;
 }
 
 /**
@@ -99,7 +106,12 @@ async function moveSettlementValue(
     settledTotal: number;
   },
 ): Promise<ValueMovementSummary> {
-  const summary: ValueMovementSummary = { attempted: false, paid: [], refused: [] };
+  const summary: ValueMovementSummary = {
+    attempted: false,
+    paid: [],
+    refused: [],
+    indeterminate: [],
+  };
   const rootJson = args.policyProps.delegation_root_json;
   const registryKey = typeof args.policyProps.delegation_registry_key === "string"
     ? args.policyProps.delegation_registry_key
@@ -198,6 +210,19 @@ async function moveSettlementValue(
         // handlePay returns `entryId` (the committed token.transfer entry) — the
         // on-chain witness that the gated pay rode REAL token.pay, not a stub.
         entryId: typeof result.entryId === "string" ? result.entryId : undefined,
+      });
+    } else if (result.error === "gated-pay-timeout") {
+      // Honesty axiom: a timeout is INDETERMINATE, NOT a refusal. The gate may
+      // have verified the capability (consuming the single-use nonce mark-then-act)
+      // and handlePay may have committed the transfer while merely exceeding the
+      // deadline — so we MUST NOT report "no value moved". Surface it for ledger /
+      // token-chain reconciliation, never as `refused` or `paid`.
+      summary.indeterminate.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        reason:
+          "gated-pay-timeout: the transfer MAY have committed (the gate may have " +
+          "consumed the single-use nonce); reconcile via the per-root ledger / token chain",
       });
     } else {
       summary.refused.push({
@@ -344,7 +369,10 @@ export async function handleEpochSettle(
       allocations,
       settledTotal,
     });
-    if (!valueMovement.attempted || valueMovement.refused.length > 0) {
+    if (
+      !valueMovement.attempted || valueMovement.refused.length > 0 ||
+      valueMovement.indeterminate.length > 0
+    ) {
       L.warn("flow settlement value-movement incomplete", {
         holon,
         context,
@@ -352,6 +380,7 @@ export async function handleEpochSettle(
         reason: valueMovement.reason,
         paid: valueMovement.paid.length,
         refused: valueMovement.refused.length,
+        indeterminate: valueMovement.indeterminate.length,
       });
     }
 
