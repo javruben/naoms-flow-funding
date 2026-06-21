@@ -353,3 +353,71 @@ Deno.test({
     }
   },
 });
+
+// OVER-CAP ARM — the owner-signed ABSOLUTE aggregate ceiling (B3) bounds automated
+// value movement: an allocation that would push the per-root Σ over the cap is a
+// DETERMINATE refusal BEFORE any value moves (no token.pay dispatched, no nonce
+// consumed, no interactive detour → NOT `indeterminate`). The atomic ledger check
+// is unit-proven (uc-capability-nonce-ledger 5/5); this is its LIVE end-to-end arm.
+Deno.test({
+  name:
+    "1644 M4 [single-daemon]: an over-cap allocation is REFUSED before value moves — " +
+    "the owner-signed absolute aggregate cap bounds Σ(automated pays), determinately",
+  ...SR,
+  ignore: !RUN,
+  async fn() {
+    await ensureDaemon();
+    try {
+      const context = "nao-overcap";
+      const A = "did:nao:overcap-claimant";
+      const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A] });
+
+      // Arm with a TINY absolute automatedSettlementCap (100) — below the conserved
+      // allocation the engine computes (300) — so the per-root aggregate ceiling
+      // refuses the pay before any value moves.
+      const arm = await _wsSend(_ws, {
+        type: "flow.policy_set",
+        context,
+        tokenKind: tokenId,
+        params: {
+          floor: 100,
+          ceiling: 500,
+          gradient: 0,
+          perClaimantCap: 1.0,
+          perEpochCap: 0.5,
+          automatedSettlementCap: 100,
+        },
+      });
+      assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
+      assertEquals(arm.delegationArmed, true, "delegation root armed (small cap)");
+
+      const settle = await _wsSend(_ws, {
+        type: "flow.epoch_settle",
+        context,
+        balance: 800,
+        claimants: [{ id: A, need: 300, trustWeight: 1 }],
+      });
+      assert(settle.ok, `epoch_settle ok (records even when value refused) — ${JSON.stringify(settle)}`);
+      assertEquals(settle.settledTotal, 300, "conserved surplus 300 recorded");
+
+      const vm = settle.valueMovement as {
+        attempted: boolean;
+        paid: Array<{ id: string; amount: number; entryId?: string }>;
+        refused: Array<{ id: string; amount: number; reason: string }>;
+        indeterminate: Array<{ id: string; amount: number; reason: string }>;
+      };
+      assertEquals(vm.paid.length, 0, `over-cap: nothing paid — ${JSON.stringify(vm.paid)}`);
+      assertEquals(vm.indeterminate.length, 0, `over-cap is DETERMINATE, not indeterminate — ${JSON.stringify(vm.indeterminate)}`);
+      assert(vm.refused.length >= 1, `the over-cap allocation must be refused — ${JSON.stringify(vm.refused)}`);
+      assert(
+        vm.refused.some((r) => r.reason.includes("aggregate-cap-exceeded")),
+        `the refusal must name the aggregate cap (refused before any value moves) — ${JSON.stringify(vm.refused)}`,
+      );
+
+      // No value moved — the claimant holds nothing.
+      assertEquals(await creditedBalance(A, tokenId), 0, "over-cap claimant NOT credited");
+    } finally {
+      await cleanupDaemon();
+    }
+  },
+});

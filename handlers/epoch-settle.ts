@@ -25,6 +25,7 @@ import {
   type CapabilityToken,
 } from "@naoms/core/ucan/capability-token.ts";
 import { canonicalizePayArgs } from "@naoms/core/ucan/delegation-chain.ts";
+import { CapabilityNonceLedger } from "@naoms/core/ucan/capability-nonce-ledger.ts";
 import { createLogger } from "@naoms/logging";
 
 import { gradientOutflow } from "../engine/gradient.ts";
@@ -145,9 +146,34 @@ async function moveSettlementValue(
   }
 
   const ownerPubkey = bridgePubkey();
+  // The owner-signed ABSOLUTE life ceiling (B3) + the per-root consumed-Σ, for the
+  // determinate over-cap PRE-CHECK below. (The gate's `tryConsume` remains the
+  // authoritative atomic enforcement — this only avoids the interactive detour.)
+  const aggregateCap = Number(root.delegation_bounds?.aggregate_cap);
+  const rootId = root.content_hash;
+  const ledger = new CapabilityNonceLedger(ctx.dbHandle);
   summary.attempted = true;
   for (const alloc of args.allocations) {
     if (!(alloc.amount > 0)) continue; // nothing to move for a zero allocation
+
+    // PRE-CHECK the owner-signed aggregate cap: an allocation that would push the
+    // per-root Σ over the absolute ceiling is a DETERMINATE refusal (no value moves,
+    // no nonce consumed) — refuse it cleanly here rather than dispatch it and let the
+    // gate's ledger refuse it (which, via the generic interactive fall-through, would
+    // surface as `indeterminate` after the timeout). The gate's atomic `tryConsume`
+    // is still the backstop for any racing consume (single-daemon settle is serial).
+    if (Number.isFinite(aggregateCap)) {
+      const consumed = await ledger.consumedTotal(rootId);
+      if (consumed + alloc.amount > aggregateCap + 1e-6) {
+        summary.refused.push({
+          id: alloc.id,
+          amount: alloc.amount,
+          reason:
+            `aggregate-cap-exceeded: Σ ${consumed} + ${alloc.amount} > owner cap ${aggregateCap}`,
+        });
+        continue;
+      }
+    }
     const check: SettlementCheck = {
       ownerPubkey,
       holon: args.holon,
