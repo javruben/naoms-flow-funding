@@ -316,16 +316,18 @@ Deno.test({
         type: "flow.policy_set",
         context,
         tokenKind: tokenId,
-        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 0.6, perEpochCap: 0.5 },
+        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 1.0, perEpochCap: 0.5 },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
       assertEquals(arm.delegationArmed, false, "no automatedSettlementCap ⇒ no delegation root armed");
 
+      // One claimant whose need absorbs the whole surplus (perClaimantCap 1.0 of
+      // surplus) → conserved settlement that records, so we can assert NO value moves.
       const settle = await _wsSend(_ws, {
         type: "flow.epoch_settle",
         context,
         balance: 800,
-        claimants: [{ id: A, need: 200, trustWeight: 1 }],
+        claimants: [{ id: A, need: 300, trustWeight: 1 }],
       });
       assert(settle.ok, `epoch_settle ok (records the allocation) — ${JSON.stringify(settle)}`);
       assertEquals(settle.settledTotal, 300, "conserved surplus 300 (still recorded)");
