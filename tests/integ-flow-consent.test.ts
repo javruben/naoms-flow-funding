@@ -206,17 +206,25 @@ Deno.test({
       // admit both claimants — all action-tier, approved with the fixture password.
       const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A, B] });
 
-      // Arm a viability band [100,500] WITH a per-epoch cap (the owner-signed coarse
-      // ceiling that mints the delegation root) + per-claimant cap. tokenKind == the
-      // defined token so the settlement pays THAT token.
+      // Arm a viability band [100,500] WITH an ABSOLUTE automatedSettlementCap (the
+      // owner-signed total ceiling that mints + bounds the delegation root) plus the
+      // [0,1] fairness FRACTIONS (perClaimantCap 0.6 of surplus, perEpochCap 0.5 of
+      // balance). tokenKind == the defined token so the settlement pays THAT token.
       const arm = await _wsSend(_ws, {
         type: "flow.policy_set",
         context,
         tokenKind: tokenId,
-        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 200, perEpochCap: 1000 },
+        params: {
+          floor: 100,
+          ceiling: 500,
+          gradient: 0,
+          perClaimantCap: 0.6,
+          perEpochCap: 0.5,
+          automatedSettlementCap: 1000,
+        },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assertEquals(arm.delegationArmed, true, "delegation root must be armed (perEpochCap + signer ready)");
+      assertEquals(arm.delegationArmed, true, "delegation root must be armed (automatedSettlementCap + signer ready)");
 
       // Settle: balance 800 → surplus 300 above ceiling; two claimants need 200 each
       // → 150 each (within the 200 per-claimant cap). REAL engine; conserved.
@@ -279,14 +287,14 @@ Deno.test({
 //
 // The ocap-INTERNAL cap-bounded REFUSALS (over-cap / stale-policy-version /
 // vault-locked / missing-receipt) are proven deterministically real-crypto 12/12 in
-// uc-flow-ocap.test.ts. A LIVE over-cap integ arm is intentionally NOT asserted here
-// yet: `epoch-settle` caps each allocation to the policy's own `perClaimantCap`
-// before minting the leaf, so an ocap bound to the SAME param cannot refuse it — a
-// live over-cap arm needs the AGGREGATE-cap ledger to bind, which surfaces a
-// `perEpochCap` semantics question (epoch-settle.ts:140 treats `perEpochCap` as a
-// FRACTION `×balance`, while `aggregate_cap` is an absolute value-ceiling). That
-// reconciliation is flagged for the build-step-2 Phase-2 critic; faking a brittle
-// live arm here would be theatre.
+// uc-flow-ocap.test.ts. The cap-semantics reconciliation that the first build-host
+// run surfaced is RESOLVED: the [0,1] fairness FRACTIONS (perClaimantCap of surplus,
+// perEpochCap of balance) stay in the allocator, and the delegation root's
+// owner-signed ceiling is its OWN ABSOLUTE `automatedSettlementCap` (the B3
+// aggregate_cap, enforced by the per-root ledger). A LIVE over-cap arm (arm a small
+// automatedSettlementCap, settle above it → the ledger REFUSES Σ > cap before value
+// moves) is now well-defined and is the next integ increment once the value-leg is
+// confirmed green here.
 Deno.test({
   name:
     "1644 M4 [single-daemon]: a settlement with NO armed delegation root RECORDS the " +
@@ -301,16 +309,17 @@ Deno.test({
 
       const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A] });
 
-      // Arm WITHOUT a per-epoch cap → no owner-signed delegation root is minted
-      // (delegationArmed:false). Automated value movement is NOT authorized.
+      // Arm WITHOUT an automatedSettlementCap → no owner-signed delegation root is
+      // minted (delegationArmed:false). Automated value movement is NOT authorized.
+      // (Fraction caps are valid; only the absolute automation cap is omitted.)
       const arm = await _wsSend(_ws, {
         type: "flow.policy_set",
         context,
         tokenKind: tokenId,
-        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 200 },
+        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 0.6, perEpochCap: 0.5 },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assertEquals(arm.delegationArmed, false, "no per-epoch cap ⇒ no delegation root armed");
+      assertEquals(arm.delegationArmed, false, "no automatedSettlementCap ⇒ no delegation root armed");
 
       const settle = await _wsSend(_ws, {
         type: "flow.epoch_settle",

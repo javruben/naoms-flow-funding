@@ -163,29 +163,38 @@ export async function handlePolicySet(
     // a silent capability). `registryKey` is the UNVERSIONED policy entity so a
     // re-arm's `armEngineKey` DISCARDS the prior K (revoke-by-policy-version).
     const registryKey = flowPolicyEntityId(holon, context, tokenKind);
-    const perEpochCap = Number(params!.perEpochCap);
+    // The ABSOLUTE owner-signed total ceiling authorizes automated value movement —
+    // distinct from the [0,1] fairness fractions (perClaimantCap/perEpochCap), which
+    // the allocator resolves at settle time and which cannot be pre-signed as an
+    // absolute at arm time. The leaf is bound to the EXACT allocation the allocator
+    // (fraction-bounded) produces, so per-claimant/per-epoch fairness is enforced
+    // upstream; the delegation's own owner-signed bound is this absolute total (B3).
+    const automatedCap = Number(params!.automatedSettlementCap);
     let delegationRootJson: string | undefined;
     let delegationArmed = false;
-    if (Number.isFinite(perEpochCap) && perEpochCap > 0 && signingBridgeIsReady()) {
+    if (Number.isFinite(automatedCap) && automatedCap > 0 && signingBridgeIsReady()) {
       try {
         const k = await armEngineKey(registryKey);
         const bounds: FlowOcapBounds = {
           holon,
           context,
           policyVersion: version,
-          perClaimantCap: Number.isFinite(Number(params!.perClaimantCap))
-            ? Number(params!.perClaimantCap)
-            : undefined,
-          perEpochCap,
+          // The ocap's own per-claimant/per-epoch bounds are ABSOLUTE (≠ the policy
+          // [0,1] fractions). For the MVP the delegation enforces the absolute
+          // AGGREGATE ceiling (below + the per-root ledger); per-claimant/per-epoch
+          // fairness lives in the allocator. Left unbounded here to avoid conflating
+          // the two cap systems.
+          perClaimantCap: undefined,
+          perEpochCap: undefined,
         };
         const root = await mintFlowDelegationRoot({
           // Owner signs the root ONCE via the sanctioned UCAN scope; FROST 2-of-2
           // yields a standard Ed25519 sig the gate verifies under bridgePubkey().
           ownerSignFn: (data: Uint8Array) => bridgeSign(data, "ucan:v1"),
           bounds,
-          // MVP single-arm window: the owner-signed per-epoch cap IS the coarse
-          // life ceiling (B3). Re-arm refreshes the aggregate window.
-          aggregateCap: perEpochCap,
+          // The owner-signed ABSOLUTE total ceiling over the root's life (B3). The
+          // per-root ledger enforces Σ(leaf amounts) ≤ this. Re-arm refreshes it.
+          aggregateCap: automatedCap,
           enginePubkey: k.publicKey,
           // The arm's owner-signed on-chain identity — the audit link
           // verifyDelegationChain asserts present (B2).
@@ -211,17 +220,17 @@ export async function handlePolicySet(
         );
       }
     } else {
-      // No finite owner cap, or signer not ready (vault locked / test / sim):
-      // no automated value movement authorized. Discard any prior K for this arm.
+      // No absolute automated-settlement cap, or signer not ready (vault locked /
+      // test / sim): no automated value movement authorized. Discard any prior K.
       revokeEngineKey(registryKey);
       L.info(
-        "flow policy armed WITHOUT delegation root (no per-epoch cap or signer not ready)",
+        "flow policy armed WITHOUT delegation root (no automatedSettlementCap or signer not ready)",
         {
           holon,
           context,
           tokenKind,
           version,
-          hasPerEpochCap: Number.isFinite(perEpochCap) && perEpochCap > 0,
+          hasAutomatedCap: Number.isFinite(automatedCap) && automatedCap > 0,
           signerReady: signingBridgeIsReady(),
         },
       );

@@ -35,6 +35,15 @@ export interface FlowPolicyParams {
   perClaimantCap?: number;
   /** Per-epoch outflow cap (HC-05) as a fraction of the holon's balance, 0..1. */
   perEpochCap?: number;
+  /** 1644 M4: ABSOLUTE owner-signed ceiling (in token units) on the TOTAL value
+   *  automated settlement may move under this policy arm's delegation root over its
+   *  life (the B3 aggregate_cap). Distinct from the [0,1] fairness FRACTIONS above
+   *  (which the allocator resolves against surplus/balance at settle time): a
+   *  fraction cannot be pre-signed as an absolute at arm time, so the delegation's
+   *  owner-signed value ceiling is its OWN explicit absolute number. Present +
+   *  finite + > 0 (AND signer ready) is what AUTHORIZES automated value movement —
+   *  absent ⇒ the policy arms but settlement records-but-moves-no-value. */
+  automatedSettlementCap?: number;
   /** Outcome-transparency scope label (resolved against the sharing domain). */
   transparencyLevel?: "relationship-scoped" | "ecosystem-outcome";
 }
