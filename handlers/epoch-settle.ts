@@ -18,6 +18,13 @@
 // FlowPolicy node (M1) — the settlement is bound to the armed policy, not ad-hoc.
 
 import { securedAppend } from "@naoms/core/chain";
+import { bridgePubkey } from "@naoms/core/chain/signer/signing-bridge.ts";
+import { signingBridgeIsReady } from "@naoms/core/chain/signer/signing-bridge-readiness.ts";
+import {
+  type ActionBinding,
+  type CapabilityToken,
+} from "@naoms/core/ucan/capability-token.ts";
+import { canonicalizePayArgs } from "@naoms/core/ucan/delegation-chain.ts";
 import { createLogger } from "@naoms/logging";
 
 import { gradientOutflow } from "../engine/gradient.ts";
@@ -26,8 +33,14 @@ import {
   type FlowClaimant,
   FlowConservationError,
 } from "../engine/allocate.ts";
-import { flowPolicyEntityId } from "../types.ts";
+import { DEFAULT_TOKEN_KIND, flowPolicyEntityId } from "../types.ts";
 import { triggerFlowReshareAfterSettle } from "../sharing/reshare-trigger.ts";
+import { getEngineKeyByPolicy } from "../domain/engine-key-registry.ts";
+import {
+  mintFlowActionLeaf,
+  type SettlementCheck,
+  verifyFlowOcapForAllocation,
+} from "../domain/flow-ocap.ts";
 
 const L = createLogger("flow-funding:epoch-settle");
 
@@ -47,6 +60,140 @@ export interface EpochSettleContext {
       }
     >;
   };
+  /** 1644 M4 B-2 (gate-seam): re-dispatch token.pay THROUGH the approval gate.
+   *  Injected by `dispatchWs`; absent in pre-loader/test contexts → settlement
+   *  records allocations but moves no value (surfaced LOUD, never silent). */
+  dispatchGatedOp?: (
+    msg: Record<string, unknown>,
+  ) => Promise<Record<string, unknown>>;
+}
+
+/** Per-allocation outcome of the value-movement leg. `attempted=false` ⇒ no
+ *  value moved at all (with `reason`); `paid`/`refused` carry per-claimant
+ *  results. NEVER a silent drop — every claimant lands in exactly one list. */
+interface ValueMovementSummary {
+  attempted: boolean;
+  reason?: string;
+  paid: Array<{ id: string; amount: number; commit?: string }>;
+  refused: Array<{ id: string; amount: number; reason: string }>;
+}
+
+/**
+ * B-2 value-movement leg: ride the REAL `token.pay` for each conserved allocation
+ * under the owner-signed delegation root armed at `flow.policy_set`. Per allocation:
+ * the finer `verifyFlowOcapForAllocation` gate (per-claimant / per-epoch / context /
+ * policy-version / vault, T-12/13/14) → mint a single-use LEAF signed by K bound to
+ * the EXACT canonicalized pay args → re-dispatch `token.pay` THROUGH the gate
+ * (`ctx.dispatchGatedOp`, NEVER `handlePay` directly — that would bypass the gate).
+ * Fail-closed at every step; refusals are surfaced, never silently dropped.
+ */
+async function moveSettlementValue(
+  ctx: EpochSettleContext,
+  args: {
+    policyProps: Record<string, unknown>;
+    holon: string;
+    context: string;
+    tokenKind: string;
+    version: number;
+    allocations: Array<{ id: string; amount: number }>;
+    settledTotal: number;
+  },
+): Promise<ValueMovementSummary> {
+  const summary: ValueMovementSummary = { attempted: false, paid: [], refused: [] };
+  const rootJson = args.policyProps.delegation_root_json;
+  const registryKey = typeof args.policyProps.delegation_registry_key === "string"
+    ? args.policyProps.delegation_registry_key
+    : flowPolicyEntityId(args.holon, args.context, args.tokenKind);
+
+  if (args.policyProps.delegation_armed !== true || typeof rootJson !== "string") {
+    summary.reason = "no-delegation-armed";
+    return summary;
+  }
+  if (!ctx.dispatchGatedOp) {
+    summary.reason = "no-gated-dispatch";
+    return summary;
+  }
+  if (!signingBridgeIsReady()) {
+    summary.reason = "signer-unavailable-vault-locked";
+    return summary;
+  }
+  const k = getEngineKeyByPolicy(registryKey);
+  if (!k) {
+    // K discarded on restart / revoke / re-arm-without-cap. The conserved
+    // allocator re-derives next epoch — NOT a lost payment (Mystery axiom).
+    summary.reason = "k-unavailable-rearm-required";
+    return summary;
+  }
+  let root: CapabilityToken;
+  try {
+    root = JSON.parse(rootJson) as CapabilityToken;
+  } catch {
+    summary.reason = "delegation-root-corrupt";
+    return summary;
+  }
+
+  const ownerPubkey = bridgePubkey();
+  summary.attempted = true;
+  for (const alloc of args.allocations) {
+    if (!(alloc.amount > 0)) continue; // nothing to move for a zero allocation
+    const check: SettlementCheck = {
+      ownerPubkey,
+      holon: args.holon,
+      context: args.context,
+      currentPolicyVersion: args.version,
+      allocationAmount: alloc.amount,
+      epochTotal: args.settledTotal,
+      vaultUnlocked: true, // signingBridgeIsReady() asserted above (T-14)
+    };
+    const verdict = verifyFlowOcapForAllocation(root, check);
+    if (!verdict.ok) {
+      summary.refused.push({ id: alloc.id, amount: alloc.amount, reason: verdict.reason });
+      continue;
+    }
+    // Bind the leaf to the EXACT canonicalized args we will re-dispatch, so the
+    // gate's re-canonicalization matches the leaf's action_binding (B1/N2).
+    const payArgs = { token: args.tokenKind, toDid: alloc.id, amount: alloc.amount };
+    const canon = canonicalizePayArgs(payArgs);
+    const binding: ActionBinding = { ...canon, nonce: crypto.randomUUID() };
+    let leaf: CapabilityToken;
+    try {
+      leaf = await mintFlowActionLeaf({
+        engineSignFn: k.signFn,
+        root,
+        binding,
+        expiryMs: 5 * 60 * 1000,
+        enginePubkeyOverride: k.publicKey,
+      });
+    } catch (e) {
+      summary.refused.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        reason: `leaf-mint-failed:${(e as Error).message}`,
+      });
+      continue;
+    }
+    const result = await ctx.dispatchGatedOp({
+      type: "token.pay",
+      ...payArgs,
+      _capability: { leaf, root },
+    });
+    const typeStr = typeof result.type === "string" ? result.type : "";
+    const ok = typeStr !== "" && !typeStr.endsWith("_error") && result.error == null;
+    if (ok) {
+      summary.paid.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        commit: typeof result.commit === "string" ? result.commit : undefined,
+      });
+    } else {
+      summary.refused.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        reason: `pay-refused:${String(result.error ?? result.code ?? "unknown")}`,
+      });
+    }
+  }
+  return summary;
 }
 
 export type RespondFn = (payload: Record<string, unknown>) => void;
@@ -170,6 +317,30 @@ export async function handleEpochSettle(
 
     L.info("flow epoch settled", { holon, context, surplus, settledTotal });
 
+    // 1644 M4 B-2: ride REAL token.pay for each allocation under the owner-signed
+    // delegation root (records-but-moves-no-value when unarmed/K-absent/locked —
+    // surfaced LOUD). The settlement event above is the conserved record; this is
+    // the value-movement leg, distinct and fail-closed.
+    const valueMovement = await moveSettlementValue(ctx, {
+      policyProps: policyNode.properties ?? {},
+      holon,
+      context,
+      tokenKind: String(policyNode.properties?.token_kind ?? DEFAULT_TOKEN_KIND),
+      version: Number(policyNode.properties?.version ?? 0),
+      allocations,
+      settledTotal,
+    });
+    if (!valueMovement.attempted || valueMovement.refused.length > 0) {
+      L.warn("flow settlement value-movement incomplete", {
+        holon,
+        context,
+        attempted: valueMovement.attempted,
+        reason: valueMovement.reason,
+        paid: valueMovement.paid.length,
+        refused: valueMovement.refused.length,
+      });
+    }
+
     // M-TRANSPARENCY: deterministically reshare the flow-funding outcome to direct
     // peers after this settlement. Fire-and-forget — survives the reactive sharing
     // path's _sharingSuppress window (which would otherwise silently drop a
@@ -187,6 +358,7 @@ export async function handleEpochSettle(
       allocations,
       conserved: Math.abs(settledTotal - surplus) < 1e-6,
       commit: (commit as { id: string }).id,
+      valueMovement,
     });
   } catch (e) {
     // HC-01: non-conservation (and bad-band / bad-input) refuse LOUD — never a

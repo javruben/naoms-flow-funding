@@ -18,6 +18,8 @@
 
 import { createChain, getChain } from "@naoms/core/chain/index.ts";
 import { securedAppend } from "@naoms/core/chain/secured.ts";
+import { bridgeSign } from "@naoms/core/chain/signer/signing-bridge.ts";
+import { signingBridgeIsReady } from "@naoms/core/chain/signer/signing-bridge-readiness.ts";
 import { createLogger } from "@naoms/logging";
 
 import {
@@ -25,6 +27,11 @@ import {
   type FlowPolicyParams,
   flowPolicyEntityId,
 } from "../types.ts";
+import {
+  armEngineKey,
+  revokeEngineKey,
+} from "../domain/engine-key-registry.ts";
+import { type FlowOcapBounds, mintFlowDelegationRoot } from "../domain/flow-ocap.ts";
 
 const L = createLogger("flow-funding:handler");
 
@@ -145,9 +152,85 @@ export async function handlePolicySet(
     const entityId = `${
       flowPolicyEntityId(holon, context, tokenKind)
     }-v${version}`;
+
+    // 1644 M4 (gate-seam): arm the owner-signed delegation ROOT + the in-process
+    // engine key K so flow.epoch_settle can ride REAL token.pay under a bounded,
+    // revocable, owner-rooted capability — NO interactive unlock, NO bypass.
+    // Automated value movement is authorized ONLY when the owner set a finite
+    // per-epoch cap (the owner-signed coarse ceiling) AND the signer is ready
+    // (vault unlocked at arm). Otherwise the policy still arms but settlement
+    // records allocations and moves NO value until re-arm — surfaced LOUD (never
+    // a silent capability). `registryKey` is the UNVERSIONED policy entity so a
+    // re-arm's `armEngineKey` DISCARDS the prior K (revoke-by-policy-version).
+    const registryKey = flowPolicyEntityId(holon, context, tokenKind);
+    const perEpochCap = Number(params!.perEpochCap);
+    let delegationRootJson: string | undefined;
+    let delegationArmed = false;
+    if (Number.isFinite(perEpochCap) && perEpochCap > 0 && signingBridgeIsReady()) {
+      try {
+        const k = await armEngineKey(registryKey);
+        const bounds: FlowOcapBounds = {
+          holon,
+          context,
+          policyVersion: version,
+          perClaimantCap: Number.isFinite(Number(params!.perClaimantCap))
+            ? Number(params!.perClaimantCap)
+            : undefined,
+          perEpochCap,
+        };
+        const root = await mintFlowDelegationRoot({
+          // Owner signs the root ONCE via the sanctioned UCAN scope; FROST 2-of-2
+          // yields a standard Ed25519 sig the gate verifies under bridgePubkey().
+          ownerSignFn: (data: Uint8Array) => bridgeSign(data, "ucan:v1"),
+          bounds,
+          // MVP single-arm window: the owner-signed per-epoch cap IS the coarse
+          // life ceiling (B3). Re-arm refreshes the aggregate window.
+          aggregateCap: perEpochCap,
+          enginePubkey: k.publicKey,
+          // The arm's owner-signed on-chain identity — the audit link
+          // verifyDelegationChain asserts present (B2).
+          approvalReceipt: entityId,
+          expiryMs: 30 * 24 * 60 * 60 * 1000,
+        });
+        delegationRootJson = JSON.stringify(root);
+        delegationArmed = true;
+        L.info("flow delegation root armed", {
+          holon,
+          context,
+          tokenKind,
+          version,
+          fingerprint: k.fingerprint,
+        });
+      } catch (e) {
+        // Signer present but the mint failed (e.g. inline-posture gate). Do NOT
+        // leave a half-armed K; surface LOUD. Policy still arms (no value moves).
+        revokeEngineKey(registryKey);
+        L.warn(
+          "flow delegation root arm FAILED — settlement will record but move no value",
+          { holon, context, tokenKind, version, error: (e as Error).message },
+        );
+      }
+    } else {
+      // No finite owner cap, or signer not ready (vault locked / test / sim):
+      // no automated value movement authorized. Discard any prior K for this arm.
+      revokeEngineKey(registryKey);
+      L.info(
+        "flow policy armed WITHOUT delegation root (no per-epoch cap or signer not ready)",
+        {
+          holon,
+          context,
+          tokenKind,
+          version,
+          hasPerEpochCap: Number.isFinite(perEpochCap) && perEpochCap > 0,
+          signerReady: signingBridgeIsReady(),
+        },
+      );
+    }
+
     // Scalars (floor/ceiling/token_kind) stay top-level for queryability; the
-    // full param object rides as a JSON string so nested fields don't fan out
-    // into sub-nodes under triple materialization.
+    // full param object + the (owner-signed, secret-free) delegation root ride as
+    // JSON strings so nested fields don't fan out into sub-nodes under triple
+    // materialization.
     const nodeProps = {
       id: entityId,
       holon,
@@ -158,6 +241,9 @@ export async function handlePolicySet(
       floor: params!.floor,
       ceiling: params!.ceiling,
       paramsJson: JSON.stringify(params),
+      delegation_armed: delegationArmed,
+      delegation_registry_key: registryKey,
+      ...(delegationRootJson ? { delegation_root_json: delegationRootJson } : {}),
     };
 
     const commit = await securedAppend(db, {
@@ -181,6 +267,9 @@ export async function handlePolicySet(
       version,
       entityId,
       commit: commit.id,
+      // Whether automated settlement (real token.pay under the delegation root)
+      // is authorized for this arm. false ⇒ settlement records but moves no value.
+      delegationArmed,
     });
   } catch (e) {
     L.warn("flow.policy_set failed", { error: (e as Error).message });
