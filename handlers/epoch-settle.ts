@@ -74,7 +74,7 @@ export interface EpochSettleContext {
 interface ValueMovementSummary {
   attempted: boolean;
   reason?: string;
-  paid: Array<{ id: string; amount: number; commit?: string }>;
+  paid: Array<{ id: string; amount: number; entryId?: string }>;
   refused: Array<{ id: string; amount: number; reason: string }>;
 }
 
@@ -195,7 +195,9 @@ async function moveSettlementValue(
       summary.paid.push({
         id: alloc.id,
         amount: alloc.amount,
-        commit: typeof result.commit === "string" ? result.commit : undefined,
+        // handlePay returns `entryId` (the committed token.transfer entry) — the
+        // on-chain witness that the gated pay rode REAL token.pay, not a stub.
+        entryId: typeof result.entryId === "string" ? result.entryId : undefined,
       });
     } else {
       summary.refused.push({
