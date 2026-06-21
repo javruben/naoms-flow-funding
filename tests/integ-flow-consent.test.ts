@@ -14,9 +14,12 @@
 // gate-seam + the consumer wiring land (both now built):
 //   (1) CORE SEAM: enforceApprovalGate accepts a cryptographically-valid,
 //       owner-signed, op-scoped, single-use delegation capability on `token.pay`
-//       (src/core/security/approval-gate.ts verifyPresentedCapability path +
-//       message-router-dispatch-ws.ts:407 closure). Distinct from the removed
-//       1611 loopback auto-grant — this is explicit signed bounded pre-auth.
+//       (src/core/security/approval-gate.ts verifyPresentedCapability path; the
+//       closure resolving owner/K/ledger lives in
+//       router-gates/pre-handler-gates.ts runApprovalGate after the 1662
+//       M-1662-A gate relocation, re-dispatched via dispatchGatedOp in
+//       message-router-dispatch-ws.ts). Distinct from the removed 1611 loopback
+//       auto-grant — this is explicit signed bounded pre-auth.
 //   (2) CONSUMER WIRING: flow.policy_set arms the owner-signed delegation ROOT +
 //       the in-process engine key K (perEpochCap present); flow.epoch_settle, per
 //       conserved allocation, mints a single-use K-signed LEAF bound to the exact
@@ -35,7 +38,8 @@
 // @covers src/packages/flow-funding/domain/flow-ocap.ts:1
 // @covers src/packages/flow-funding/handlers/epoch-settle.ts:1
 // @covers src/packages/flow-funding/handlers/policy-set.ts:1
-// @covers src/core/transport/message-router-dispatch-ws.ts:407
+// @covers src/core/transport/router-gates/pre-handler-gates.ts:279
+// @covers src/core/transport/message-router-dispatch-ws.ts:152
 // @mechanism-asserted automated settlement rides REAL token.pay (payee credit read
 //   from the token fold) GATED by the owner-rooted single-use delegation capability
 //   (non-interactive, non-bypass) — NOT a pre-seeded balance; an under-cap arm
