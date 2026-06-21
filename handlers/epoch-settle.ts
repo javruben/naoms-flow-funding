@@ -172,11 +172,23 @@ async function moveSettlementValue(
       });
       continue;
     }
-    const result = await ctx.dispatchGatedOp({
-      type: "token.pay",
-      ...payArgs,
-      _capability: { leaf, root },
-    });
+    // An automated settlement MUST NOT block on the gate's interactive approval
+    // fall-through (no human answers it here). If the capability does not verify,
+    // the gate mints a pending approval + polls — bound that with a timeout so the
+    // value-leg surfaces a refusal instead of hanging the settle response.
+    const result = await Promise.race([
+      ctx.dispatchGatedOp({
+        type: "token.pay",
+        ...payArgs,
+        _capability: { leaf, root },
+      }),
+      new Promise<Record<string, unknown>>((resolve) =>
+        setTimeout(
+          () => resolve({ type: "token.pay_error", error: "gated-pay-timeout" }),
+          15_000,
+        )
+      ),
+    ]);
     const typeStr = typeof result.type === "string" ? result.type : "";
     const ok = typeStr !== "" && !typeStr.endsWith("_error") && result.error == null;
     if (ok) {
