@@ -56,15 +56,15 @@ async function registerFlowTransparencyDomain(): Promise<void> {
   // Wire the `friendship.share.flow-funding` dispatch enricher with the same
   // deps the sharing package wires its built-ins with (`registerAllSharingEnrichers`).
   const { registerEnricher } = await import("@naoms/core/enrichers/registry.ts");
-  const { graphQuery: gq } = await import("@naoms/core/graph/api.ts");
   const { unwrapPayloadDeep } = await import(
     "@naoms/core/enrichers/enricher-utils.ts"
   );
+  // 1620 PC-896 (absorbed): DispatchPhaseOptions no longer threads a sync
+  // `graphQuery` — graph access is self-sourced from `ctx.scope` inside
+  // `buildMaterializeContext`. Drop the stale arg to match the current type.
   registerDomainDispatchEnrichers({
     registerEnricher,
     domains: [domain],
-    graphQuery: (db, query) =>
-      gq(db, query as unknown as Parameters<typeof gq>[1]),
     unwrap: (payload) => unwrapPayloadDeep(payload),
   });
 }
