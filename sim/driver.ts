@@ -106,8 +106,15 @@ export function runFlowSimulation(
     const deltas = new Map<string, number>(holons.map((h) => [h.id, 0]));
     for (const h of holons) {
       const balance = snapshot.get(h.id) ?? 0;
-      let surplus = gradientOutflow(balance, h.floor, h.ceiling, h.gradient ?? 0);
-      if (h.perEpochCap !== undefined) surplus = Math.min(surplus, h.perEpochCap * balance);
+      let surplus = gradientOutflow(
+        balance,
+        h.floor,
+        h.ceiling,
+        h.gradient ?? 0,
+      );
+      if (h.perEpochCap !== undefined) {
+        surplus = Math.min(surplus, h.perEpochCap * balance);
+      }
       if (surplus <= 0) continue;
       // Below-floor claimants reachable along this holon's channels, with the
       // channel's claim decayed by its inactivity.
@@ -130,7 +137,9 @@ export function runFlowSimulation(
         });
         const out = allocs.reduce((s, a) => s + a.amount, 0);
         deltas.set(h.id, (deltas.get(h.id) ?? 0) - out);
-        for (const a of allocs) deltas.set(a.id, (deltas.get(a.id) ?? 0) + a.amount);
+        for (const a of allocs) {
+          deltas.set(a.id, (deltas.get(a.id) ?? 0) + a.amount);
+        }
         outflowTotal.set(h.id, (outflowTotal.get(h.id) ?? 0) + out);
         for (const a of allocs) {
           receivedTotal.set(a.id, (receivedTotal.get(a.id) ?? 0) + a.amount);

@@ -157,7 +157,9 @@ interface ForwardedOutcome extends WireCapability {
  * that fail the gate (spent budget / denied token) are dropped (T-25).
  */
 async function buildForwardedOutcomes(
-  gq: (q: Record<string, unknown>) => Promise<{ nodes?: unknown[] } | undefined>,
+  gq: (
+    q: Record<string, unknown>,
+  ) => Promise<{ nodes?: unknown[] } | undefined>,
   excludePeer: string,
 ): Promise<ForwardedOutcome[]> {
   const res = await gq({
@@ -166,7 +168,9 @@ async function buildForwardedOutcomes(
     limit: 10000,
   });
   // naoms-check-ignore: PC-489 graphQueryAsync optional-call result may be undefined on async arm
-  const nodes = (res?.nodes ?? []) as Array<{ properties?: Record<string, unknown> }>;
+  const nodes = (res?.nodes ?? []) as Array<
+    { properties?: Record<string, unknown> }
+  >;
   const out: ForwardedOutcome[] = [];
   for (const node of nodes) {
     const p = node.properties ?? {};
@@ -216,7 +220,11 @@ export function materialize(
   const termsJson = JSON.stringify(terms);
 
   const cap = data._capability as
-    | { contract?: unknown; root_pub_hex?: unknown; max_hops_remaining?: unknown }
+    | {
+      contract?: unknown;
+      root_pub_hex?: unknown;
+      max_hops_remaining?: unknown;
+    }
     | undefined;
 
   // The direct outcome from this peer (keyed per origin peer DID).
@@ -229,9 +237,7 @@ export function materialize(
       source: "received",
       total_flowed: (data.total_flowed as number) ?? null,
       epoch_count: (data.epoch_count as number) ?? null,
-      by_context_json: data.by_context
-        ? JSON.stringify(data.by_context)
-        : null,
+      by_context_json: data.by_context ? JSON.stringify(data.by_context) : null,
       level,
       terms_json: termsJson,
       shared_at: sharedAt,

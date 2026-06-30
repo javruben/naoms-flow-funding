@@ -41,7 +41,10 @@ export async function handleSimulate(
     : 1;
 
   try {
-    const report = runFlowSimulation(holons, { epochs, attestedElapsedPerEpoch });
+    const report = runFlowSimulation(holons, {
+      epochs,
+      attestedElapsedPerEpoch,
+    });
 
     // Optional 1645 demurrage preview (soft-dep, degrades when 1645 absent).
     let demurrage;

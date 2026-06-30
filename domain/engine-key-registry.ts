@@ -75,7 +75,12 @@ export async function armEngineKey(
   const signFn: MintSignFn = (data: Uint8Array) =>
     ed25519.sign(data, privateKey);
 
-  const entry: FlowEngineKey = { policyEntityId, publicKey, fingerprint, signFn };
+  const entry: FlowEngineKey = {
+    policyEntityId,
+    publicKey,
+    fingerprint,
+    signFn,
+  };
   _byPolicy.set(policyEntityId, { entry, privateKey });
   _fingerprintToPolicy.set(fingerprint, policyEntityId);
   return entry;

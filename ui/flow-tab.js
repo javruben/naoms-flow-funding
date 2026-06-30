@@ -46,7 +46,11 @@
     { id: "household", label: "Household" },
     { id: "stewardship", label: "Watershed hive" },
   ];
-  var CURVE_GRADIENT = { "Generous early": 0.8, "Linear": 0.5, "Cautious": 0.2 };
+  var CURVE_GRADIENT = {
+    "Generous early": 0.8,
+    "Linear": 0.5,
+    "Cautious": 0.2,
+  };
   var CCY_LABEL = {
     USD: "US dollars ($)",
     NAO: "NAO hours",
@@ -134,7 +138,8 @@
 
     var content = document.createElement("div");
     content.id = "flow-wired-content";
-    content.style.cssText = "flex:1;min-height:0;position:relative;overflow:auto";
+    content.style.cssText =
+      "flex:1;min-height:0;position:relative;overflow:auto";
 
     var status = document.createElement("div");
     status.id = "flow-status";
@@ -153,18 +158,21 @@
   function showSurface(name) {
     var nav = document.getElementById("flow-wired-nav");
     if (nav) {
-      Array.prototype.forEach.call(nav.querySelectorAll("button"), function (b) {
-        var on = b.dataset.surface === name;
-        b.style.background = on
-          ? "var(--color-primary-muted,rgba(88,166,255,.15))"
-          : "var(--color-surface-2,#21262d)";
-        b.style.color = on
-          ? "var(--color-primary,#58a6ff)"
-          : "var(--color-text-secondary,#8b949e)";
-        b.style.borderColor = on
-          ? "var(--color-primary,#58a6ff)"
-          : "var(--color-border,#30363d)";
-      });
+      Array.prototype.forEach.call(
+        nav.querySelectorAll("button"),
+        function (b) {
+          var on = b.dataset.surface === name;
+          b.style.background = on
+            ? "var(--color-primary-muted,rgba(88,166,255,.15))"
+            : "var(--color-surface-2,#21262d)";
+          b.style.color = on
+            ? "var(--color-primary,#58a6ff)"
+            : "var(--color-text-secondary,#8b949e)";
+          b.style.borderColor = on
+            ? "var(--color-primary,#58a6ff)"
+            : "var(--color-border,#30363d)";
+        },
+      );
     }
     if (name === "policy") return mountPolicy();
     if (name === "agreement") return mountAgreement();
@@ -185,7 +193,8 @@
     })[0] || {}).label || name;
     c.innerHTML =
       '<div style="padding:2rem;max-width:620px;color:var(--color-text-secondary,#8b949e)">' +
-      '<h2 style="color:var(--color-text-primary,#c9d1d9);margin-top:0">' + label +
+      '<h2 style="color:var(--color-text-primary,#c9d1d9);margin-top:0">' +
+      label +
       "</h2><p>This surface is being wired to its real flow.* operations in M6.2 " +
       "(Velocity → epoch reads; Simulation → flow.simulate). It is intentionally " +
       "not showing synthetic data.</p></div>";
@@ -226,7 +235,9 @@
     window.setCurrency = function (v) {
       state.ccy = CCY_FMT[v] ? v : "USD";
       var f = CCY_FMT[state.ccy];
-      var units = document.querySelectorAll("#flow-mock-policy .th-field .unit");
+      var units = document.querySelectorAll(
+        "#flow-mock-policy .th-field .unit",
+      );
       Array.prototype.forEach.call(units, function (u) {
         u.textContent = (f.suf ? f.suf.trim() : f.sym) + " / month";
       });
@@ -431,7 +442,9 @@
   function mountVelocity() {
     var c = contentEl();
     if (!c) return;
-    if (typeof ctx.graphQuery !== "function") return mountPlaceholder("velocity");
+    if (typeof ctx.graphQuery !== "function") {
+      return mountPlaceholder("velocity");
+    }
     c.innerHTML = '<div id="flow-mock-velocity" class="fm-surface">' +
       window.__flowMockSurfaces.velocity.html + "</div>";
     // reuse the mock's own state/tab handlers (incl. the M6-R1 firstrun toggle)
@@ -441,7 +454,9 @@
 
   function bindVelocityGlobals() {
     window.switchTab = function (el) {
-      var bs = document.querySelectorAll("#flow-mock-velocity .tabstrip button");
+      var bs = document.querySelectorAll(
+        "#flow-mock-velocity .tabstrip button",
+      );
       Array.prototype.forEach.call(bs, function (b) {
         b.classList.remove("on");
       });
@@ -721,9 +736,10 @@
 
   function simCard(label, val) {
     return '<div style="flex:1;min-width:120px;background:var(--bg2,#161b22);' +
-      "border:1px solid var(--border,#30363d);border-radius:10px;padding:10px 14px\">" +
+      'border:1px solid var(--border,#30363d);border-radius:10px;padding:10px 14px">' +
       '<div style="font-size:.7rem;color:var(--text3,#8b939d);text-transform:uppercase;letter-spacing:.04em">' +
-      esc(label) + '</div><div style="font-size:1.2rem;font-weight:700;margin-top:2px">' +
+      esc(label) +
+      '</div><div style="font-size:1.2rem;font-weight:700;margin-top:2px">' +
       esc(val) + "</div></div>";
   }
 
@@ -779,8 +795,7 @@
     });
     var field = document.createElement("div");
     field.className = "field";
-    field.innerHTML =
-      '<label>Counterparty — peer handle or DID</label>' +
+    field.innerHTML = "<label>Counterparty — peer handle or DID</label>" +
       '<input class="ctl" id="flowAgreementCounterparty" type="text" ' +
       'placeholder="e.g. did:key:… or @handle"/>' +
       '<div class="help">A bilateral flow agreement rides your established ' +
@@ -863,7 +878,9 @@
     var sp = aq(".spct input");
     if (sp) {
       var v = parseFloat(sp.value);
-      if (isFinite(v) && v > 0) terms.sharePct = Math.max(0, Math.min(1, v / 100));
+      if (isFinite(v) && v > 0) {
+        terms.sharePct = Math.max(0, Math.min(1, v / 100));
+      }
     }
     var iouT = aq("#iouToggle");
     if (iouT && iouT.classList.contains("on")) terms.iou = true;
@@ -880,7 +897,10 @@
           "ok",
         );
       } else {
-        showStatus("Propose failed: " + ((res && res.error) || "unknown"), "warn");
+        showStatus(
+          "Propose failed: " + ((res && res.error) || "unknown"),
+          "warn",
+        );
       }
     }, function (err) {
       showStatus("Propose failed: " + errMsg(err), "warn");
@@ -970,7 +990,9 @@
       (window.__naomsBuild || Date.now());
     s.onload = cb;
     s.onerror = function () {
-      if (container) container.textContent = "flow surface module failed to load.";
+      if (container) {
+        container.textContent = "flow surface module failed to load.";
+      }
     };
     document.body.appendChild(s);
   }

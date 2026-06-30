@@ -24,14 +24,17 @@ import { createLogger } from "@naoms/logging";
 
 import {
   DEFAULT_TOKEN_KIND,
-  type FlowPolicyParams,
   flowPolicyEntityId,
+  type FlowPolicyParams,
 } from "../types.ts";
 import {
   armEngineKey,
   revokeEngineKey,
 } from "../domain/engine-key-registry.ts";
-import { type FlowOcapBounds, mintFlowDelegationRoot } from "../domain/flow-ocap.ts";
+import {
+  type FlowOcapBounds,
+  mintFlowDelegationRoot,
+} from "../domain/flow-ocap.ts";
 
 const L = createLogger("flow-funding:handler");
 
@@ -116,7 +119,11 @@ export async function handlePolicySet(
   }
   const paramErr = validateParams(params);
   if (paramErr) {
-    return respond({ type: "flow.policy_set.result", ok: false, error: paramErr });
+    return respond({
+      type: "flow.policy_set.result",
+      ok: false,
+      error: paramErr,
+    });
   }
 
   try {
@@ -129,7 +136,9 @@ export async function handlePolicySet(
       limit: 10000,
     });
     if (existing.error) {
-      L.warn("flow.policy_set: version probe failed", { error: existing.error });
+      L.warn("flow.policy_set: version probe failed", {
+        error: existing.error,
+      });
     }
     const maxVersion = (existing.nodes ?? []).reduce((m, n) => {
       const v = Number(n.properties?.version ?? 0);
@@ -172,7 +181,10 @@ export async function handlePolicySet(
     const automatedCap = Number(params!.automatedSettlementCap);
     let delegationRootJson: string | undefined;
     let delegationArmed = false;
-    if (Number.isFinite(automatedCap) && automatedCap > 0 && signingBridgeIsReady()) {
+    if (
+      Number.isFinite(automatedCap) && automatedCap > 0 &&
+      signingBridgeIsReady()
+    ) {
       try {
         const k = await armEngineKey(registryKey);
         const bounds: FlowOcapBounds = {
@@ -252,7 +264,9 @@ export async function handlePolicySet(
       paramsJson: JSON.stringify(params),
       delegation_armed: delegationArmed,
       delegation_registry_key: registryKey,
-      ...(delegationRootJson ? { delegation_root_json: delegationRootJson } : {}),
+      ...(delegationRootJson
+        ? { delegation_root_json: delegationRootJson }
+        : {}),
     };
 
     const commit = await securedAppend(db, {

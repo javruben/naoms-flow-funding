@@ -73,8 +73,7 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
     intent_tags: ["flow", "flow-policy", "flow-get-policy", "flow-funding"],
     when_to_use:
       "Owner wants to see the current armed FlowPolicy for a holon+context.",
-    when_not_to_use:
-      "Use flow.policy_set to change settings.",
+    when_not_to_use: "Use flow.policy_set to change settings.",
     completionEvents: [],
     inputSchema: {
       type: "object",
@@ -170,7 +169,8 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
   },
   {
     name: "get_agreement",
-    description: "Read the folded status of a flow-agreement (proposed/active/revoked).",
+    description:
+      "Read the folded status of a flow-agreement (proposed/active/revoked).",
     version: 1,
     method: "ws_message",
     messageType: "flow.get_agreement",
@@ -214,7 +214,10 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holon: { type: "string", description: "Holon DID (defaults to self)" },
         context: { type: "string" },
-        balance: { type: "number", description: "The holon's balance this epoch" },
+        balance: {
+          type: "number",
+          description: "The holon's balance this epoch",
+        },
         claimants: {
           type: "array",
           description: "Below-floor claimants [{id, need, trustWeight}]",
@@ -247,10 +250,17 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holons: {
           type: "array",
-          description: "Synthetic holons [{id, balance, floor, ceiling, gradient?, rate?, channels?}]",
+          description:
+            "Synthetic holons [{id, balance, floor, ceiling, gradient?, rate?, channels?}]",
         },
-        epochs: { type: "number", description: "Epochs to simulate (default 1)" },
-        attestedElapsedPerEpoch: { type: "number", description: "Attested elapsed per epoch (accrual)" },
+        epochs: {
+          type: "number",
+          description: "Epochs to simulate (default 1)",
+        },
+        attestedElapsedPerEpoch: {
+          type: "number",
+          description: "Attested elapsed per epoch (accrual)",
+        },
       },
       required: ["holons"],
     },

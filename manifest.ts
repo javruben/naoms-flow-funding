@@ -82,22 +82,86 @@ export const MANIFEST: NaomsFeatureManifest = {
   eventTypePrefixes: ["flow."],
 
   wsMessageTypes: [
-    { type: "flow.policy_set", direction: "inbound", description: "Arm/update a FlowPolicy" },
-    { type: "flow.policy_set.result", direction: "outbound", description: "Ack with commit id" },
-    { type: "flow.get_policy", direction: "inbound", description: "Read latest FlowPolicy" },
-    { type: "flow.get_policy.result", direction: "outbound", description: "Latest FlowPolicy" },
-    { type: "flow.agreement_propose", direction: "inbound", description: "Propose a bilateral flow-agreement" },
-    { type: "flow.agreement_propose.result", direction: "outbound", description: "Ack with agreementId" },
-    { type: "flow.agreement_accept", direction: "inbound", description: "Accept a proposed flow-agreement" },
-    { type: "flow.agreement_accept.result", direction: "outbound", description: "Ack acceptance" },
-    { type: "flow.agreement_revoke", direction: "inbound", description: "Revoke a flow-agreement" },
-    { type: "flow.agreement_revoke.result", direction: "outbound", description: "Ack revoke" },
-    { type: "flow.get_agreement", direction: "inbound", description: "Read folded agreement status" },
-    { type: "flow.get_agreement.result", direction: "outbound", description: "Agreement status + terms" },
-    { type: "flow.epoch_settle", direction: "inbound", description: "Settle one flow epoch (run engines, conserved)" },
-    { type: "flow.epoch_settle.result", direction: "outbound", description: "Conserved allocation or loud refusal" },
-    { type: "flow.simulate", direction: "inbound", description: "Preview a flow epoch over synthetic state (no commit)" },
-    { type: "flow.simulate.result", direction: "outbound", description: "Allocation report (committed:false)" },
+    {
+      type: "flow.policy_set",
+      direction: "inbound",
+      description: "Arm/update a FlowPolicy",
+    },
+    {
+      type: "flow.policy_set.result",
+      direction: "outbound",
+      description: "Ack with commit id",
+    },
+    {
+      type: "flow.get_policy",
+      direction: "inbound",
+      description: "Read latest FlowPolicy",
+    },
+    {
+      type: "flow.get_policy.result",
+      direction: "outbound",
+      description: "Latest FlowPolicy",
+    },
+    {
+      type: "flow.agreement_propose",
+      direction: "inbound",
+      description: "Propose a bilateral flow-agreement",
+    },
+    {
+      type: "flow.agreement_propose.result",
+      direction: "outbound",
+      description: "Ack with agreementId",
+    },
+    {
+      type: "flow.agreement_accept",
+      direction: "inbound",
+      description: "Accept a proposed flow-agreement",
+    },
+    {
+      type: "flow.agreement_accept.result",
+      direction: "outbound",
+      description: "Ack acceptance",
+    },
+    {
+      type: "flow.agreement_revoke",
+      direction: "inbound",
+      description: "Revoke a flow-agreement",
+    },
+    {
+      type: "flow.agreement_revoke.result",
+      direction: "outbound",
+      description: "Ack revoke",
+    },
+    {
+      type: "flow.get_agreement",
+      direction: "inbound",
+      description: "Read folded agreement status",
+    },
+    {
+      type: "flow.get_agreement.result",
+      direction: "outbound",
+      description: "Agreement status + terms",
+    },
+    {
+      type: "flow.epoch_settle",
+      direction: "inbound",
+      description: "Settle one flow epoch (run engines, conserved)",
+    },
+    {
+      type: "flow.epoch_settle.result",
+      direction: "outbound",
+      description: "Conserved allocation or loud refusal",
+    },
+    {
+      type: "flow.simulate",
+      direction: "inbound",
+      description: "Preview a flow epoch over synthetic state (no commit)",
+    },
+    {
+      type: "flow.simulate.result",
+      direction: "outbound",
+      description: "Allocation report (committed:false)",
+    },
   ],
 
   capabilities: [
