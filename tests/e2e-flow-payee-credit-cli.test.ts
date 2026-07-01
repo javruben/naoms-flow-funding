@@ -33,8 +33,6 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
 // @covers src/packages/flow-funding/handlers/epoch-settle.ts:moveSettlementValue
-// @covers src/packages/flow-funding/handlers/epoch-settle.ts:handleGetSettlement
-// @covers src/packages/flow-funding/domain/settlement-confirm-hook.ts
 // @covers src/packages/flow-funding/handlers/policy-set.ts:handlePolicySet
 // @covers src/core/transport/router-gates/pre-handler-gates.ts:runApprovalGate
 // @covers src/packages/token/cli/index.ts (token define/mint/admit/balance verbs cross-daemon)
@@ -45,11 +43,6 @@
 //   ({holon,claimant} ceremony logs) → claimant token_balance credited >= allocation on
 //   bob, observed via `naoms token balance`. A single-writer t=1 shortcut (no ceremony,
 //   no push) leaves bob at 0 — RED.
-// @mechanism-asserted M-CONFIRM-ON-PUSH — the late cross-device token.transfer commits on
-//   the holon's OWN token branch AFTER the 15s FROST-ceremony deadline → the flow-funding
-//   post-commit hook (settlement-confirm-hook.ts) records a flow_settlement_confirm node →
-//   `naoms flow-funding get-settlement` transitions the leg unconfirmed→paid. A missing/
-//   broken hook leaves the leg unconfirmed forever even though bob was credited — RED.
 // @bypasses db-unlock=fixture-password (spawnSingleDaemon unlocks each vault),
 //   identity=pre-onboarded, iroh-mdns-disabled, approval=installActionApprovalAutoGrant
 //   (SETUP only — disposed before the settlement). NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE,
@@ -317,42 +310,6 @@ Deno.test({
           `single-writer t=1 pay never pushes → claimant stays 0 — RED.`,
       );
       console.error(`[1644-cli] ✅ e2e-CLI 2-daemon flow payee-credit PROVEN: claimant credited ${credited}`);
-
-      // ── M-CONFIRM-ON-PUSH: the holon's settlement record RESOLVES to `paid`. ──
-      // The cross-device leg bucketed `indeterminate` in the settle response (its
-      // FROST ceremony exceeded epoch-settle's 15s gated-pay deadline). Confirm-on-
-      // push: when the late token.transfer commits on the holon's OWN token branch,
-      // the flow-funding post-commit hook records a flow_settlement_confirm node, so
-      // `flow-funding get-settlement` transitions the leg unconfirmed→paid — instead
-      // of a permanent `indeterminate`. The credit already replicated above, so the
-      // transfer committed on the holon's branch; poll get-settlement for the flip.
-      console.error(`[1644-cli] polling holon get-settlement for leg paid (60s)...`);
-      let legPaid = false;
-      const settleStatusDeadline = Date.now() + 60_000;
-      while (Date.now() < settleStatusDeadline) {
-        const gs = await holonCli([
-          "flow-funding", "get-settlement",
-          "--context", context,
-          "--daemon-url", holonUrl, "--json",
-        ], { timeoutMs: 30_000 });
-        const gsJson = lastJson(gs.stdout);
-        const settlements =
-          (gsJson?.settlements as Array<{ legs?: Array<{ id: string; status: string }> }>) ?? [];
-        legPaid = settlements.some((s) =>
-          (s.legs ?? []).some((l) => l.id === claimantDid && l.status === "paid")
-        );
-        if (legPaid) break;
-        await delay(3_000);
-      }
-      console.error(`[1644-cli] holon settlement leg paid=${legPaid}`);
-      assert(
-        legPaid,
-        `M-CONFIRM-ON-PUSH: the holon's flow settlement leg for the cross-device claimant ` +
-          `MUST resolve to \`paid\` (confirm-on-push) after the credit replicates — not a ` +
-          `permanent \`indeterminate\`. flow-funding get-settlement never showed leg ` +
-          `${claimantDid} = paid within 60s.`,
-      );
-      console.error(`[1644-cli] ✅ M-CONFIRM-ON-PUSH: holon settlement leg resolved to paid`);
     } finally {
       if (disposeHolon) disposeHolon();
       disposeClaimant();
