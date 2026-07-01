@@ -62,6 +62,11 @@ export const MANIFEST: NaomsFeatureManifest = {
     { nodeType: "flow_policy", access: "read-write" },
     { nodeType: "flow_agreement", access: "read-write" },
     { nodeType: "flow_settlement", access: "read-write" },
+    // M-CONFIRM-ON-PUSH: per-leg paid confirmation, written by the confirm-on-push
+    // post-commit hook (domain/settlement-confirm-hook.ts) — NOT chain-projected
+    // (it is derived from the token.transfer chain event, cross-chain), so it has no
+    // eventType binding; the read verb joins it onto flow_settlement's allocations.
+    { nodeType: "flow_settlement_confirm", access: "read-write" },
   ],
 
   // M2 (1111 cross-chain hygiene): the flow-agreement events are emitted onto the
@@ -96,6 +101,8 @@ export const MANIFEST: NaomsFeatureManifest = {
     { type: "flow.get_agreement.result", direction: "outbound", description: "Agreement status + terms" },
     { type: "flow.epoch_settle", direction: "inbound", description: "Settle one flow epoch (run engines, conserved)" },
     { type: "flow.epoch_settle.result", direction: "outbound", description: "Conserved allocation or loud refusal" },
+    { type: "flow.get_settlement", direction: "inbound", description: "Read settlement records for (holon, context) with per-leg paid status" },
+    { type: "flow.get_settlement.result", direction: "outbound", description: "Settlements with per-leg confirm-on-push status (paid|unconfirmed)" },
     { type: "flow.simulate", direction: "inbound", description: "Preview a flow epoch over synthetic state (no commit)" },
     { type: "flow.simulate.result", direction: "outbound", description: "Allocation report (committed:false)" },
   ],

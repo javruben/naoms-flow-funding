@@ -20,6 +20,7 @@ import {
 import {
   type EpochSettleContext,
   handleEpochSettle,
+  handleGetSettlement,
 } from "./handlers/epoch-settle.ts";
 import { handleSimulate, type SimulateContext } from "./handlers/simulate.ts";
 
@@ -52,6 +53,8 @@ async function handleFlow(
       return await handleGetAgreement(ctx, msg, respond);
     case "flow.epoch_settle":
       return await handleEpochSettle(ctx, msg, respond);
+    case "flow.get_settlement":
+      return await handleGetSettlement(ctx, msg, respond);
     case "flow.simulate":
       return await handleSimulate(ctx, msg, respond);
     default:

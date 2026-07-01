@@ -105,6 +105,10 @@ async function moveSettlementValue(
     version: number;
     allocations: Array<{ id: string; amount: number }>;
     settledTotal: number;
+    /** The flow_settlement entityId — tagged into each pay's `memo` so the
+     *  confirm-on-push hook can match a committed token.transfer back to this
+     *  settlement (M-CONFIRM-ON-PUSH). */
+    settlementEntityId: string;
   },
 ): Promise<ValueMovementSummary> {
   const summary: ValueMovementSummary = {
@@ -190,7 +194,21 @@ async function moveSettlementValue(
     }
     // Bind the leaf to the EXACT canonicalized args we will re-dispatch, so the
     // gate's re-canonicalization matches the leaf's action_binding (B1/N2).
-    const payArgs = { token: args.tokenKind, toDid: alloc.id, amount: alloc.amount };
+    // M-CONFIRM-ON-PUSH correlation: tag the settlement pay with the settlement
+    // id via `memo` — a NON-MATERIAL pay arg (delegation-chain.ts
+    // NON_MATERIAL_PAY_ARG_KEYS), so it rides verbatim onto the committed
+    // token.transfer entry WITHOUT altering the leaf action_binding
+    // (canonicalizePayArgs excludes memo) or tripping the B1 fail-closed gate
+    // (unboundMaterialArgsPresent allows memo). The confirm-on-push post-commit
+    // hook reads entry.memo (this tag) + entry.toDid (the claimant) to flip the
+    // leg `unconfirmed`→`paid` when the transfer commits — including the
+    // cross-device leg whose FROST ceremony exceeds the 15s settle deadline.
+    const payArgs = {
+      token: args.tokenKind,
+      toDid: alloc.id,
+      amount: alloc.amount,
+      memo: `flow-settle:${args.settlementEntityId}`,
+    };
     const canon = canonicalizePayArgs(payArgs);
     const binding: ActionBinding = { ...canon, nonce: crypto.randomUUID() };
     let leaf: CapabilityToken;
@@ -269,6 +287,110 @@ function actorDid(ctx: EpochSettleContext): string {
 
 function flowChainId(holon: string): string {
   return `flow-${holon}`;
+}
+
+/** Read the settlement node's `allocations` — tolerates a native array or a
+ *  JSON-string property (the generic triple materializer may serialize either). */
+function parseAllocations(raw: unknown): Array<{ id: string; amount: number }> {
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  const out: Array<{ id: string; amount: number }> = [];
+  for (const a of arr) {
+    const o = a as Record<string, unknown>;
+    const id = typeof o?.id === "string" ? o.id : "";
+    if (id) out.push({ id, amount: Number(o?.amount ?? 0) });
+  }
+  return out;
+}
+
+/**
+ * flow.get_settlement — read the holon's settlement records for (holon, context)
+ * with per-leg PAID status (M-CONFIRM-ON-PUSH). Each allocation leg is `paid` iff a
+ * `flow_settlement_confirm` node exists for (settlementId, claimant) — recorded by
+ * the confirm-on-push hook when that leg's `token.transfer` commits, INCLUDING the
+ * cross-device leg whose FROST ceremony exceeds epoch-settle's 15s deadline (bucketed
+ * `indeterminate` in the settle response). Otherwise the leg is `unconfirmed`. This
+ * is how the operator SEES an automated cross-device settlement resolve to paid,
+ * instead of a permanent `indeterminate`.
+ */
+export async function handleGetSettlement(
+  ctx: EpochSettleContext,
+  msg: Record<string, unknown>,
+  respond: RespondFn,
+): Promise<void> {
+  const actor = actorDid(ctx);
+  const holon = (typeof msg.holon === "string" && msg.holon) || actor;
+  const context = typeof msg.context === "string" ? msg.context : "";
+  if (!context) {
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: false,
+      error: "context required",
+    });
+  }
+  try {
+    const res = await ctx.graph.queryAsync({
+      type: "flow_settlement",
+      where: { holon, context },
+      limit: 10000,
+    });
+    if (res.error) {
+      return respond({ type: "flow.get_settlement.result", ok: false, error: res.error });
+    }
+    const nodes = res.nodes ?? [];
+    const settlements: Array<Record<string, unknown>> = [];
+    for (const n of nodes) {
+      const p = n.properties ?? {};
+      const settlementId = typeof p.settlementId === "string"
+        ? p.settlementId
+        : (typeof p.id === "string" ? p.id : n.id);
+      const allocations = parseAllocations(p.allocations);
+      // Paid legs = the confirm nodes for this settlement (hook-owned; replay-durable).
+      const confirms = await ctx.graph.queryAsync({
+        type: "flow_settlement_confirm",
+        where: { settlementId },
+        limit: 10000,
+      });
+      const paidClaimants = new Set(
+        (confirms.nodes ?? [])
+          .filter((c) => c.properties?.status === "paid")
+          .map((c) => String(c.properties?.claimant ?? "")),
+      );
+      settlements.push({
+        settlementId,
+        surplus: Number(p.surplus ?? 0),
+        settledTotal: Number(p.settledTotal ?? 0),
+        legs: allocations.map((a) => ({
+          id: a.id,
+          amount: a.amount,
+          // `paid` once the token.transfer commits + the hook records it; else the
+          // value leg is `unconfirmed` (in-flight cross-device, refused, or
+          // no-value-moved — the flow.epoch_settle response carries that nuance).
+          status: paidClaimants.has(a.id) ? "paid" : "unconfirmed",
+        })),
+      });
+    }
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: true,
+      holon,
+      context,
+      settlements,
+    });
+  } catch (e) {
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: false,
+      error: (e as Error).message,
+    });
+  }
 }
 
 /**
@@ -368,6 +490,14 @@ export async function handleEpochSettle(
       surplus,
       settledTotal,
       allocations,
+      // M-CONFIRM-ON-PUSH: a queryable correlation key so the confirm-on-push hook
+      // (and the flow.get_settlement read verb) can match this settlement to its
+      // paid-leg confirm nodes. Equals the entityId; every settlement pay carries it
+      // in `memo` (flow-settle:<settlementId>). Per-leg paid status is NOT stored on
+      // THIS node (the generic triple materializer would clobber it on replay); it
+      // lives on separate hook-owned `flow_settlement_confirm` nodes, keyed
+      // (settlementId, claimant), which replay-materialize independently.
+      settlementId: entityId,
       policyEntity: flowPolicyEntityId(holon, context),
     };
     const commit = await securedAppend(ctx.dbHandle, {
@@ -394,6 +524,7 @@ export async function handleEpochSettle(
       version: Number(policyNode.properties?.version ?? 0),
       allocations,
       settledTotal,
+      settlementEntityId: entityId,
     });
     if (
       !valueMovement.attempted || valueMovement.refused.length > 0 ||

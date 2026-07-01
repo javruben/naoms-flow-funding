@@ -16,6 +16,8 @@
 // `evaluateReshare` core path — no flow-side emit hook.
 
 import { createLogger } from "@naoms/logging";
+import { registerPostCommitHook } from "@naoms/core/chain/post-commit-hooks.ts";
+import { _hook_flow_settlement_confirm } from "./domain/settlement-confirm-hook.ts";
 
 const L = createLogger("flow-funding:register");
 
@@ -23,6 +25,16 @@ const FLOW_DOMAIN_KEY = "sharing.flow-funding";
 
 export async function registerPackage(_db: bigint): Promise<void> {
   await registerFlowTransparencyDomain();
+  // M-CONFIRM-ON-PUSH: confirm-on-push reconciliation. Fires on every token-branch
+  // commit (local append + push + backfill); a flow-tagged `token.transfer` records
+  // its settlement leg PAID on a `flow_settlement_confirm` node — resolving the
+  // cross-device leg whose FROST ceremony exceeds epoch-settle's 15s deadline.
+  // Registered by name (post-sync), mirroring token/register.ts's balance hook.
+  registerPostCommitHook(
+    "flow-settlement-confirm",
+    "post-sync",
+    _hook_flow_settlement_confirm,
+  );
   L.info("Flow funding package registered");
 }
 
