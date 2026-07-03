@@ -118,11 +118,14 @@ async function moveSettlementValue(
     indeterminate: [],
   };
   const rootJson = args.policyProps.delegation_root_json;
-  const registryKey = typeof args.policyProps.delegation_registry_key === "string"
-    ? args.policyProps.delegation_registry_key
-    : flowPolicyEntityId(args.holon, args.context, args.tokenKind);
+  const registryKey =
+    typeof args.policyProps.delegation_registry_key === "string"
+      ? args.policyProps.delegation_registry_key
+      : flowPolicyEntityId(args.holon, args.context, args.tokenKind);
 
-  if (args.policyProps.delegation_armed !== true || typeof rootJson !== "string") {
+  if (
+    args.policyProps.delegation_armed !== true || typeof rootJson !== "string"
+  ) {
     summary.reason = "no-delegation-armed";
     return summary;
   }
@@ -189,7 +192,11 @@ async function moveSettlementValue(
     };
     const verdict = verifyFlowOcapForAllocation(root, check);
     if (!verdict.ok) {
-      summary.refused.push({ id: alloc.id, amount: alloc.amount, reason: verdict.reason });
+      summary.refused.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        reason: verdict.reason,
+      });
       continue;
     }
     // Bind the leaf to the EXACT canonicalized args we will re-dispatch, so the
@@ -240,20 +247,24 @@ async function moveSettlementValue(
       }),
       new Promise<Record<string, unknown>>((resolve) =>
         setTimeout(
-          () => resolve({ type: "token.pay_error", error: "gated-pay-timeout" }),
+          () =>
+            resolve({ type: "token.pay_error", error: "gated-pay-timeout" }),
           15_000,
         )
       ),
     ]);
     const typeStr = typeof result.type === "string" ? result.type : "";
-    const ok = typeStr !== "" && !typeStr.endsWith("_error") && result.error == null;
+    const ok = typeStr !== "" && !typeStr.endsWith("_error") &&
+      result.error == null;
     if (ok) {
       summary.paid.push({
         id: alloc.id,
         amount: alloc.amount,
         // handlePay returns `entryId` (the committed token.transfer entry) — the
         // on-chain witness that the gated pay rode REAL token.pay, not a stub.
-        entryId: typeof result.entryId === "string" ? result.entryId : undefined,
+        entryId: typeof result.entryId === "string"
+          ? result.entryId
+          : undefined,
       });
     } else if (result.error === "gated-pay-timeout") {
       // Honesty axiom: a timeout is INDETERMINATE, NOT a refusal. The gate may
@@ -272,7 +283,9 @@ async function moveSettlementValue(
       summary.refused.push({
         id: alloc.id,
         amount: alloc.amount,
-        reason: `pay-refused:${String(result.error ?? result.code ?? "unknown")}`,
+        reason: `pay-refused:${
+          String(result.error ?? result.code ?? "unknown")
+        }`,
       });
     }
   }
@@ -342,7 +355,11 @@ export async function handleGetSettlement(
       limit: 10000,
     });
     if (res.error) {
-      return respond({ type: "flow.get_settlement.result", ok: false, error: res.error });
+      return respond({
+        type: "flow.get_settlement.result",
+        ok: false,
+        error: res.error,
+      });
     }
     const nodes = res.nodes ?? [];
     const settlements: Array<Record<string, unknown>> = [];
@@ -411,20 +428,26 @@ export async function handleEpochSettle(
   const rawClaimants = Array.isArray(msg.claimants) ? msg.claimants : [];
 
   if (!context) {
-    return respond({ type: "flow.epoch_settle.result", ok: false, error: "context required" });
+    return respond({
+      type: "flow.epoch_settle.result",
+      ok: false,
+      error: "context required",
+    });
   }
   if (holon !== actor) {
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `a holon settles its OWN epoch (self only); caller=${actor} holon=${holon}`,
+      error:
+        `a holon settles its OWN epoch (self only); caller=${actor} holon=${holon}`,
     });
   }
   if (!Number.isFinite(balance) || balance < 0) {
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `balance must be a finite, non-negative number (got ${msg.balance})`,
+      error:
+        `balance must be a finite, non-negative number (got ${msg.balance})`,
     });
   }
 
@@ -435,7 +458,11 @@ export async function handleEpochSettle(
     limit: 10000,
   });
   if (res.error) {
-    return respond({ type: "flow.epoch_settle.result", ok: false, error: res.error });
+    return respond({
+      type: "flow.epoch_settle.result",
+      ok: false,
+      error: res.error,
+    });
   }
   const active = (res.nodes ?? []).filter((n) =>
     n.properties?.is_latest === true || n.properties?.is_latest === "true"
@@ -445,7 +472,8 @@ export async function handleEpochSettle(
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `no armed FlowPolicy for (${holon}, ${context}) — arm one with flow.policy_set first`,
+      error:
+        `no armed FlowPolicy for (${holon}, ${context}) — arm one with flow.policy_set first`,
     });
   }
   const params = policyNode.properties?.paramsJson
@@ -475,7 +503,9 @@ export async function handleEpochSettle(
     }
     const allocations = allocate(surplus, claimants, {
       perClaimantCap: perEpochCap !== undefined || perClaimantCap !== undefined
-        ? (Number.isFinite(Number(perClaimantCap)) ? Number(perClaimantCap) : undefined)
+        ? (Number.isFinite(Number(perClaimantCap))
+          ? Number(perClaimantCap)
+          : undefined)
         : undefined,
     });
     const settledTotal = allocations.reduce((s, a) => s + a.amount, 0);
@@ -500,15 +530,18 @@ export async function handleEpochSettle(
       settlementId: entityId,
       policyEntity: flowPolicyEntityId(holon, context),
     };
-    const commit = await securedAppend(ctx.dbHandle, {
-      chainId,
-      branch: "content",
-      type: "flow.epoch_settled",
-      payload: JSON.stringify(payload),
-      signerDid: holon,
-      signerKeyId: `${holon}#key-0`,
-      tripleFormat: { featureId: "flow-funding", entityId },
-    } as Parameters<typeof securedAppend>[1]);
+    const commit = await securedAppend(
+      ctx.dbHandle,
+      {
+        chainId,
+        branch: "content",
+        type: "flow.epoch_settled",
+        payload: JSON.stringify(payload),
+        signerDid: holon,
+        signerKeyId: `${holon}#key-0`,
+        tripleFormat: { featureId: "flow-funding", entityId },
+      } as Parameters<typeof securedAppend>[1],
+    );
 
     L.info("flow epoch settled", { holon, context, surplus, settledTotal });
 
@@ -520,7 +553,9 @@ export async function handleEpochSettle(
       policyProps: policyNode.properties ?? {},
       holon,
       context,
-      tokenKind: String(policyNode.properties?.token_kind ?? DEFAULT_TOKEN_KIND),
+      tokenKind: String(
+        policyNode.properties?.token_kind ?? DEFAULT_TOKEN_KIND,
+      ),
       version: Number(policyNode.properties?.version ?? 0),
       allocations,
       settledTotal,
@@ -563,8 +598,14 @@ export async function handleEpochSettle(
   } catch (e) {
     // HC-01: non-conservation (and bad-band / bad-input) refuse LOUD — never a
     // silent settlement. Surface the residual when the allocator reports it.
-    const residual = e instanceof FlowConservationError ? e.residual : undefined;
-    L.warn("flow epoch settle refused", { holon, context, error: (e as Error).message });
+    const residual = e instanceof FlowConservationError
+      ? e.residual
+      : undefined;
+    L.warn("flow epoch settle refused", {
+      holon,
+      context,
+      error: (e as Error).message,
+    });
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,

@@ -41,11 +41,15 @@
 //   API; the late token.transfer commit is supplied as the exact production Commit shape
 //   (payload {entry:{kind:transfer,toDid,amount,memo,payerDid}} on a `token-` branch) — the
 //   2-daemon e2e separately proves a REAL ceremony produces that commit and fires the hook.
+// @honesty-rationale the hook consumes a chain commit produced by a FROST token-transfer
+//   ceremony; no ceremony key material exists in an in-process integ DB, so the commit
+//   input must be constructed (to its exact production shape) — removing the bypass would
+//   require the full 2-daemon ceremony, which is the sibling e2e's job, not this tier's.
 // @canonical-flow YES — real _hook_flow_settlement_confirm + real handleGetSettlement over
 //   a real DB; only the transfer-commit input is constructed (to its production shape).
 // === END HEADER ===
 
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assertEquals } from "jsr:@std/assert@1";
 import {
   createTestDb,
   initTestSigning,
@@ -69,7 +73,10 @@ function makeCtx(db: bigint, holon: string): EpochSettleContext {
     ownerDid: holon,
     graph: {
       queryAsync: (p: Record<string, unknown>) =>
-        graphQueryAsync(db, p as unknown as Parameters<typeof graphQueryAsync>[1]),
+        graphQueryAsync(
+          db,
+          p as unknown as Parameters<typeof graphQueryAsync>[1],
+        ),
     },
   } as unknown as EpochSettleContext;
 }
@@ -90,7 +97,10 @@ async function getSettlement(
   return out;
 }
 
-function findLeg(res: Record<string, unknown>, claimant: string): Leg | undefined {
+function findLeg(
+  res: Record<string, unknown>,
+  claimant: string,
+): Leg | undefined {
   const settlements = (res.settlements as Array<{ legs?: Leg[] }>) ?? [];
   for (const s of settlements) {
     const leg = (s.legs ?? []).find((l) => l.id === claimant);
@@ -118,14 +128,22 @@ function transferCommit(
     type: "token.transfer",
     timestamp: "2026-07-01T00:00:00.000Z",
     payload: JSON.stringify({
-      entry: { kind: "transfer", toDid, loss_bearer: toDid, amount, memo, payerDid },
+      entry: {
+        kind: "transfer",
+        toDid,
+        loss_bearer: toDid,
+        amount,
+        memo,
+        payerDid,
+      },
     }),
   } as unknown as Parameters<typeof _hook_flow_settlement_confirm>[3];
 }
 
 Deno.test({
   ...SR,
-  name: "1644 M-CONFIRM-ON-PUSH: a leg with no in-band confirmation (the >15s " +
+  name:
+    "1644 M-CONFIRM-ON-PUSH: a leg with no in-band confirmation (the >15s " +
     "`indeterminate` state) resolves unconfirmed→paid when the late flow-tagged " +
     "token.transfer commits; idempotent; ignores non-flow transfers",
 }, async () => {
@@ -163,7 +181,9 @@ Deno.test({
   assertEquals(
     findLeg(before, claimant)?.status,
     "unconfirmed",
-    `leg MUST read unconfirmed before the late transfer — ${JSON.stringify(before)}`,
+    `leg MUST read unconfirmed before the late transfer — ${
+      JSON.stringify(before)
+    }`,
   );
 
   // ── (2) The LATE cross-device token.transfer commits on the holon's token branch
@@ -173,7 +193,14 @@ Deno.test({
     db,
     tokenId,
     `token-${tokenId}`,
-    transferCommit(tokenId, 1, claimant, 200, `flow-settle:${settlementId}`, holon),
+    transferCommit(
+      tokenId,
+      1,
+      claimant,
+      200,
+      `flow-settle:${settlementId}`,
+      holon,
+    ),
   );
 
   // ── (3) AFTER: get-settlement OVERRIDES the leg to `paid` via the confirm node.
@@ -182,7 +209,9 @@ Deno.test({
   assertEquals(
     findLeg(after, claimant)?.status,
     "paid",
-    `leg MUST read paid after the late flow-tagged transfer commits — ${JSON.stringify(after)}`,
+    `leg MUST read paid after the late flow-tagged transfer commits — ${
+      JSON.stringify(after)
+    }`,
   );
 
   // ── (4) Idempotent: re-firing on push/backfill/replay keeps ONE confirm node. ──
@@ -190,7 +219,14 @@ Deno.test({
     db,
     tokenId,
     `token-${tokenId}`,
-    transferCommit(tokenId, 1, claimant, 200, `flow-settle:${settlementId}`, holon),
+    transferCommit(
+      tokenId,
+      1,
+      claimant,
+      200,
+      `flow-settle:${settlementId}`,
+      holon,
+    ),
   );
   const confirms = await graphQueryAsync(db, {
     type: "flow_settlement_confirm",
@@ -223,6 +259,4 @@ Deno.test({
     1,
     "a non-flow-tagged token.transfer MUST NOT create a confirm node",
   );
-
-  assert(true, "M-CONFIRM-ON-PUSH indeterminate→paid proven at the hook level");
 });

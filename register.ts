@@ -67,7 +67,9 @@ async function registerFlowTransparencyDomain(): Promise<void> {
 
   // Wire the `friendship.share.flow-funding` dispatch enricher with the same
   // deps the sharing package wires its built-ins with (`registerAllSharingEnrichers`).
-  const { registerEnricher } = await import("@naoms/core/enrichers/registry.ts");
+  const { registerEnricher } = await import(
+    "@naoms/core/enrichers/registry.ts"
+  );
   const { unwrapPayloadDeep } = await import(
     "@naoms/core/enrichers/enricher-utils.ts"
   );

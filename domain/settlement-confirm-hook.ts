@@ -35,14 +35,19 @@ const TOKEN_BRANCH_PREFIX = "token-";
 const MEMO_TAG = "flow-settle:";
 
 /** Deterministic id for the per-leg confirm node — idempotent across re-fires. */
-export function settlementConfirmNodeId(settlementId: string, claimant: string): string {
+export function settlementConfirmNodeId(
+  settlementId: string,
+  claimant: string,
+): string {
   return `flow-settle-confirm:${settlementId}:${claimant}`;
 }
 
 /** Unwrap a committed token entry payload. Tolerates the JSON-LD `@graph` wrap the
  *  generic triple materializer applies (mirrors token/domain/materialize.ts's
  *  module-private `_unwrapPayload`). Returns the inner entry object, or null. */
-function unwrapTokenEntry(payload: string | null): Record<string, unknown> | null {
+function unwrapTokenEntry(
+  payload: string | null,
+): Record<string, unknown> | null {
   if (!payload) return null;
   let obj: unknown;
   try {
@@ -61,7 +66,9 @@ function unwrapTokenEntry(payload: string | null): Record<string, unknown> | nul
       if (typeof val === "string") {
         try {
           const e = JSON.parse(val);
-          return e && typeof e === "object" ? e as Record<string, unknown> : null;
+          return e && typeof e === "object"
+            ? e as Record<string, unknown>
+            : null;
         } catch {
           return null;
         }
@@ -70,7 +77,9 @@ function unwrapTokenEntry(payload: string | null): Record<string, unknown> | nul
   }
   // bare: { entry: {...} }
   const entry = o.entry;
-  return entry && typeof entry === "object" ? entry as Record<string, unknown> : null;
+  return entry && typeof entry === "object"
+    ? entry as Record<string, unknown>
+    : null;
 }
 
 /**
