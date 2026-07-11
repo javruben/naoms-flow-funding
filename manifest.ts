@@ -17,6 +17,7 @@ import { FLOW_FUNDING_OPERATIONS } from "./manifest-operations.ts";
 
 export const MANIFEST: NaomsFeatureManifest = {
   id: "flow-funding",
+  defaultInstallContext: "personal",
   name: "Flow Funding",
   version: "1.0.0",
   description:
