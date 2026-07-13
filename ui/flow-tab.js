@@ -6,20 +6,19 @@
  * @competitors: Open Collective, Grassroots Economics (Sarafu), Circles UBI
  * @competitor-reference: src/packages/flow-funding/docs/design/flow-funding-competitor-reference.md
  */
-// Under NAOMS_UI_MOCK (test-only; the daemon injects window.__naomsConfig.uiMock
-// into the app shell — see docs/build/standards/browser-app-mock-implementation.md)
-// this mounts the four binding 1644 design surfaces NATIVELY via flow-mock.js.
-//
-// In the real (non-mock) app it mounts each surface's OWN renderer
-// (window.__flowMockSurfaces — the mock IS the production UI, fed real data, not
-// rebuilt) behind a small surface nav and wires it to the live flow.* ops:
-//   - Policy    → ctx.api.get_policy / policy_set   (M6.1)
-//   - Agreement → ctx.api.agreement_propose         (M6.2)
-//   - Velocity / Simulation → wiring lands later in M6.2 (honest placeholder).
-// Sections without a backing op (felt-threshold inference, commons tithe,
-// transparency = M-TRANSPARENCY) are shown but marked "preview · not yet saved",
-// and the mocks' hard-coded synthetic figures are stripped — never
-// synthetic-as-real (Honesty axiom / Honor Rule).
+// Mounts the four REAL surfaces (flow-surfaces.js — hand-maintained honest
+// markup, 1710 mock purge; no seeded figures, no synthetic peers) behind a
+// small surface nav and wires them to the live flow.* ops:
+//   - Policy    → ctx.api.get_policy / policy_set
+//   - Agreement → ctx.api.agreement_propose
+//   - Velocity  → graph reads (flow_agreement / flow_settlement / flow_policy)
+//   - Simulate  → ctx.api.simulate (real engine, dry-run, commits nothing)
+// Sections without a backing op (felt-threshold inference, anti-hoarding,
+// commons tithe, transparency = M-TRANSPARENCY) carry an explicit
+// "preview · not yet saved" tag in the static markup — never
+// synthetic-as-real (Honesty axiom / Honor Rule). The same real DOM renders
+// under NAOMS_UI_MOCK (skip-login testing mode): skip-login opens the real WS
+// and real feature registry, so the surfaces read real (usually empty) data.
 
 (function () {
   "use strict";
@@ -46,7 +45,11 @@
     { id: "household", label: "Household" },
     { id: "stewardship", label: "Watershed hive" },
   ];
-  var CURVE_GRADIENT = { "Generous early": 0.8, "Linear": 0.5, "Cautious": 0.2 };
+  var CURVE_GRADIENT = {
+    "Generous early": 0.8,
+    "Linear": 0.5,
+    "Cautious": 0.2,
+  };
   var CCY_LABEL = {
     USD: "US dollars ($)",
     NAO: "NAO hours",
@@ -75,17 +78,7 @@
 
   function activate() {
     if (!container) return;
-    if (window.__naomsConfig && window.__naomsConfig.uiMock) {
-      loadMockModule(function () {
-        if (typeof window.mountFlowMock === "function") {
-          window.mountFlowMock(container);
-        } else {
-          container.textContent = "flow-mock module failed to load.";
-        }
-      });
-      return;
-    }
-    loadMockModule(mountWired);
+    loadSurfacesModule(mountWired);
   }
 
   function destroy() {
@@ -95,7 +88,7 @@
   // ── wired shell: surface nav + content + status ─────────────────────────────
 
   function mountWired() {
-    var surfaces = window.__flowMockSurfaces;
+    var surfaces = window.__flowSurfaces;
     if (!surfaces || !surfaces.policy) {
       container.textContent = "Flow surfaces failed to load.";
       return;
@@ -108,11 +101,11 @@
         "Flow operations are unavailable on this context — cannot wire the surfaces.";
       return;
     }
-    ensureMockCss();
+    ensureSurfacesCss();
     container.innerHTML = "";
 
     var root = document.createElement("div");
-    root.id = "flow-mock-app";
+    root.id = "flow-app";
     root.style.cssText =
       "position:relative;height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:var(--color-surface-0,#0d1117)";
 
@@ -134,7 +127,8 @@
 
     var content = document.createElement("div");
     content.id = "flow-wired-content";
-    content.style.cssText = "flex:1;min-height:0;position:relative;overflow:auto";
+    content.style.cssText =
+      "flex:1;min-height:0;position:relative;overflow:auto";
 
     var status = document.createElement("div");
     status.id = "flow-status";
@@ -153,18 +147,21 @@
   function showSurface(name) {
     var nav = document.getElementById("flow-wired-nav");
     if (nav) {
-      Array.prototype.forEach.call(nav.querySelectorAll("button"), function (b) {
-        var on = b.dataset.surface === name;
-        b.style.background = on
-          ? "var(--color-primary-muted,rgba(88,166,255,.15))"
-          : "var(--color-surface-2,#21262d)";
-        b.style.color = on
-          ? "var(--color-primary,#58a6ff)"
-          : "var(--color-text-secondary,#8b949e)";
-        b.style.borderColor = on
-          ? "var(--color-primary,#58a6ff)"
-          : "var(--color-border,#30363d)";
-      });
+      Array.prototype.forEach.call(
+        nav.querySelectorAll("button"),
+        function (b) {
+          var on = b.dataset.surface === name;
+          b.style.background = on
+            ? "var(--color-primary-muted,rgba(88,166,255,.15))"
+            : "var(--color-surface-2,#21262d)";
+          b.style.color = on
+            ? "var(--color-primary,#58a6ff)"
+            : "var(--color-text-secondary,#8b949e)";
+          b.style.borderColor = on
+            ? "var(--color-primary,#58a6ff)"
+            : "var(--color-border,#30363d)";
+        },
+      );
     }
     if (name === "policy") return mountPolicy();
     if (name === "agreement") return mountAgreement();
@@ -185,7 +182,8 @@
     })[0] || {}).label || name;
     c.innerHTML =
       '<div style="padding:2rem;max-width:620px;color:var(--color-text-secondary,#8b949e)">' +
-      '<h2 style="color:var(--color-text-primary,#c9d1d9);margin-top:0">' + label +
+      '<h2 style="color:var(--color-text-primary,#c9d1d9);margin-top:0">' +
+      label +
       "</h2><p>This surface is being wired to its real flow.* operations in M6.2 " +
       "(Velocity → epoch reads; Simulation → flow.simulate). It is intentionally " +
       "not showing synthetic data.</p></div>";
@@ -195,17 +193,15 @@
   // ── Policy surface (M6.1) ────────────────────────────────────────────────────
 
   function pq(sel) {
-    return document.querySelector("#flow-mock-policy " + sel);
+    return document.querySelector("#flow-policy " + sel);
   }
 
   function mountPolicy() {
     var c = contentEl();
     if (!c) return;
-    c.innerHTML = '<div id="flow-mock-policy" class="fm-surface">' +
-      window.__flowMockSurfaces.policy.html + "</div>";
+    c.innerHTML = '<div id="flow-policy" class="flow-surface">' +
+      window.__flowSurfaces.policy.html + "</div>";
     bindPolicyGlobals();
-    neutralizePolicySynthetic();
-    markPolicyUnbacked();
     loadPolicy();
   }
 
@@ -226,14 +222,14 @@
     window.setCurrency = function (v) {
       state.ccy = CCY_FMT[v] ? v : "USD";
       var f = CCY_FMT[state.ccy];
-      var units = document.querySelectorAll("#flow-mock-policy .th-field .unit");
+      var units = document.querySelectorAll("#flow-policy .th-field .unit");
       Array.prototype.forEach.call(units, function (u) {
         u.textContent = (f.suf ? f.suf.trim() : f.sym) + " / month";
       });
       window.updateBand();
     };
     window.selectCurve = function (el) {
-      var opts = document.querySelectorAll("#flow-mock-policy .curve-opt");
+      var opts = document.querySelectorAll("#flow-policy .curve-opt");
       Array.prototype.forEach.call(opts, function (c) {
         c.classList.remove("on");
       });
@@ -244,7 +240,7 @@
         : 0.5;
     };
     window.selectCtx = function (el, label) {
-      var pills = document.querySelectorAll("#flow-mock-policy .ctx-pill");
+      var pills = document.querySelectorAll("#flow-policy .ctx-pill");
       Array.prototype.forEach.call(pills, function (p) {
         p.classList.remove("on");
       });
@@ -258,7 +254,7 @@
       loadPolicy();
     };
     window.switchCtx = function (el, id) {
-      var its = document.querySelectorAll("#flow-mock-policy .cfg-nav .it");
+      var its = document.querySelectorAll("#flow-policy .cfg-nav .it");
       Array.prototype.forEach.call(its, function (i) {
         i.classList.remove("on");
       });
@@ -370,7 +366,7 @@
         best = k;
       }
     });
-    var opts = document.querySelectorAll("#flow-mock-policy .curve-opt");
+    var opts = document.querySelectorAll("#flow-policy .curve-opt");
     Array.prototype.forEach.call(opts, function (c) {
       var nm = ((c.querySelector(".cnm") || {}).textContent || "").trim();
       c.classList.toggle("on", nm === best);
@@ -387,80 +383,34 @@
     window.setCurrency(code);
   }
 
-  function neutralizePolicySynthetic() {
-    var helps = document.querySelectorAll(
-      "#flow-mock-policy #numericThresholds .help",
-    );
-    Array.prototype.forEach.call(helps, function (h) {
-      h.textContent = "";
-    });
-    var viz = pq(".band-viz");
-    if (viz && viz.nextElementSibling) {
-      viz.nextElementSibling.parentNode.removeChild(viz.nextElementSibling);
-    }
-    Array.prototype.forEach.call(
-      document.querySelectorAll("#flow-mock-policy .card div"),
-      function (d) {
-        if ((d.textContent || "").indexOf("current flow rate") !== -1) {
-          d.textContent = "";
-        }
-      },
-    );
-  }
-
-  function markPolicyUnbacked() {
-    var heads = document.querySelectorAll("#flow-mock-policy .card-head");
-    Array.prototype.forEach.call(heads, function (h) {
-      var txt = (h.textContent || "").toLowerCase();
-      if (
-        txt.indexOf("anti-hoarding") !== -1 ||
-        txt.indexOf("commons tithe") !== -1 ||
-        txt.indexOf("transparency") !== -1
-      ) {
-        h.appendChild(previewTag());
-      }
-    });
-  }
-
-  // ── Velocity surface (M6.2) — the flow "river", a READ aggregation ───────────
+  // ── Velocity surface — the flow "river", a READ aggregation ─────────────────
 
   function vq(sel) {
-    return document.querySelector("#flow-mock-velocity " + sel);
+    return document.querySelector("#flow-velocity " + sel);
   }
 
   function mountVelocity() {
     var c = contentEl();
     if (!c) return;
-    if (typeof ctx.graphQuery !== "function") return mountPlaceholder("velocity");
-    c.innerHTML = '<div id="flow-mock-velocity" class="fm-surface">' +
-      window.__flowMockSurfaces.velocity.html + "</div>";
-    // reuse the mock's own state/tab handlers (incl. the M6-R1 firstrun toggle)
+    if (typeof ctx.graphQuery !== "function") {
+      return mountPlaceholder("velocity");
+    }
+    c.innerHTML = '<div id="flow-velocity" class="flow-surface">' +
+      window.__flowSurfaces.velocity.html + "</div>";
     bindVelocityGlobals();
     loadVelocity();
   }
 
   function bindVelocityGlobals() {
-    window.switchTab = function (el) {
-      var bs = document.querySelectorAll("#flow-mock-velocity .tabstrip button");
-      Array.prototype.forEach.call(bs, function (b) {
-        b.classList.remove("on");
-      });
-      if (el) el.classList.add("on");
-    };
-    // Real first-run toggle (the mock's setState lives in its un-injected demo
-    // script). Only the firstrun CHROME branch — no synthetic balance/state
-    // numbers; the populated case is rendered by renderVelocity from real data.
+    // First-run toggle: empty state vs the real river render. No synthetic
+    // balance/state numbers; the populated case is rendered by renderVelocity
+    // from real data.
     window.setState = function (s) {
       var firstrun = s === "firstrun";
       var fr = vq("#firstRun");
       var rc = vq("#riverContent");
       if (fr) setHidden(fr, !firstrun);
       if (rc) setHidden(rc, firstrun);
-      [vq("#stateHero"), vq("#periodNav"), vq("#tabStrip")].forEach(
-        function (e) {
-          if (e) setHidden(e, firstrun);
-        },
-      );
     };
   }
 
@@ -507,13 +457,10 @@
   }
 
   function renderVelocity(agreements, settlements, policies, self) {
-    // Show the river, hide the empty state + the synthetic "cup full" hero (its
-    // balance/state numbers depend on token balance, out of this surface's data).
+    // Show the river, hide the empty state.
     var fr = vq("#firstRun");
     if (fr) fr.classList.add("hidden");
     var rc = vq("#riverContent");
-    var hero = vq("#stateHero");
-    if (hero) hero.classList.add("hidden");
 
     // Real aggregates from settlement history (Honesty: only what we can read).
     var totalOut = settlements.reduce(function (s, x) {
@@ -572,10 +519,10 @@
     );
   }
 
-  // ── Simulation surface (M6.2) ────────────────────────────────────────────────
+  // ── Simulation surface ───────────────────────────────────────────────────────
 
   function sq(sel) {
-    return document.querySelector("#flow-mock-simulate " + sel);
+    return document.querySelector("#flow-simulate " + sel);
   }
 
   function mountSimulate() {
@@ -584,11 +531,10 @@
     if (typeof ctx.api.simulate !== "function") {
       return mountPlaceholder("simulate");
     }
-    c.innerHTML = '<div id="flow-mock-simulate" class="fm-surface">' +
-      window.__flowMockSurfaces.simulate.html + "</div>";
-    // The mock's results panel is fabricated history. Run the REAL engine over a
-    // clearly-labelled synthetic network instead (flow.simulate is a dry-run over
-    // synthetic state by design — design §6.5).
+    c.innerHTML = '<div id="flow-simulate" class="flow-surface">' +
+      window.__flowSurfaces.simulate.html + "</div>";
+    // Run the REAL engine over a clearly-labelled synthetic network
+    // (flow.simulate is a dry-run over synthetic state by design — design §6.5).
     bindSimulateGlobals();
     showStatus(
       "Choose a scenario and run — the real flow engine simulates an illustrative network (commits nothing).",
@@ -639,16 +585,6 @@
       var el = sq("#scenarioDesc");
       if (el) el.textContent = descs[v] || "";
     };
-    window.selectVariant = function (el, id) {
-      var bs = document.querySelectorAll("#flow-mock-simulate .variant-btn");
-      Array.prototype.forEach.call(bs, function (b) {
-        b.classList.remove("on");
-      });
-      el.classList.add("on");
-      var diff = sq("#variantDiff");
-      if (diff) diff.classList.toggle("hidden", id !== "modified");
-    };
-    window.updateDemurrageRate = function () {};
     window.runSimulation = runSimulation;
   }
 
@@ -721,9 +657,10 @@
 
   function simCard(label, val) {
     return '<div style="flex:1;min-width:120px;background:var(--bg2,#161b22);' +
-      "border:1px solid var(--border,#30363d);border-radius:10px;padding:10px 14px\">" +
+      'border:1px solid var(--border,#30363d);border-radius:10px;padding:10px 14px">' +
       '<div style="font-size:.7rem;color:var(--text3,#8b939d);text-transform:uppercase;letter-spacing:.04em">' +
-      esc(label) + '</div><div style="font-size:1.2rem;font-weight:700;margin-top:2px">' +
+      esc(label) +
+      '</div><div style="font-size:1.2rem;font-weight:700;margin-top:2px">' +
       esc(val) + "</div></div>";
   }
 
@@ -739,53 +676,22 @@
     });
   }
 
-  // ── Agreement surface (M6.2) ─────────────────────────────────────────────────
+  // ── Agreement surface ────────────────────────────────────────────────────────
 
   function aq(sel) {
-    return document.querySelector("#flow-mock-agreement " + sel);
+    return document.querySelector("#flow-agreement " + sel);
   }
 
   function mountAgreement() {
     var c = contentEl();
     if (!c) return;
-    c.innerHTML = '<div id="flow-mock-agreement" class="fm-surface">' +
-      window.__flowMockSurfaces.agreement.html + "</div>";
-    injectCounterpartyField();
+    c.innerHTML = '<div id="flow-agreement" class="flow-surface">' +
+      window.__flowSurfaces.agreement.html + "</div>";
     bindAgreementGlobals();
-    neutralizeAgreementSynthetic();
     showStatus(
       "Propose a flow agreement — set the counterparty, dial the formality, then Create.",
       "",
     );
-  }
-
-  // The mock shows a fixed "@jay" recipient with no real DID source. A real
-  // proposal needs a counterparty DID, so add an explicit field and drop the
-  // synthetic party row.
-  function injectCounterpartyField() {
-    var sect = null;
-    Array.prototype.forEach.call(
-      document.querySelectorAll("#flow-mock-agreement .sect"),
-      function (s) {
-        var head = s.querySelector(".sect-head");
-        if (head && (head.textContent || "").trim() === "Parties") sect = s;
-      },
-    );
-    if (!sect) return;
-    // remove the synthetic @jay party row(s) beyond "You"
-    var rows = sect.querySelectorAll(".party-row");
-    Array.prototype.forEach.call(rows, function (r, i) {
-      if (i > 0) r.parentNode.removeChild(r);
-    });
-    var field = document.createElement("div");
-    field.className = "field";
-    field.innerHTML =
-      '<label>Counterparty — peer handle or DID</label>' +
-      '<input class="ctl" id="flowAgreementCounterparty" type="text" ' +
-      'placeholder="e.g. did:key:… or @handle"/>' +
-      '<div class="help">A bilateral flow agreement rides your established ' +
-      "friendship lane with this peer — you must already be paired.</div>";
-    sect.appendChild(field);
   }
 
   function bindAgreementGlobals() {
@@ -808,14 +714,14 @@
       if (cf) cf.classList.toggle("hidden", !isContract);
     };
     window.selectTier = function (el) {
-      var opts = document.querySelectorAll("#flow-mock-agreement .tier-opt");
+      var opts = document.querySelectorAll("#flow-agreement .tier-opt");
       Array.prototype.forEach.call(opts, function (t) {
         t.classList.remove("on");
       });
       el.classList.add("on");
     };
     window.selectDur = function (el, val) {
-      var bs = document.querySelectorAll("#flow-mock-agreement #durSeg button");
+      var bs = document.querySelectorAll("#flow-agreement #durSeg button");
       Array.prototype.forEach.call(bs, function (b) {
         b.classList.remove("on");
       });
@@ -831,7 +737,7 @@
     };
     window.updateSplit = function () {
       var inputs = document.querySelectorAll(
-        "#flow-mock-agreement .spct input",
+        "#flow-agreement .spct input",
       );
       var total = 0;
       Array.prototype.forEach.call(inputs, function (i) {
@@ -860,13 +766,42 @@
     var dial = parseFloat((aq("#formalityDial") || {}).value) || 0;
     var formality = Math.max(0, Math.min(1, dial / 100));
     var terms = { formality: formality, tier: formalityToTier(formality) };
-    var sp = aq(".spct input");
-    if (sp) {
-      var v = parseFloat(sp.value);
-      if (isFinite(v) && v > 0) terms.sharePct = Math.max(0, Math.min(1, v / 100));
+    var isContract = dial >= 60;
+    if (isContract) {
+      var sp = aq(".spct input");
+      if (sp) {
+        var v = parseFloat(sp.value);
+        if (isFinite(v) && v > 0) {
+          terms.sharePct = Math.max(0, Math.min(1, v / 100));
+        }
+      }
+      var revSrc = ((aq("#revenueSource") || {}).value || "").trim();
+      if (revSrc) terms.revenueSource = revSrc;
+      var iouT = aq("#iouToggle");
+      if (iouT && iouT.classList.contains("on")) {
+        var out = parseFloat((aq("#iouOutstanding") || {}).value);
+        var cap = parseFloat((aq("#iouCap") || {}).value);
+        terms.iou = {
+          outstanding: isFinite(out) ? out : 0,
+          currency: (aq("#iouCurrency") || {}).value || "USD",
+          capPerPeriod: isFinite(cap) ? cap : 0,
+        };
+      }
+    } else {
+      // relational channel: bind the visible channel-width fields
+      var w = parseFloat((aq("#channelWidth") || {}).value);
+      if (isFinite(w) && w > 0) {
+        terms.channel = {
+          width: w,
+          period: (aq("#channelPeriod") || {}).value || "per month",
+          unit: (aq("#channelUnit") || {}).value || "NAO hours",
+        };
+      }
+      var note = ((aq("#agreementNote") || {}).value || "").trim();
+      if (note) terms.note = note;
     }
-    var iouT = aq("#iouToggle");
-    if (iouT && iouT.classList.contains("on")) terms.iou = true;
+    var transp = aq('input[name="agreementTransp"]:checked');
+    if (transp && transp.value) terms.transparency = transp.value;
 
     showStatus("Proposing…", "");
     return ctx.api.agreement_propose({
@@ -880,7 +815,10 @@
           "ok",
         );
       } else {
-        showStatus("Propose failed: " + ((res && res.error) || "unknown"), "warn");
+        showStatus(
+          "Propose failed: " + ((res && res.error) || "unknown"),
+          "warn",
+        );
       }
     }, function (err) {
       showStatus("Propose failed: " + errMsg(err), "warn");
@@ -908,21 +846,7 @@
     return (p || DIAL_POSITIONS[DIAL_POSITIONS.length - 1]).label;
   }
 
-  // The mock's "how this would have executed" preview is fabricated history.
-  function neutralizeAgreementSynthetic() {
-    var prev = aq(".sim-preview");
-    if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
-  }
-
   // ── shared helpers ───────────────────────────────────────────────────────────
-
-  function previewTag() {
-    var tag = document.createElement("span");
-    tag.textContent = "preview · not yet saved";
-    tag.style.cssText =
-      "font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-tertiary,#8b949e);border:1px solid var(--color-border,#30363d);border-radius:9999px;padding:1px 8px;margin-left:8px";
-    return tag;
-  }
 
   function errMsg(err) {
     return err && err.message ? err.message : String(err);
@@ -947,30 +871,32 @@
     bar.textContent = msg;
   }
 
-  function ensureMockCss() {
-    if (document.getElementById("flow-mock-css")) return;
+  function ensureSurfacesCss() {
+    if (document.getElementById("flow-surfaces-css")) return;
     var l = document.createElement("link");
-    l.id = "flow-mock-css";
+    l.id = "flow-surfaces-css";
     l.rel = "stylesheet";
-    l.href = "/features/flow-funding/flow-mock.css?v=" +
+    l.href = "/features/flow-funding/flow-surfaces.css?v=" +
       (window.__naomsBuild || Date.now());
     document.head.appendChild(l);
   }
 
-  function loadMockModule(cb) {
-    if (window.__flowMockSurfaces) return cb();
-    var existing = document.getElementById("flow-mock-module");
+  function loadSurfacesModule(cb) {
+    if (window.__flowSurfaces) return cb();
+    var existing = document.getElementById("flow-surfaces-module");
     if (existing) {
       existing.addEventListener("load", cb);
       return;
     }
     var s = document.createElement("script");
-    s.id = "flow-mock-module";
-    s.src = "/features/flow-funding/flow-mock.js?v=" +
+    s.id = "flow-surfaces-module";
+    s.src = "/features/flow-funding/flow-surfaces.js?v=" +
       (window.__naomsBuild || Date.now());
     s.onload = cb;
     s.onerror = function () {
-      if (container) container.textContent = "flow surface module failed to load.";
+      if (container) {
+        container.textContent = "flow surface module failed to load.";
+      }
     };
     document.body.appendChild(s);
   }
