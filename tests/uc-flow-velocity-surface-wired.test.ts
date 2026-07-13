@@ -6,8 +6,8 @@
 // flow_settlement and flow_policy graph nodes via ctx.graphQuery. With no flows
 // it shows the M6-R1 first-run empty state; with flows it renders a real summary
 // (settlements / flowed-out / received / armed band + active agreements). The
-// mock's synthetic "$17,400 / cup full" hero (which depends on token balance,
-// out of this surface's data) is hidden — never synthetic-as-real.
+// old mock's synthetic "$17,400 / cup full" hero was purged (1710) — never
+// synthetic-as-real.
 //
 // Runner: deno test --allow-read --no-check <path>
 //
@@ -38,7 +38,8 @@ const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
   "",
 );
 const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
-const MOCK_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-mock.js`;
+const SURFACES_PATH =
+  `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 const SELF = "did:self";
 
 function ensureStyleShim(doc: AnyDoc): void {
@@ -95,7 +96,7 @@ async function mountVelocity(
   data: GraphData,
 ): Promise<{ win: Record<string, unknown>; doc: AnyDoc }> {
   const env = buildEnv();
-  await evalInto(env, MOCK_PATH);
+  await evalInto(env, SURFACES_PATH);
   await evalInto(env, TAB_PATH);
 
   const api = {
@@ -135,8 +136,8 @@ Deno.test("M6.2-vel source contract: flow-tab.js reads flow nodes via graphQuery
   assert(src.includes("flow_settlement"), "queries settlements");
   assert(src.includes("flow_agreement"), "queries agreements");
   assert(
-    src.includes("__flowMockSurfaces.velocity"),
-    "mounts the mock's OWN velocity renderer",
+    src.includes("__flowSurfaces.velocity"),
+    "mounts the real velocity surface markup",
   );
   assert(/setState\("firstrun"\)/.test(src), "empty state on no flows");
 });
@@ -147,8 +148,8 @@ Deno.test("M6.2-vel empty: no flows → first-run empty state (river hidden)", a
     settlements: [],
     policies: [],
   });
-  const fr = doc.querySelector("#flow-mock-velocity #firstRun") as AnyEl;
-  const rc = doc.querySelector("#flow-mock-velocity #riverContent") as AnyEl;
+  const fr = doc.querySelector("#flow-velocity #firstRun") as AnyEl;
+  const rc = doc.querySelector("#flow-velocity #riverContent") as AnyEl;
   assert(fr, "firstRun present");
   assertEquals(
     fr.classList.contains("hidden"),
@@ -187,20 +188,27 @@ Deno.test("M6.2-vel populated: real agreements + settlements render in the river
     policies: [
       {
         id: "p1",
-        properties: { holon: SELF, floor: 7000, ceiling: 15000, is_latest: true },
+        properties: {
+          holon: SELF,
+          floor: 7000,
+          ceiling: 15000,
+          is_latest: true,
+        },
       },
     ],
   });
-  const rc = doc.querySelector("#flow-mock-velocity #riverContent") as AnyEl;
+  const rc = doc.querySelector("#flow-velocity #riverContent") as AnyEl;
   assertEquals(rc.classList.contains("hidden"), false, "river shown");
-  const hero = doc.querySelector("#flow-mock-velocity #stateHero") as AnyEl;
   assertEquals(
-    hero.classList.contains("hidden"),
-    true,
-    "synthetic cup-full hero hidden (no real balance to show it honestly)",
+    doc.querySelector("#flow-velocity #stateHero"),
+    null,
+    "no synthetic cup-full hero in the real markup (purged 1710)",
   );
   const txt = rc.textContent || "";
   assert(txt.indexOf("740") !== -1, "real flowed-out total rendered");
-  assert(txt.indexOf("did:peer") !== -1, "real agreement counterparty rendered");
+  assert(
+    txt.indexOf("did:peer") !== -1,
+    "real agreement counterparty rendered",
+  );
   assert(txt.indexOf("Flowed out") !== -1, "real aggregate label present");
 });

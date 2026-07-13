@@ -1,7 +1,7 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
 // @intent M6 Velocity surface real-render
-// @gated-by: flow.policy_set chain-write + flow_policy materialize (M1) + Velocity graphQuery read (M6.2)
+// @gated-by: uc-flow-velocity-surface-wired
 // @covers flow-funding Velocity surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description seed-policy-via-real-op → real-onboarded-founder → open-Flow-Funding → switch-to-Velocity → assert river renders the REAL armed band (not the first-run empty state)
 // @owns-surface flow-velocity
@@ -42,7 +42,10 @@ import {
   getRandomPort,
   startDaemonFromFixture,
 } from "../../../../tests/helpers/browser-e2e.ts";
-import { authenticateWs, wsSend } from "../../../../tests/helpers/ws-ceremony.ts";
+import {
+  authenticateWs,
+  wsSend,
+} from "../../../../tests/helpers/ws-ceremony.ts";
 import { unlockFixtureVault } from "../../../../tests/helpers/fixture-unlock.ts";
 import { installActionApprovalAutoGrant } from "../../../../tests/helpers/drive-action-approval.ts";
 import { testLogin } from "../../../../tests/helpers/login.ts";
@@ -87,7 +90,10 @@ Deno.test({
 
       const auth = await authenticateWs(port, started.keysDir);
       ws = auth.ws;
-      await unlockFixtureVault(ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
+      await unlockFixtureVault(ws, {
+        identity: "founder",
+        naomsRoot: NAOMS_ROOT,
+      });
       const appPassword = Deno.readTextFileSync(
         `${NAOMS_ROOT}/tests/fixtures/state-seeds/founder/keys/founder-password.txt`,
       ).trim();
@@ -100,7 +106,10 @@ Deno.test({
         tokenKind: TOKEN_KIND,
         params: { floor: FLOOR, ceiling: CEILING },
       });
-      assert(set.ok === true, `seed flow.policy_set failed: ${JSON.stringify(set)}`);
+      assert(
+        set.ok === true,
+        `seed flow.policy_set failed: ${JSON.stringify(set)}`,
+      );
 
       // Backend cross-check: the band the river must equal.
       let found = false;
@@ -137,7 +146,10 @@ Deno.test({
         url: `http://127.0.0.1:${port}/`,
         timeoutMs: 60000,
       });
-      assert(loginResult.success, `login failed: ${loginResult.errors.join("; ")}`);
+      assert(
+        loginResult.success,
+        `login failed: ${loginResult.errors.join("; ")}`,
+      );
       await delay(2000);
 
       await page.evaluate(async () => {
@@ -153,8 +165,9 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         navReady = await evalWithRetry(
           page,
-          () => typeof (window as { __flowShowSurface?: unknown })
-            .__flowShowSurface === "function",
+          () =>
+            typeof (window as { __flowShowSurface?: unknown })
+              .__flowShowSurface === "function",
         );
         if (navReady) break;
         await delay(500);
@@ -166,29 +179,38 @@ Deno.test({
       });
 
       // ── Assert: the river rendered the REAL band, NOT the first-run empty state.
-      let render: { riverHidden: boolean; firstrunHidden: boolean; text: string } =
-        { riverHidden: true, firstrunHidden: false, text: "" };
+      let render: {
+        riverHidden: boolean;
+        firstrunHidden: boolean;
+        text: string;
+      } = { riverHidden: true, firstrunHidden: false, text: "" };
       // The river formats amounts with locale separators ("4,321"); strip all
       // non-digits before matching so the assertion is format-agnostic.
       const digits = (s: string) => s.replace(/[^0-9]/g, "");
       for (let i = 0; i < 40; i++) {
         render = await evalWithRetry(page, () => {
-          const rc = document.querySelector("#flow-mock-velocity #riverContent");
-          const fr = document.querySelector("#flow-mock-velocity #firstRun");
+          const rc = document.querySelector("#flow-velocity #riverContent");
+          const fr = document.querySelector("#flow-velocity #firstRun");
           const hidden = (el: Element | null) =>
             !el || el.classList.contains("hidden");
           return {
             riverHidden: hidden(rc),
             firstrunHidden: hidden(fr),
-            text: (rc?.textContent ?? ""),
+            text: rc?.textContent ?? "",
           };
         });
-        if (!render.riverHidden && digits(render.text).indexOf(String(FLOOR)) !== -1) {
+        if (
+          !render.riverHidden &&
+          digits(render.text).indexOf(String(FLOOR)) !== -1
+        ) {
           break;
         }
         await delay(500);
       }
-      assert(!render.riverHidden, "river is shown (a policy exists → not first-run)");
+      assert(
+        !render.riverHidden,
+        "river is shown (a policy exists → not first-run)",
+      );
       assert(
         render.firstrunHidden,
         "first-run empty state is hidden (real flow data present)",

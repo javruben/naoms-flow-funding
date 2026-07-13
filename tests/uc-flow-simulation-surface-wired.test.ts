@@ -1,11 +1,11 @@
 // src/packages/flow-funding/tests/uc-flow-simulation-surface-wired.test.ts
 //
 // 1644 M6.2 — the Simulation surface runs the REAL flow engine via flow.simulate
-// and renders the real report (the mock's fabricated results are replaced).
+// and renders the real report (no fabricated results anywhere).
 //
 // flow.simulate is a dry-run over SYNTHETIC state by design (§6.5): the surface
 // builds an illustrative 3-holon network as INPUT, calls ctx.api.simulate, and
-// renders the engine's real report — never the mock's hard-coded history.
+// renders the engine's real report — never hard-coded history.
 //
 // Runner: deno test --allow-read --no-check <path>
 //
@@ -15,7 +15,7 @@
 // @bypasses daemon=skipped, ws-server=stub-ctx-api (UC tier), fixture-stage=none
 // @honesty-rationale Unit tier isolates the UI ↔ flow.simulate contract: Run
 //   dispatches ctx.api.simulate with a holons[] network + epochs, and the REAL
-//   report (not synthetic mock numbers) is rendered. The engine itself is covered
+//   report (not synthetic numbers) is rendered. The engine itself is covered
 //   by uc-flow-simulation + integ-flow-simulation-no-commit. daemon/ws-server are
 //   stubbed; no state is pre-seeded.
 // @canonical-flow YES
@@ -36,7 +36,8 @@ const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
   "",
 );
 const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
-const MOCK_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-mock.js`;
+const SURFACES_PATH =
+  `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
 function ensureStyleShim(doc: AnyDoc): void {
   // deno-lint-ignore no-explicit-any
@@ -119,7 +120,7 @@ async function mountSimulate(): Promise<{
   calls: ApiCalls;
 }> {
   const env = buildEnv();
-  await evalInto(env, MOCK_PATH);
+  await evalInto(env, SURFACES_PATH);
   await evalInto(env, TAB_PATH);
 
   const calls: ApiCalls = { simulate: [] };
@@ -145,17 +146,17 @@ Deno.test("M6.2-sim source contract: flow-tab.js wires flow.simulate + reuses th
   const src = await Deno.readTextFile(TAB_PATH);
   assert(src.includes("ctx.api.simulate"), "runs via ctx.api.simulate");
   assert(
-    src.includes("__flowMockSurfaces.simulate"),
-    "mounts the mock's OWN simulate renderer",
+    src.includes("__flowSurfaces.simulate"),
+    "mounts the real simulate surface markup",
   );
   assert(src.includes("buildSimHolons"), "builds a synthetic holons[] network");
 });
 
-Deno.test("M6.2-sim mount: Simulation surface mounts from the mock renderer", async () => {
+Deno.test("M6.2-sim mount: Simulation surface mounts from flow-surfaces.js", async () => {
   const { doc } = await mountSimulate();
   assert(
-    doc.querySelector("#flow-mock-simulate"),
-    "simulate surface mounted from the mock renderer",
+    doc.querySelector("#flow-simulate"),
+    "simulate surface mounted from flow-surfaces.js",
   );
 });
 
@@ -171,15 +172,15 @@ Deno.test("M6.2-sim run: Run dispatches simulate(holons, epochs) and renders the
   assertEquals(holons.length, 3, "illustrative 3-holon network");
   assertEquals(sent.epochs, 3, "epochs sent");
 
-  // the REAL report is rendered (not the mock's fabricated $4,280 etc.)
+  // the REAL report is rendered
   const results = doc.querySelector(
-    "#flow-mock-simulate #resultsState",
+    "#flow-simulate #resultsState",
   ) as AnyEl;
   assert(results, "results panel present");
   const txt = results.textContent || "";
   assert(
     txt.indexOf("1,480") !== -1,
-    "real totalFlowed (1,480) rendered, not the mock's synthetic figure",
+    "real totalFlowed (1,480) rendered, not a synthetic figure",
   );
   assert(
     txt.indexOf("you") !== -1 && txt.indexOf("peer-a") !== -1,

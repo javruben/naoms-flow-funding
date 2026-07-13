@@ -1,7 +1,7 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
 // @intent M6 Policy surface real-gesture
-// @gated-by: flow.policy_set chain-write + flow_policy materialize legs (M1)
+// @gated-by: uc-flow-policy-surface-wired
 // @covers flow-funding Policy surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder → open-Flow-Funding → fill+Save Policy form → assert flow.get_policy backend fold
 // @owns-surface flow-policy
@@ -43,7 +43,10 @@ import {
   getRandomPort,
   startDaemonFromFixture,
 } from "../../../../tests/helpers/browser-e2e.ts";
-import { authenticateWs, wsSend } from "../../../../tests/helpers/ws-ceremony.ts";
+import {
+  authenticateWs,
+  wsSend,
+} from "../../../../tests/helpers/ws-ceremony.ts";
 import { unlockFixtureVault } from "../../../../tests/helpers/fixture-unlock.ts";
 import { installActionApprovalAutoGrant } from "../../../../tests/helpers/drive-action-approval.ts";
 import { testLogin } from "../../../../tests/helpers/login.ts";
@@ -65,7 +68,9 @@ const CEILING = 5678;
 /** Backend witness: the canonical flow.get_policy fold for (context, tokenKind). */
 async function readPolicyOnce(
   ws: WebSocket,
-): Promise<{ found: boolean; floor?: number; ceiling?: number; version?: number }> {
+): Promise<
+  { found: boolean; floor?: number; ceiling?: number; version?: number }
+> {
   const resp = await wsSend(ws, {
     type: "flow.get_policy",
     context: CONTEXT,
@@ -82,7 +87,9 @@ async function readPolicyOnce(
 
 async function readPolicyUntilFound(
   ws: WebSocket,
-): Promise<{ found: boolean; floor?: number; ceiling?: number; version?: number }> {
+): Promise<
+  { found: boolean; floor?: number; ceiling?: number; version?: number }
+> {
   let last = await readPolicyOnce(ws);
   for (let i = 0; i < 40 && !last.found; i++) {
     await delay(250);
@@ -118,7 +125,10 @@ Deno.test({
       // Owner-authenticated WS — drives the owner Approve auto-grant + the witness.
       const auth = await authenticateWs(port, started.keysDir);
       ws = auth.ws;
-      await unlockFixtureVault(ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
+      await unlockFixtureVault(ws, {
+        identity: "founder",
+        naomsRoot: NAOMS_ROOT,
+      });
       const appPassword = Deno.readTextFileSync(
         `${NAOMS_ROOT}/tests/fixtures/state-seeds/founder/keys/founder-password.txt`,
       ).trim();
@@ -146,7 +156,10 @@ Deno.test({
         url: `http://127.0.0.1:${port}/`,
         timeoutMs: 60000,
       });
-      assert(loginResult.success, `login failed: ${loginResult.errors.join("; ")}`);
+      assert(
+        loginResult.success,
+        `login failed: ${loginResult.errors.join("; ")}`,
+      );
       await delay(2000);
 
       // Open the Flow Funding feature via the canonical shell entry.
@@ -154,7 +167,9 @@ Deno.test({
         // deno-lint-ignore no-explicit-any
         const w = window as any;
         if (!w._naoms || typeof w._naoms.activateApp !== "function") {
-          throw new Error("_naoms.activateApp not exposed — shell init incomplete");
+          throw new Error(
+            "_naoms.activateApp not exposed — shell init incomplete",
+          );
         }
         await w._naoms.activateApp("flow-funding");
       });
@@ -164,7 +179,7 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         mounted = await evalWithRetry(
           page,
-          () => !!document.querySelector("#flow-mock-policy #floorInput"),
+          () => !!document.querySelector("#flow-policy #floorInput"),
         );
         if (mounted) break;
         await delay(500);
@@ -172,23 +187,27 @@ Deno.test({
       assert(mounted, "Policy surface did not mount within 20s of activateApp");
 
       // ── REAL GESTURE: fill floor + ceiling and click Save policy.
-      await page.evaluate((floor: number, ceiling: number) => {
-        function set(id: string, v: string) {
-          const el = document.querySelector(
-            "#flow-mock-policy #" + id,
-          ) as HTMLInputElement | null;
-          if (!el) throw new Error("missing input #" + id);
-          el.value = v;
-          el.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-        set("floorInput", String(floor));
-        set("ceilingInput", String(ceiling));
-        const saveBtn = Array.from(
-          document.querySelectorAll("#flow-mock-policy .action-bar .btn.p"),
-        )[0] as HTMLButtonElement | undefined;
-        if (!saveBtn) throw new Error("Save policy button not found");
-        saveBtn.click();
-      }, FLOOR, CEILING);
+      await page.evaluate(
+        (floor: number, ceiling: number) => {
+          function set(id: string, v: string) {
+            const el = document.querySelector(
+              "#flow-policy #" + id,
+            ) as HTMLInputElement | null;
+            if (!el) throw new Error("missing input #" + id);
+            el.value = v;
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          set("floorInput", String(floor));
+          set("ceilingInput", String(ceiling));
+          const saveBtn = Array.from(
+            document.querySelectorAll("#flow-policy .action-bar .btn.p"),
+          )[0] as HTMLButtonElement | undefined;
+          if (!saveBtn) throw new Error("Save policy button not found");
+          saveBtn.click();
+        },
+        FLOOR,
+        CEILING,
+      );
 
       // ── BACKEND WITNESS: the armed FlowPolicy is readable via the real fold.
       const post = await readPolicyUntilFound(ws);

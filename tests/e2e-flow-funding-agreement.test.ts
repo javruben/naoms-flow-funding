@@ -1,7 +1,7 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
 // @intent M6 Agreement surface real-gesture (wiring proof)
-// @gated-by: flow.agreement_propose backend (M2) + the surface's Create wiring (M6.2)
+// @gated-by: uc-flow-agreement-surface-wired
 // @covers flow-funding Agreement surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder (solo) → open-Flow-Funding → switch-to-Agreement → fill counterparty + Create → assert the daemon-originated LOUD refusal surfaces and NO flow_agreement node is created
 // @owns-surface flow-agreement
@@ -33,7 +33,10 @@
 //     deno test --allow-all --no-check --unstable-ffi --unstable-worker-options \
 //     src/packages/flow-funding/tests/e2e-flow-funding-agreement.test.ts
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import puppeteer from "npm:puppeteer-core";
 import {
   delay,
@@ -42,7 +45,10 @@ import {
   getRandomPort,
   startDaemonFromFixture,
 } from "../../../../tests/helpers/browser-e2e.ts";
-import { authenticateWs, wsSend } from "../../../../tests/helpers/ws-ceremony.ts";
+import {
+  authenticateWs,
+  wsSend,
+} from "../../../../tests/helpers/ws-ceremony.ts";
 import { unlockFixtureVault } from "../../../../tests/helpers/fixture-unlock.ts";
 import { installActionApprovalAutoGrant } from "../../../../tests/helpers/drive-action-approval.ts";
 import { testLogin } from "../../../../tests/helpers/login.ts";
@@ -96,7 +102,10 @@ Deno.test({
 
       const auth = await authenticateWs(port, started.keysDir);
       ws = auth.ws;
-      await unlockFixtureVault(ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
+      await unlockFixtureVault(ws, {
+        identity: "founder",
+        naomsRoot: NAOMS_ROOT,
+      });
       const appPassword = Deno.readTextFileSync(
         `${NAOMS_ROOT}/tests/fixtures/state-seeds/founder/keys/founder-password.txt`,
       ).trim();
@@ -124,7 +133,10 @@ Deno.test({
         url: `http://127.0.0.1:${port}/`,
         timeoutMs: 60000,
       });
-      assert(loginResult.success, `login failed: ${loginResult.errors.join("; ")}`);
+      assert(
+        loginResult.success,
+        `login failed: ${loginResult.errors.join("; ")}`,
+      );
       await delay(2000);
 
       await page.evaluate(async () => {
@@ -136,8 +148,9 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         navReady = await evalWithRetry(
           page,
-          () => typeof (window as { __flowShowSurface?: unknown })
-            .__flowShowSurface === "function",
+          () =>
+            typeof (window as { __flowShowSurface?: unknown })
+              .__flowShowSurface === "function",
         );
         if (navReady) break;
         await delay(500);
@@ -153,9 +166,10 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         mounted = await evalWithRetry(
           page,
-          () => !!document.querySelector(
-            "#flow-mock-agreement #flowAgreementCounterparty",
-          ),
+          () =>
+            !!document.querySelector(
+              "#flow-agreement #flowAgreementCounterparty",
+            ),
         );
         if (mounted) break;
         await delay(500);
@@ -166,12 +180,12 @@ Deno.test({
       //    passes the peer arg into the browser context).
       await page.evaluate((peer: string) => {
         const cp = document.querySelector(
-          "#flow-mock-agreement #flowAgreementCounterparty",
+          "#flow-agreement #flowAgreementCounterparty",
         ) as HTMLInputElement | null;
         if (!cp) throw new Error("counterparty field missing");
         cp.value = peer;
         const create = Array.from(
-          document.querySelectorAll("#flow-mock-agreement .btnrow .btn.p"),
+          document.querySelectorAll("#flow-agreement .btnrow .btn.p"),
         )[0] as HTMLButtonElement | undefined;
         if (!create) throw new Error("Create button missing");
         create.click();

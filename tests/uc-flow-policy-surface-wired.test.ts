@@ -1,8 +1,8 @@
 // src/packages/flow-funding/tests/uc-flow-policy-surface-wired.test.ts
 //
-// 1644 M6.1b — the Policy surface mounts the mock's OWN renderer fed real data.
+// 1644 M6.1b — the Policy surface mounts the REAL surface markup (flow-surfaces.js) fed real data.
 //
-// Loads the generated mock module (window.__flowMockSurfaces) then flow-tab.js
+// Loads the real surfaces module (window.__flowSurfaces) then flow-tab.js
 // into a deno-dom Window, runs init + activate down the NON-uiMock (real-app)
 // path, and asserts the wired contract under a stubbed FeatureContext:
 //   - on mount, the surface loads via ctx.api.get_policy({context, tokenKind})
@@ -41,7 +41,8 @@ const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
   "",
 );
 const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
-const MOCK_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-mock.js`;
+const SURFACES_PATH =
+  `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
 function ensureStyleShim(doc: AnyDoc): void {
   // deno-lint-ignore no-explicit-any
@@ -98,8 +99,8 @@ async function mountWired(getResult: Record<string, unknown>): Promise<{
   calls: ApiCalls;
 }> {
   const env = buildEnv();
-  // 1) load the generated mock module → window.__flowMockSurfaces
-  await evalInto(env, MOCK_PATH);
+  // 1) load the real surfaces module → window.__flowSurfaces
+  await evalInto(env, SURFACES_PATH);
   // 2) load the feature tab → window._naomsFeatures["flow-funding"]
   await evalInto(env, TAB_PATH);
 
@@ -143,21 +144,40 @@ Deno.test("M6.1b source contract: flow-tab.js wires get_policy/policy_set with t
     "binds the denomination selector to humanLabel (not a kind id)",
   );
   assert(
-    src.includes("__flowMockSurfaces"),
-    "reuses the mock's own renderer (not a rebuilt parallel form)",
+    src.includes("__flowSurfaces"),
+    "mounts the real surface registry (flow-surfaces.js)",
   );
+  // 1710 mock purge guard: the mock module is gone from EVERY path.
+  assert(
+    !src.includes("__flowMockSurfaces") && !src.includes("mountFlowMock"),
+    "flow-tab.js has no mock-module consumer left (1710 purge)",
+  );
+  const surfacesSrc = await Deno.readTextFile(SURFACES_PATH);
+  assert(
+    !/\$[0-9][\d,]{3,}/.test(surfacesSrc),
+    "flow-surfaces.js carries no seeded dollar figures (honest static markup)",
+  );
+  let mockGone = false;
+  try {
+    await Deno.stat(
+      `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-mock.js`,
+    );
+  } catch (_e) {
+    mockGone = true;
+  }
+  assert(mockGone, "ui/flow-mock.js deleted (1710 mock purge)");
 });
 
 Deno.test("M6.1b mount: surface loads via get_policy(context, tokenKind=custom)", async () => {
   const { doc, calls } = await mountWired({ ok: true, found: false });
-  // the mock's own Policy renderer is mounted
+  // the real Policy surface markup is mounted
   assert(
-    doc.querySelector("#flow-mock-policy"),
-    "policy surface mounted from the mock renderer",
+    doc.querySelector("#flow-policy"),
+    "policy surface mounted from flow-surfaces.js",
   );
   assert(
-    doc.querySelector("#flow-mock-policy #floorInput"),
-    "the mock's floor input is present (renderer reuse)",
+    doc.querySelector("#flow-policy #floorInput"),
+    "the floor input is present in the real markup",
   );
   // it loaded via the real op
   assertEquals(calls.get.length, 1, "get_policy called once on mount");
@@ -167,8 +187,8 @@ Deno.test("M6.1b mount: surface loads via get_policy(context, tokenKind=custom)"
 
 Deno.test("M6.1b save: Save dispatches policy_set with band params + humanLabel", async () => {
   const { win, doc, calls } = await mountWired({ ok: true, found: false });
-  const floor = doc.querySelector("#flow-mock-policy #floorInput") as AnyEl;
-  const ceil = doc.querySelector("#flow-mock-policy #ceilingInput") as AnyEl;
+  const floor = doc.querySelector("#flow-policy #floorInput") as AnyEl;
+  const ceil = doc.querySelector("#flow-policy #ceilingInput") as AnyEl;
   floor.value = "1200";
   ceil.value = "5000";
   // pick a denomination (NAO hours) via the surface's own handler
@@ -205,10 +225,10 @@ Deno.test("M6.1b load: a saved policy folds back into the surface's own inputs",
     },
   });
   assertEquals(calls.get.length, 1, "loaded via get_policy");
-  const floor = doc.querySelector("#flow-mock-policy #floorInput") as AnyEl;
-  const ceil = doc.querySelector("#flow-mock-policy #ceilingInput") as AnyEl;
+  const floor = doc.querySelector("#flow-policy #floorInput") as AnyEl;
+  const ceil = doc.querySelector("#flow-policy #ceilingInput") as AnyEl;
   assertEquals(String(floor.value), "800", "floor folded into the input");
   assertEquals(String(ceil.value), "4200", "ceiling folded into the input");
-  const sel = doc.querySelector("#flow-mock-policy #ccySelect") as AnyEl;
+  const sel = doc.querySelector("#flow-policy #ccySelect") as AnyEl;
   assertEquals(String(sel.value), "CARE", "denomination select restored");
 });

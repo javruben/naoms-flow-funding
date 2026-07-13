@@ -1,7 +1,7 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
 // @intent M6 Simulation surface real-render
-// @gated-by: flow.simulate engine (M5) + the surface's real-report rendering (M6.2)
+// @gated-by: uc-flow-simulation-surface-wired
 // @covers flow-funding Simulation surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder → open-Flow-Funding → switch-to-Simulate → Run → assert the rendered report equals an INDEPENDENT flow.simulate over the same synthetic network (real engine, not the mock's fabricated results)
 // @owns-surface flow-simulate
@@ -36,7 +36,10 @@ import {
   getRandomPort,
   startDaemonFromFixture,
 } from "../../../../tests/helpers/browser-e2e.ts";
-import { authenticateWs, wsSend } from "../../../../tests/helpers/ws-ceremony.ts";
+import {
+  authenticateWs,
+  wsSend,
+} from "../../../../tests/helpers/ws-ceremony.ts";
 import { unlockFixtureVault } from "../../../../tests/helpers/fixture-unlock.ts";
 import { testLogin } from "../../../../tests/helpers/login.ts";
 import {
@@ -93,7 +96,10 @@ Deno.test({
 
       const auth = await authenticateWs(port, started.keysDir);
       ws = auth.ws;
-      await unlockFixtureVault(ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
+      await unlockFixtureVault(ws, {
+        identity: "founder",
+        naomsRoot: NAOMS_ROOT,
+      });
 
       // ── Independent witness: the REAL engine result for the same network.
       const witness = await wsSend(ws, {
@@ -101,7 +107,10 @@ Deno.test({
         holons: HOLONS,
         epochs: 3,
       });
-      assert(witness.ok === true, `witness flow.simulate failed: ${JSON.stringify(witness)}`);
+      assert(
+        witness.ok === true,
+        `witness flow.simulate failed: ${JSON.stringify(witness)}`,
+      );
       assert(
         witness.committed === false,
         "flow.simulate must commit nothing (dry-run)",
@@ -113,12 +122,15 @@ Deno.test({
       };
       // The UI renders fmtNum(totalFlowed) = toLocaleString (maxFrac 2). Compare
       // digit-stripped so locale separators don't matter.
-      const expectedTotal = (report.totalFlowed).toLocaleString(undefined, {
+      const expectedTotal = report.totalFlowed.toLocaleString(undefined, {
         maximumFractionDigits: 2,
       });
       const expectedTotalDigits = expectedTotal.replace(/[^0-9]/g, "");
       // a sanity floor: a 12000-balance holon above a 10000 ceiling MUST flow > 0
-      assert(report.totalFlowed > 0, "engine should flow surplus for this network");
+      assert(
+        report.totalFlowed > 0,
+        "engine should flow surplus for this network",
+      );
 
       // ── Browser: real login, open Flow Funding, switch to Simulate, Run.
       browser = await puppeteer.launch({
@@ -138,7 +150,10 @@ Deno.test({
         url: `http://127.0.0.1:${port}/`,
         timeoutMs: 60000,
       });
-      assert(loginResult.success, `login failed: ${loginResult.errors.join("; ")}`);
+      assert(
+        loginResult.success,
+        `login failed: ${loginResult.errors.join("; ")}`,
+      );
       await delay(2000);
 
       await page.evaluate(async () => {
@@ -150,8 +165,9 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         navReady = await evalWithRetry(
           page,
-          () => typeof (window as { __flowShowSurface?: unknown })
-            .__flowShowSurface === "function",
+          () =>
+            typeof (window as { __flowShowSurface?: unknown })
+              .__flowShowSurface === "function",
         );
         if (navReady) break;
         await delay(500);
@@ -166,7 +182,7 @@ Deno.test({
       for (let i = 0; i < 40; i++) {
         ran = await evalWithRetry(page, () => {
           const sel = document.querySelector(
-            "#flow-mock-simulate #simScenario",
+            "#flow-simulate #simScenario",
           ) as HTMLSelectElement | null;
           if (!sel) return false;
           sel.value = "steady";
@@ -178,13 +194,16 @@ Deno.test({
         if (ran) break;
         await delay(500);
       }
-      assert(ran, "Simulation surface did not mount / runSimulation unavailable");
+      assert(
+        ran,
+        "Simulation surface did not mount / runSimulation unavailable",
+      );
 
       // ── Assert: the rendered report == the independent real engine result.
       let text = "";
       for (let i = 0; i < 40; i++) {
         text = await evalWithRetry(page, () => {
-          const rs = document.querySelector("#flow-mock-simulate #resultsState");
+          const rs = document.querySelector("#flow-simulate #resultsState");
           return rs && !rs.classList.contains("hidden")
             ? (rs.textContent ?? "")
             : "";

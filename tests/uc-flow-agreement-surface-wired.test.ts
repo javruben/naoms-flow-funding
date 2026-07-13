@@ -1,15 +1,15 @@
 // src/packages/flow-funding/tests/uc-flow-agreement-surface-wired.test.ts
 //
-// 1644 M6.2 — the Agreement surface mounts the mock's OWN renderer fed real data.
+// 1644 M6.2 — the Agreement surface mounts the REAL surface markup (flow-surfaces.js) fed real data.
 //
-// Loads the generated mock module (window.__flowMockSurfaces) then flow-tab.js
+// Loads the real surfaces module (window.__flowSurfaces) then flow-tab.js
 // into a deno-dom Window, switches to the Agreement surface, and asserts the
 // wired contract under a stubbed FeatureContext:
-//   - mounting the surface injects a real counterparty field (the mock's "@jay"
-//     party has no DID source) and drops the synthetic party row.
+//   - the surface carries a real counterparty field (no synthetic peers in
+//     the real markup).
 //   - Create dispatches ctx.api.agreement_propose with {counterparty, terms}
 //     where terms.formality is the dial in [0,1] and terms.tier is derived.
-//   - the fabricated "how this would have executed" preview is stripped.
+//   - no fabricated "how this would have executed" preview exists.
 //
 // Runner: deno test --allow-read --no-check <path>
 //
@@ -42,7 +42,8 @@ const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
   "",
 );
 const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
-const MOCK_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-mock.js`;
+const SURFACES_PATH =
+  `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
 function ensureStyleShim(doc: AnyDoc): void {
   // deno-lint-ignore no-explicit-any
@@ -98,7 +99,7 @@ async function mountAgreement(): Promise<{
   calls: ApiCalls;
 }> {
   const env = buildEnv();
-  await evalInto(env, MOCK_PATH);
+  await evalInto(env, SURFACES_PATH);
   await evalInto(env, TAB_PATH);
 
   const calls: ApiCalls = { propose: [] };
@@ -128,8 +129,8 @@ Deno.test("M6.2 source contract: flow-tab.js wires agreement_propose + reuses th
     "proposes via ctx.api.agreement_propose",
   );
   assert(
-    src.includes("__flowMockSurfaces.agreement"),
-    "mounts the mock's OWN agreement renderer",
+    src.includes("__flowSurfaces.agreement"),
+    "mounts the real agreement surface markup",
   );
   assert(
     /formalityToTier/.test(src),
@@ -140,16 +141,16 @@ Deno.test("M6.2 source contract: flow-tab.js wires agreement_propose + reuses th
 Deno.test("M6.2 mount: Agreement surface injects a real counterparty field", async () => {
   const { doc } = await mountAgreement();
   assert(
-    doc.querySelector("#flow-mock-agreement"),
-    "agreement surface mounted from the mock renderer",
+    doc.querySelector("#flow-agreement"),
+    "agreement surface mounted from flow-surfaces.js",
   );
   assert(
-    doc.querySelector("#flow-mock-agreement #flowAgreementCounterparty"),
-    "a real counterparty field is injected (mock had only a fixed @jay)",
+    doc.querySelector("#flow-agreement #flowAgreementCounterparty"),
+    "the counterparty field is present in the real markup",
   );
   // the fabricated execution preview is removed (no synthetic-as-real)
   assertEquals(
-    doc.querySelector("#flow-mock-agreement .sim-preview"),
+    doc.querySelector("#flow-agreement .sim-preview"),
     null,
     "synthetic 'how this would have executed' preview stripped",
   );
@@ -158,10 +159,10 @@ Deno.test("M6.2 mount: Agreement surface injects a real counterparty field", asy
 Deno.test("M6.2 create: Create dispatches agreement_propose with counterparty + terms{formality,tier}", async () => {
   const { win, doc, calls } = await mountAgreement();
   const cp = doc.querySelector(
-    "#flow-mock-agreement #flowAgreementCounterparty",
+    "#flow-agreement #flowAgreementCounterparty",
   ) as AnyEl;
   cp.value = "did:key:zPeer";
-  const dial = doc.querySelector("#flow-mock-agreement #formalityDial") as AnyEl;
+  const dial = doc.querySelector("#flow-agreement #formalityDial") as AnyEl;
   dial.value = "30"; // 0.30 → "channel"
   // deno-lint-ignore no-explicit-any
   await (win as any).handleCreate();
