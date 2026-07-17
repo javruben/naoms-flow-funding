@@ -105,6 +105,10 @@ async function moveSettlementValue(
     version: number;
     allocations: Array<{ id: string; amount: number }>;
     settledTotal: number;
+    /** The flow_settlement entityId — tagged into each pay's `memo` so the
+     *  confirm-on-push hook can match a committed token.transfer back to this
+     *  settlement (M-CONFIRM-ON-PUSH). */
+    settlementEntityId: string;
   },
 ): Promise<ValueMovementSummary> {
   const summary: ValueMovementSummary = {
@@ -114,11 +118,14 @@ async function moveSettlementValue(
     indeterminate: [],
   };
   const rootJson = args.policyProps.delegation_root_json;
-  const registryKey = typeof args.policyProps.delegation_registry_key === "string"
-    ? args.policyProps.delegation_registry_key
-    : flowPolicyEntityId(args.holon, args.context, args.tokenKind);
+  const registryKey =
+    typeof args.policyProps.delegation_registry_key === "string"
+      ? args.policyProps.delegation_registry_key
+      : flowPolicyEntityId(args.holon, args.context, args.tokenKind);
 
-  if (args.policyProps.delegation_armed !== true || typeof rootJson !== "string") {
+  if (
+    args.policyProps.delegation_armed !== true || typeof rootJson !== "string"
+  ) {
     summary.reason = "no-delegation-armed";
     return summary;
   }
@@ -185,12 +192,30 @@ async function moveSettlementValue(
     };
     const verdict = verifyFlowOcapForAllocation(root, check);
     if (!verdict.ok) {
-      summary.refused.push({ id: alloc.id, amount: alloc.amount, reason: verdict.reason });
+      summary.refused.push({
+        id: alloc.id,
+        amount: alloc.amount,
+        reason: verdict.reason,
+      });
       continue;
     }
     // Bind the leaf to the EXACT canonicalized args we will re-dispatch, so the
     // gate's re-canonicalization matches the leaf's action_binding (B1/N2).
-    const payArgs = { token: args.tokenKind, toDid: alloc.id, amount: alloc.amount };
+    // M-CONFIRM-ON-PUSH correlation: tag the settlement pay with the settlement
+    // id via `memo` — a NON-MATERIAL pay arg (delegation-chain.ts
+    // NON_MATERIAL_PAY_ARG_KEYS), so it rides verbatim onto the committed
+    // token.transfer entry WITHOUT altering the leaf action_binding
+    // (canonicalizePayArgs excludes memo) or tripping the B1 fail-closed gate
+    // (unboundMaterialArgsPresent allows memo). The confirm-on-push post-commit
+    // hook reads entry.memo (this tag) + entry.toDid (the claimant) to flip the
+    // leg `unconfirmed`→`paid` when the transfer commits — including the
+    // cross-device leg whose FROST ceremony exceeds the 15s settle deadline.
+    const payArgs = {
+      token: args.tokenKind,
+      toDid: alloc.id,
+      amount: alloc.amount,
+      memo: `flow-settle:${args.settlementEntityId}`,
+    };
     const canon = canonicalizePayArgs(payArgs);
     const binding: ActionBinding = { ...canon, nonce: crypto.randomUUID() };
     let leaf: CapabilityToken;
@@ -222,20 +247,24 @@ async function moveSettlementValue(
       }),
       new Promise<Record<string, unknown>>((resolve) =>
         setTimeout(
-          () => resolve({ type: "token.pay_error", error: "gated-pay-timeout" }),
+          () =>
+            resolve({ type: "token.pay_error", error: "gated-pay-timeout" }),
           15_000,
         )
       ),
     ]);
     const typeStr = typeof result.type === "string" ? result.type : "";
-    const ok = typeStr !== "" && !typeStr.endsWith("_error") && result.error == null;
+    const ok = typeStr !== "" && !typeStr.endsWith("_error") &&
+      result.error == null;
     if (ok) {
       summary.paid.push({
         id: alloc.id,
         amount: alloc.amount,
         // handlePay returns `entryId` (the committed token.transfer entry) — the
         // on-chain witness that the gated pay rode REAL token.pay, not a stub.
-        entryId: typeof result.entryId === "string" ? result.entryId : undefined,
+        entryId: typeof result.entryId === "string"
+          ? result.entryId
+          : undefined,
       });
     } else if (result.error === "gated-pay-timeout") {
       // Honesty axiom: a timeout is INDETERMINATE, NOT a refusal. The gate may
@@ -254,7 +283,9 @@ async function moveSettlementValue(
       summary.refused.push({
         id: alloc.id,
         amount: alloc.amount,
-        reason: `pay-refused:${String(result.error ?? result.code ?? "unknown")}`,
+        reason: `pay-refused:${
+          String(result.error ?? result.code ?? "unknown")
+        }`,
       });
     }
   }
@@ -269,6 +300,114 @@ function actorDid(ctx: EpochSettleContext): string {
 
 function flowChainId(holon: string): string {
   return `flow-${holon}`;
+}
+
+/** Read the settlement node's `allocations` — tolerates a native array or a
+ *  JSON-string property (the generic triple materializer may serialize either). */
+function parseAllocations(raw: unknown): Array<{ id: string; amount: number }> {
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  const out: Array<{ id: string; amount: number }> = [];
+  for (const a of arr) {
+    const o = a as Record<string, unknown>;
+    const id = typeof o?.id === "string" ? o.id : "";
+    if (id) out.push({ id, amount: Number(o?.amount ?? 0) });
+  }
+  return out;
+}
+
+/**
+ * flow.get_settlement — read the holon's settlement records for (holon, context)
+ * with per-leg PAID status (M-CONFIRM-ON-PUSH). Each allocation leg is `paid` iff a
+ * `flow_settlement_confirm` node exists for (settlementId, claimant) — recorded by
+ * the confirm-on-push hook when that leg's `token.transfer` commits, INCLUDING the
+ * cross-device leg whose FROST ceremony exceeds epoch-settle's 15s deadline (bucketed
+ * `indeterminate` in the settle response). Otherwise the leg is `unconfirmed`. This
+ * is how the operator SEES an automated cross-device settlement resolve to paid,
+ * instead of a permanent `indeterminate`.
+ */
+export async function handleGetSettlement(
+  ctx: EpochSettleContext,
+  msg: Record<string, unknown>,
+  respond: RespondFn,
+): Promise<void> {
+  const actor = actorDid(ctx);
+  const holon = (typeof msg.holon === "string" && msg.holon) || actor;
+  const context = typeof msg.context === "string" ? msg.context : "";
+  if (!context) {
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: false,
+      error: "context required",
+    });
+  }
+  try {
+    const res = await ctx.graph.queryAsync({
+      type: "flow_settlement",
+      where: { holon, context },
+      limit: 10000,
+    });
+    if (res.error) {
+      return respond({
+        type: "flow.get_settlement.result",
+        ok: false,
+        error: res.error,
+      });
+    }
+    const nodes = res.nodes ?? [];
+    const settlements: Array<Record<string, unknown>> = [];
+    for (const n of nodes) {
+      const p = n.properties ?? {};
+      const settlementId = typeof p.settlementId === "string"
+        ? p.settlementId
+        : (typeof p.id === "string" ? p.id : n.id);
+      const allocations = parseAllocations(p.allocations);
+      // Paid legs = the confirm nodes for this settlement (hook-owned; replay-durable).
+      const confirms = await ctx.graph.queryAsync({
+        type: "flow_settlement_confirm",
+        where: { settlementId },
+        limit: 10000,
+      });
+      const paidClaimants = new Set(
+        (confirms.nodes ?? [])
+          .filter((c) => c.properties?.status === "paid")
+          .map((c) => String(c.properties?.claimant ?? "")),
+      );
+      settlements.push({
+        settlementId,
+        surplus: Number(p.surplus ?? 0),
+        settledTotal: Number(p.settledTotal ?? 0),
+        legs: allocations.map((a) => ({
+          id: a.id,
+          amount: a.amount,
+          // `paid` once the token.transfer commits + the hook records it; else the
+          // value leg is `unconfirmed` (in-flight cross-device, refused, or
+          // no-value-moved — the flow.epoch_settle response carries that nuance).
+          status: paidClaimants.has(a.id) ? "paid" : "unconfirmed",
+        })),
+      });
+    }
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: true,
+      holon,
+      context,
+      settlements,
+    });
+  } catch (e) {
+    return respond({
+      type: "flow.get_settlement.result",
+      ok: false,
+      error: (e as Error).message,
+    });
+  }
 }
 
 /**
@@ -289,20 +428,26 @@ export async function handleEpochSettle(
   const rawClaimants = Array.isArray(msg.claimants) ? msg.claimants : [];
 
   if (!context) {
-    return respond({ type: "flow.epoch_settle.result", ok: false, error: "context required" });
+    return respond({
+      type: "flow.epoch_settle.result",
+      ok: false,
+      error: "context required",
+    });
   }
   if (holon !== actor) {
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `a holon settles its OWN epoch (self only); caller=${actor} holon=${holon}`,
+      error:
+        `a holon settles its OWN epoch (self only); caller=${actor} holon=${holon}`,
     });
   }
   if (!Number.isFinite(balance) || balance < 0) {
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `balance must be a finite, non-negative number (got ${msg.balance})`,
+      error:
+        `balance must be a finite, non-negative number (got ${msg.balance})`,
     });
   }
 
@@ -313,7 +458,11 @@ export async function handleEpochSettle(
     limit: 10000,
   });
   if (res.error) {
-    return respond({ type: "flow.epoch_settle.result", ok: false, error: res.error });
+    return respond({
+      type: "flow.epoch_settle.result",
+      ok: false,
+      error: res.error,
+    });
   }
   const active = (res.nodes ?? []).filter((n) =>
     n.properties?.is_latest === true || n.properties?.is_latest === "true"
@@ -323,7 +472,8 @@ export async function handleEpochSettle(
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,
-      error: `no armed FlowPolicy for (${holon}, ${context}) — arm one with flow.policy_set first`,
+      error:
+        `no armed FlowPolicy for (${holon}, ${context}) — arm one with flow.policy_set first`,
     });
   }
   const params = policyNode.properties?.paramsJson
@@ -353,7 +503,9 @@ export async function handleEpochSettle(
     }
     const allocations = allocate(surplus, claimants, {
       perClaimantCap: perEpochCap !== undefined || perClaimantCap !== undefined
-        ? (Number.isFinite(Number(perClaimantCap)) ? Number(perClaimantCap) : undefined)
+        ? (Number.isFinite(Number(perClaimantCap))
+          ? Number(perClaimantCap)
+          : undefined)
         : undefined,
     });
     const settledTotal = allocations.reduce((s, a) => s + a.amount, 0);
@@ -368,17 +520,28 @@ export async function handleEpochSettle(
       surplus,
       settledTotal,
       allocations,
+      // M-CONFIRM-ON-PUSH: a queryable correlation key so the confirm-on-push hook
+      // (and the flow.get_settlement read verb) can match this settlement to its
+      // paid-leg confirm nodes. Equals the entityId; every settlement pay carries it
+      // in `memo` (flow-settle:<settlementId>). Per-leg paid status is NOT stored on
+      // THIS node (the generic triple materializer would clobber it on replay); it
+      // lives on separate hook-owned `flow_settlement_confirm` nodes, keyed
+      // (settlementId, claimant), which replay-materialize independently.
+      settlementId: entityId,
       policyEntity: flowPolicyEntityId(holon, context),
     };
-    const commit = await securedAppend(ctx.dbHandle, {
-      chainId,
-      branch: "content",
-      type: "flow.epoch_settled",
-      payload: JSON.stringify(payload),
-      signerDid: holon,
-      signerKeyId: `${holon}#key-0`,
-      tripleFormat: { featureId: "flow-funding", entityId },
-    } as Parameters<typeof securedAppend>[1]);
+    const commit = await securedAppend(
+      ctx.dbHandle,
+      {
+        chainId,
+        branch: "content",
+        type: "flow.epoch_settled",
+        payload: JSON.stringify(payload),
+        signerDid: holon,
+        signerKeyId: `${holon}#key-0`,
+        tripleFormat: { featureId: "flow-funding", entityId },
+      } as Parameters<typeof securedAppend>[1],
+    );
 
     L.info("flow epoch settled", { holon, context, surplus, settledTotal });
 
@@ -390,10 +553,13 @@ export async function handleEpochSettle(
       policyProps: policyNode.properties ?? {},
       holon,
       context,
-      tokenKind: String(policyNode.properties?.token_kind ?? DEFAULT_TOKEN_KIND),
+      tokenKind: String(
+        policyNode.properties?.token_kind ?? DEFAULT_TOKEN_KIND,
+      ),
       version: Number(policyNode.properties?.version ?? 0),
       allocations,
       settledTotal,
+      settlementEntityId: entityId,
     });
     if (
       !valueMovement.attempted || valueMovement.refused.length > 0 ||
@@ -432,8 +598,14 @@ export async function handleEpochSettle(
   } catch (e) {
     // HC-01: non-conservation (and bad-band / bad-input) refuse LOUD — never a
     // silent settlement. Surface the residual when the allocator reports it.
-    const residual = e instanceof FlowConservationError ? e.residual : undefined;
-    L.warn("flow epoch settle refused", { holon, context, error: (e as Error).message });
+    const residual = e instanceof FlowConservationError
+      ? e.residual
+      : undefined;
+    L.warn("flow epoch settle refused", {
+      holon,
+      context,
+      error: (e as Error).message,
+    });
     return respond({
       type: "flow.epoch_settle.result",
       ok: false,

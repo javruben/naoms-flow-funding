@@ -73,8 +73,7 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
     intent_tags: ["flow", "flow-policy", "flow-get-policy", "flow-funding"],
     when_to_use:
       "Owner wants to see the current armed FlowPolicy for a holon+context.",
-    when_not_to_use:
-      "Use flow.policy_set to change settings.",
+    when_not_to_use: "Use flow.policy_set to change settings.",
     completionEvents: [],
     inputSchema: {
       type: "object",
@@ -170,7 +169,8 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
   },
   {
     name: "get_agreement",
-    description: "Read the folded status of a flow-agreement (proposed/active/revoked).",
+    description:
+      "Read the folded status of a flow-agreement (proposed/active/revoked).",
     version: 1,
     method: "ws_message",
     messageType: "flow.get_agreement",
@@ -214,13 +214,52 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holon: { type: "string", description: "Holon DID (defaults to self)" },
         context: { type: "string" },
-        balance: { type: "number", description: "The holon's balance this epoch" },
+        balance: {
+          type: "number",
+          description: "The holon's balance this epoch",
+        },
         claimants: {
           type: "array",
           description: "Below-floor claimants [{id, need, trustWeight}]",
         },
       },
       required: ["context", "balance"],
+    },
+  },
+  {
+    name: "get_settlement",
+    description:
+      "Read the holon's settlement records for a (holon, context) with per-leg PAID " +
+      "status — shows whether each automated settlement leg's value actually moved " +
+      "(confirm-on-push), INCLUDING cross-device legs whose FROST quorum ceremony " +
+      "completes after the settle response already returned `indeterminate`.",
+    version: 1,
+    method: "ws_message",
+    messageType: "flow.get_settlement",
+    pattern: "send",
+    returns: "flow.get_settlement.result",
+    category: "read",
+    trustLevel: "owner",
+    cli: { name: "get-settlement" },
+    intent_tags: [
+      "flow",
+      "flow-funding",
+      "settlement",
+      "confirm-on-push",
+      "paid",
+    ],
+    when_to_use:
+      "Owner wants to see whether an automated flow settlement actually moved value to its claimants — especially to confirm a cross-device settlement resolved to paid rather than staying indeterminate.",
+    when_not_to_use:
+      "Use flow.epoch_settle to run a settlement; use flow.get_policy to read the armed band.",
+    completionEvents: [],
+    inputSchema: {
+      type: "object",
+      properties: {
+        holon: { type: "string", description: "Holon DID (defaults to self)" },
+        context: { type: "string" },
+      },
+      required: ["context"],
     },
   },
   {
@@ -247,10 +286,17 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
       properties: {
         holons: {
           type: "array",
-          description: "Synthetic holons [{id, balance, floor, ceiling, gradient?, rate?, channels?}]",
+          description:
+            "Synthetic holons [{id, balance, floor, ceiling, gradient?, rate?, channels?}]",
         },
-        epochs: { type: "number", description: "Epochs to simulate (default 1)" },
-        attestedElapsedPerEpoch: { type: "number", description: "Attested elapsed per epoch (accrual)" },
+        epochs: {
+          type: "number",
+          description: "Epochs to simulate (default 1)",
+        },
+        attestedElapsedPerEpoch: {
+          type: "number",
+          description: "Attested elapsed per epoch (accrual)",
+        },
       },
       required: ["holons"],
     },
