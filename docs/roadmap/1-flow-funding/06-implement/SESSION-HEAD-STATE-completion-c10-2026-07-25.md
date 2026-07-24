@@ -30,5 +30,22 @@ PROC-NEW-FEATURE BUILD. Trigger: owner rejected a flow-funding demo as theatre
 - GREEN verification of 2-daemon UI tests: build-host/Kronos (Mac iroh co-tenancy flaky). CI must run them (HC-C5, not env-gated).
 - Then land via merge queue (gate per row), converge, celebrate.
 
+## PROGRESS UPDATE (2026-07-25, feature tip c8b618e03e5)
+
+- **C1/C2/C3/C5 (flow-funding UI)** ✅ DONE + integrated (agent A, merged). Real hives, settle-from-UI, accept-UI, all inert controls wired (caps incl. B-3). Velocity Received→flow_outcome.
+- **C4 (wallet)** ✅ DONE + integrated (agent B + B2b). Payee "received N from X", payer "sent · paid ✓", push.ts amount+memo projection, token.subscribe relay.
+- **Integrated uc suite: 19/19 GREEN** (controls-no-drop 6/6, accept-wiring, token C4 ×12).
+- **Single-daemon browser e2e** (context-provenance C1, settle-from-ui C2): agent-A-verified GREEN (daemon logged `surplus:200 settledTotal:200`).
+- **Critic B-1/B-2/B-3/B-4** all addressed: B-2 amendment (projection) delivered; B-3 caps test added; B-4 payer receipt added; B-1 narrative fix = agent C IN PROGRESS.
+- **2-daemon browser tests** (wallet-receipt C4, agreement-accept-ui C3, narrative C6): structurally correct, GREEN pending **Kronos** (Mac iroh co-tenancy flakes at cross-peer setup). NOT env-gated, NOT faked.
+
+## REMAINING
+1. Agent C: finish C6 narrative capstone fix (witness flow_outcome+wallet, real selectors) — structurally-correct RED, Kronos-pending.
+2. Integrate agent C. Run full runnable suite once more.
+3. LAND per-row via merge queue (gate=e2e or owner-approval; per-row proof). Drainer merges.
+4. Trigger Kronos run for the 3 two-daemon UI e2e to get real GREEN; if any fails, fix.
+5. Converge / celebrate motion (do NOT hollow-celebrate; 2-daemon GREEN on Kronos is the real proof).
+6. Owner Matrix delivery still blocked (no c10 identity, conductor down) — reach QM/conductor per PROC-NIGHT.
+
 ## Constraints (do not relearn)
 Zero Rule (work in this worktree). No new backend unless amended. No fabricated data (HC-C1). No inert control (HC-C2). Real-pointer (HC-09). Prebuilt dylib at `/Users/mujo/dev/naoms/rust/target/release` (NAOMS_FFI_LIB_PATH; no rust build). Owner Matrix delivery still BLOCKED (no c10 identity, conductor down). Persistent inbox monitor task = bkglozc1k.
