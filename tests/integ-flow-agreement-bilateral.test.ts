@@ -25,7 +25,10 @@
 // @canonical-flow YES
 // === END HEADER ===
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { withDevices } from "../../../../tests/helpers/with-devices.ts";
 import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
 
@@ -107,22 +110,32 @@ Deno.test({
       const agreementId = propose.agreementId!;
 
       // ── A projects its own proposed agreement (isolates projection vs replication) ──
-      await pollUntil(async () => {
-        const r = await wsSend(a.ws!, {
-          type: "flow.get_agreement",
-          agreementId,
-        }) as { found?: boolean; proposer?: string };
-        return r.found && r.proposer === a.ownerDid ? r : null;
-      }, 15_000, 500, "proposed projected on A");
+      await pollUntil(
+        async () => {
+          const r = await wsSend(a.ws!, {
+            type: "flow.get_agreement",
+            agreementId,
+          }) as { found?: boolean; proposer?: string };
+          return r.found && r.proposer === a.ownerDid ? r : null;
+        },
+        15_000,
+        500,
+        "proposed projected on A",
+      );
 
       // ── Proposed lane replicates to B (B can see + accept) ──
-      await pollUntil(async () => {
-        const r = await wsSend(b.ws!, {
-          type: "flow.get_agreement",
-          agreementId,
-        }) as { found?: boolean; proposer?: string };
-        return r.found && r.proposer === a.ownerDid ? r : null;
-      }, 30_000, 500, "proposed replicated to B");
+      await pollUntil(
+        async () => {
+          const r = await wsSend(b.ws!, {
+            type: "flow.get_agreement",
+            agreementId,
+          }) as { found?: boolean; proposer?: string };
+          return r.found && r.proposer === a.ownerDid ? r : null;
+        },
+        30_000,
+        500,
+        "proposed replicated to B",
+      );
 
       // ── B accepts on its OWN lane ──
       const accept = await wsSend(b.ws!, {
@@ -135,18 +148,23 @@ Deno.test({
       );
 
       // ── B's acceptance replicates back to A; A folds `active` (cross-peer) ──
-      const active = await pollUntil(async () => {
-        const r = await wsSend(a.ws!, {
-          type: "flow.get_agreement",
-          agreementId,
-        }) as {
-          status?: string;
-          proposer?: string;
-          counterparty?: string;
-          accepter?: string;
-        };
-        return r.status === "active" ? r : null;
-      }, 30_000, 500, "agreement active on A (cross-peer fold)");
+      const active = await pollUntil(
+        async () => {
+          const r = await wsSend(a.ws!, {
+            type: "flow.get_agreement",
+            agreementId,
+          }) as {
+            status?: string;
+            proposer?: string;
+            counterparty?: string;
+            accepter?: string;
+          };
+          return r.status === "active" ? r : null;
+        },
+        30_000,
+        500,
+        "agreement active on A (cross-peer fold)",
+      );
       assertEquals(active.proposer, a.ownerDid, "proposer is A");
       assertEquals(active.counterparty, b.ownerDid, "counterparty is B");
       assertEquals(active.accepter, b.ownerDid, "accepter is B");
@@ -161,8 +179,14 @@ Deno.test({
         e.type === "flow.agreement_accepted" &&
         typeof e.payload === "string" && e.payload.includes(agreementId)
       );
-      assert(proposed, "flow.agreement_proposed commit present on fcAB (A's lane)");
-      assert(accepted, "flow.agreement_accepted commit present on fcAB (B's lane)");
+      assert(
+        proposed,
+        "flow.agreement_proposed commit present on fcAB (A's lane)",
+      );
+      assert(
+        accepted,
+        "flow.agreement_accepted commit present on fcAB (B's lane)",
+      );
       // Two-lane authorship: a bilateral chain signs every content commit with the
       // SHARED content-branch chain-signer, so the cryptographic key is identical
       // across lanes — authorship is the payload-recorded party. The proposer lane
@@ -181,21 +205,32 @@ Deno.test({
           accepted!.payload.includes(b.ownerDid),
         "accepted lane authored by B (accepter recorded in payload)",
       );
-      assert(a.ownerDid !== b.ownerDid, "two distinct parties acted on the two lanes");
+      assert(
+        a.ownerDid !== b.ownerDid,
+        "two distinct parties acted on the two lanes",
+      );
 
       // ── Revoke is immediate; both daemons fold `revoked` ──
       const revoke = await wsSend(a.ws!, {
         type: "flow.agreement_revoke",
         agreementId,
       }) as { ok?: boolean; error?: string };
-      assert(revoke.ok, `revoke failed — ${JSON.stringify(revoke).slice(0, 400)}`);
-      await pollUntil(async () => {
-        const r = await wsSend(b.ws!, {
-          type: "flow.get_agreement",
-          agreementId,
-        }) as { status?: string };
-        return r.status === "revoked" ? r : null;
-      }, 30_000, 500, "revoked replicated to B");
+      assert(
+        revoke.ok,
+        `revoke failed — ${JSON.stringify(revoke).slice(0, 400)}`,
+      );
+      await pollUntil(
+        async () => {
+          const r = await wsSend(b.ws!, {
+            type: "flow.get_agreement",
+            agreementId,
+          }) as { status?: string };
+          return r.status === "revoked" ? r : null;
+        },
+        30_000,
+        500,
+        "revoked replicated to B",
+      );
     } finally {
       await env.cleanup();
     }

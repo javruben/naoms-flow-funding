@@ -80,7 +80,11 @@ Deno.test("decayClaim: geometric decay of a claim; identity at 0 inactive", () =
   assertEquals(decayClaim(100, 0, 0.1), 100);
   assertAlmostEquals(decayClaim(100, 1, 0.1), 90, 1e-9);
   assertAlmostEquals(decayClaim(100, 2, 0.1), 81, 1e-9);
-  assertEquals(decayClaim(100, 5, 1), 0, "decayRate 1 zeroes the claim after inactivity");
+  assertEquals(
+    decayClaim(100, 5, 1),
+    0,
+    "decayRate 1 zeroes the claim after inactivity",
+  );
 });
 
 Deno.test("decayClaim: refuses loud on invalid input", () => {
@@ -122,7 +126,12 @@ Deno.test("allocate: per-claimant cap bounds capture; spillover redistributes (w
   ], { perClaimantCap: 0.5 });
   const byId = Object.fromEntries(out.map((o) => [o.id, o.amount]));
   assert(byId.whale <= 50 + 1e-9, `whale capped at 50 (got ${byId.whale})`);
-  assertAlmostEquals(out.reduce((s, o) => s + o.amount, 0), 100, 1e-6, "still conserved");
+  assertAlmostEquals(
+    out.reduce((s, o) => s + o.amount, 0),
+    100,
+    1e-6,
+    "still conserved",
+  );
   assert(byId.x > 0 && byId.y > 0, "spillover reached the smaller claimants");
 });
 

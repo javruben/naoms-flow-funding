@@ -81,10 +81,15 @@ async function queryTokenBalanceFor(
 ): Promise<Array<Record<string, unknown>>> {
   const resp = await wsSend(ws, {
     type: "graph.query",
-    pattern: { type: "token_balance", where: { holder_did: holderDid }, limit: 500 },
+    pattern: {
+      type: "token_balance",
+      where: { holder_did: holderDid },
+      limit: 500,
+    },
   }, 30_000);
   const nodes = (resp.nodes as Array<Record<string, unknown>> | undefined) ??
-    (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes ??
+    (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)
+      ?.nodes ??
     [];
   return nodes
     .map((n) => (n.properties ?? n) as Record<string, unknown>)
@@ -101,7 +106,8 @@ async function readTokenChainId(
     pattern: { type: "token", limit: 200 },
   }, 30_000);
   const nodes = (resp.nodes as Array<Record<string, unknown>> | undefined) ??
-    (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes ??
+    (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)
+      ?.nodes ??
     [];
   for (const n of nodes) {
     const p = (n.properties ?? n) as Record<string, unknown>;
@@ -128,7 +134,8 @@ async function waitForPayeeShareInstalled(
       pattern: { type: "chain_signer_share_v1", limit: 500 },
     }, 30_000).catch(() => ({} as Record<string, unknown>));
     const nodes = (resp.nodes as Array<Record<string, unknown>> | undefined) ??
-      (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes ??
+      (resp.data as { nodes?: Array<Record<string, unknown>> } | undefined)
+        ?.nodes ??
       [];
     const found = nodes.some((n) => {
       const p = (n.properties ?? n) as Record<string, unknown>;
@@ -150,7 +157,8 @@ Deno.test({
   ignore: !RUN,
   async fn() {
     if (!Deno.env.get("NAOMS_FFI_LIB_PATH")) {
-      const repoRoot = new URL("../../../../", import.meta.url).pathname.replace(/\/$/, "");
+      const repoRoot = new URL("../../../../", import.meta.url).pathname
+        .replace(/\/$/, "");
       Deno.env.set("NAOMS_FFI_LIB_PATH", `${repoRoot}/rust/target/release`);
     }
     const BOOT_BUDGET_MS = 240_000;
@@ -158,22 +166,36 @@ Deno.test({
     const MINT = 10_000;
     const context = "nao-2daemon";
 
-    console.error(`[1644-2d] spawning holon(issuer/payer) + claimant(payee) (TS=${TS})...`);
-    const holon = await spawnSingleDaemon("alice", { bootTimeoutMs: BOOT_BUDGET_MS });
+    console.error(
+      `[1644-2d] spawning holon(issuer/payer) + claimant(payee) (TS=${TS})...`,
+    );
+    const holon = await spawnSingleDaemon("alice", {
+      bootTimeoutMs: BOOT_BUDGET_MS,
+    });
     await delay(3_000);
-    const claimant = await spawnSingleDaemon("bob", { bootTimeoutMs: BOOT_BUDGET_MS });
+    const claimant = await spawnSingleDaemon("bob", {
+      bootTimeoutMs: BOOT_BUDGET_MS,
+    });
 
     try {
       const holonDid = await fetchOwnerDid(holon.handle.port, "holon");
       const claimantDid = await fetchOwnerDid(claimant.handle.port, "claimant");
       assert(holonDid !== claimantDid, "distinct holon/claimant owner DIDs");
-      console.error(`[1644-2d] holonDid=${holonDid} claimantDid=${claimantDid}`);
+      console.error(
+        `[1644-2d] holonDid=${holonDid} claimantDid=${claimantDid}`,
+      );
 
       // Real peer-pair: makes holon + claimant genuinely paired counterparties (the
       // 2-daemon substrate E1's native-push integ proved REPLICATES a token-branch
       // entry to the member). The fc-* chain hosts the quorum-t2 token-favor home.
-      const cer = await performWsInviteCeremony(holon.handle.ws, claimant.handle.ws);
-      assert(cer.chainId.startsWith("fc-"), `paired member chain expected, got ${cer.chainId}`);
+      const cer = await performWsInviteCeremony(
+        holon.handle.ws,
+        claimant.handle.ws,
+      );
+      assert(
+        cer.chainId.startsWith("fc-"),
+        `paired member chain expected, got ${cer.chainId}`,
+      );
       console.error(`[1644-2d] paired; shared member chain ${cer.chainId}`);
 
       // HOLON defines a flow-favor token (transferable:false, minAttesters:2 → the
@@ -192,7 +214,10 @@ Deno.test({
       }, { timeoutMs: 120_000 });
       assert(def.ok === true, `token.define failed: ${JSON.stringify(def)}`);
       const tokenId = String(def.tokenId ?? def.id);
-      assert(tokenId.length > 0, `token.define returned no tokenId: ${JSON.stringify(def)}`);
+      assert(
+        tokenId.length > 0,
+        `token.define returned no tokenId: ${JSON.stringify(def)}`,
+      );
       console.error(`[1644-2d] flow token defined: ${tokenId}`);
 
       const mint = await sendWithActionApproval(holon.handle.ws, {
@@ -208,24 +233,46 @@ Deno.test({
         token: tokenId,
         admittedDid: claimantDid,
       }, { timeoutMs: 120_000 });
-      assert(admit.ok === true, `token.admit(claimant) failed: ${JSON.stringify(admit)}`);
+      assert(
+        admit.ok === true,
+        `token.admit(claimant) failed: ${JSON.stringify(admit)}`,
+      );
       console.error(`[1644-2d] claimant admitted as holder`);
 
       // Sequence the async co-sign precondition: wait for the claimant's token-branch
       // FROST share to install before settling (so the cross-device ceremony is not
       // racing share-delivery). E1 pattern; budget OUTSIDE the settle window.
       const chainId = await readTokenChainId(holon.handle.ws, tokenId);
-      assert(chainId !== null, `could not resolve token chain id for ${tokenId}`);
-      const shareReady = await waitForPayeeShareInstalled(
-        claimant.handle.ws, chainId!, claimantDid, 150_000,
+      assert(
+        chainId !== null,
+        `could not resolve token chain id for ${tokenId}`,
       );
-      console.error(`[1644-2d] claimant FROST share installed (co-sign ready): ${shareReady}`);
-      assert(shareReady, `claimant ${claimantDid} token-branch share NOT installed within 150s`);
+      const shareReady = await waitForPayeeShareInstalled(
+        claimant.handle.ws,
+        chainId!,
+        claimantDid,
+        150_000,
+      );
+      console.error(
+        `[1644-2d] claimant FROST share installed (co-sign ready): ${shareReady}`,
+      );
+      assert(
+        shareReady,
+        `claimant ${claimantDid} token-branch share NOT installed within 150s`,
+      );
 
       // Claimant balance BEFORE (canonical witness on the CLAIMANT daemon).
-      const beforeNodes = await queryTokenBalanceFor(claimant.handle.ws, claimantDid);
-      const beforeSettled = beforeNodes.reduce((s, n) => s + Number(n.settled ?? 0), 0);
-      console.error(`[1644-2d] claimant token_balance BEFORE: nodes=${beforeNodes.length} settled=${beforeSettled}`);
+      const beforeNodes = await queryTokenBalanceFor(
+        claimant.handle.ws,
+        claimantDid,
+      );
+      const beforeSettled = beforeNodes.reduce(
+        (s, n) => s + Number(n.settled ?? 0),
+        0,
+      );
+      console.error(
+        `[1644-2d] claimant token_balance BEFORE: nodes=${beforeNodes.length} settled=${beforeSettled}`,
+      );
 
       // ── ARM the owner-signed delegation root + engine key K on the HOLON. ──
       const arm = await wsSend(holon.handle.ws, {
@@ -245,7 +292,10 @@ Deno.test({
         },
       }, 60_000);
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assert(arm.delegationArmed === true, `delegation root must be armed — ${JSON.stringify(arm)}`);
+      assert(
+        arm.delegationArmed === true,
+        `delegation root must be armed — ${JSON.stringify(arm)}`,
+      );
 
       // ── SETTLE: balance 700 → surplus 200 (above ceiling 500); the single claimant
       //    needs 200 → absorbs the FULL surplus 200 (perClaimantCap 1.0, need-bound).
@@ -264,7 +314,10 @@ Deno.test({
         indeterminate: Array<{ id: string; amount: number; reason: string }>;
       };
       console.error(`[1644-2d] valueMovement: ${JSON.stringify(vm)}`);
-      assert(vm && vm.attempted, `value movement must be attempted — ${JSON.stringify(vm)}`);
+      assert(
+        vm && vm.attempted,
+        `value movement must be attempted — ${JSON.stringify(vm)}`,
+      );
       // The gate ALLOWED non-interactively (capability satisfied CORE_APPROVAL_REQUIRED):
       // the allocation is NOT refused. It is either `paid` (ceremony finished within the
       // 15s deadline) or `indeterminate` (cross-device ceremony exceeded it — committing
@@ -273,11 +326,15 @@ Deno.test({
       assert(
         vm.refused.length === 0,
         `the gated token.pay must NOT be refused — a refusal means the capability did not ` +
-          `satisfy CORE_APPROVAL_REQUIRED (interactive fall-through) — ${JSON.stringify(vm.refused)}`,
+          `satisfy CORE_APPROVAL_REQUIRED (interactive fall-through) — ${
+            JSON.stringify(vm.refused)
+          }`,
       );
       assert(
         vm.paid.length + vm.indeterminate.length === 1,
-        `the single allocation rode the gated pay (paid or honestly-indeterminate) — ${JSON.stringify(vm)}`,
+        `the single allocation rode the gated pay (paid or honestly-indeterminate) — ${
+          JSON.stringify(vm)
+        }`,
       );
 
       // ── MECHANISM (cross-device dual-sign): the gated pay fired the FROST 2-of-2
@@ -307,20 +364,30 @@ Deno.test({
       let afterSettled = 0;
       const creditDeadline = Date.now() + 90_000;
       while (Date.now() < creditDeadline) {
-        const afterNodes = await queryTokenBalanceFor(claimant.handle.ws, claimantDid);
-        afterSettled = afterNodes.reduce((s, n) => s + Number(n.settled ?? 0), 0);
+        const afterNodes = await queryTokenBalanceFor(
+          claimant.handle.ws,
+          claimantDid,
+        );
+        afterSettled = afterNodes.reduce(
+          (s, n) => s + Number(n.settled ?? 0),
+          0,
+        );
         if (afterSettled > beforeSettled) break;
         await delay(3_000);
       }
       const credited = afterSettled - beforeSettled;
-      console.error(`[1644-2d] claimant token_balance AFTER: settled=${afterSettled} (credited=${credited})`);
+      console.error(
+        `[1644-2d] claimant token_balance AFTER: settled=${afterSettled} (credited=${credited})`,
+      );
       assert(
         credited > 0,
         `MECHANISM credit: the claimant daemon MUST credit its token_balance via member ` +
           `push of the gated cross-device token.pay. before=${beforeSettled} after=${afterSettled}. ` +
           `A single-writer issuer-private t=1 pay never pushes → claimant stays 0 — RED.`,
       );
-      console.error(`[1644-2d] ✅ 2-daemon flow payee-credit PROVEN: claimant credited ${credited}`);
+      console.error(
+        `[1644-2d] ✅ 2-daemon flow payee-credit PROVEN: claimant credited ${credited}`,
+      );
     } finally {
       await holon.cleanup().catch(() => {});
       await claimant.cleanup().catch(() => {});

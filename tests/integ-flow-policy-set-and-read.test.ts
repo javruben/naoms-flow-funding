@@ -122,7 +122,8 @@ async function getPolicy(
 }
 
 Deno.test({
-  name: "1644 M1: flow.policy_set projects a versioned FlowPolicy; v2 supersedes v1",
+  name:
+    "1644 M1: flow.policy_set projects a versioned FlowPolicy; v2 supersedes v1",
   ...SR,
   async fn() {
     await ensureDaemon();
@@ -162,7 +163,11 @@ Deno.test({
       const read2 = await getPolicy(context, 1);
       assert(read2.ok, `get_policy after v2 ok (got ${JSON.stringify(read2)})`);
       assertEquals(read2.version, 2, "latest-active is now v2 (superseded v1)");
-      assertEquals(read2.versionsTotal, 2, "two versions projected (history kept)");
+      assertEquals(
+        read2.versionsTotal,
+        2,
+        "two versions projected (history kept)",
+      );
       // MECHANISM (T-02): two versions exist but the supersede enricher's
       // graphQueryAsync + is_latest demotion leaves exactly one active node.
       assertEquals(

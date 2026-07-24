@@ -29,7 +29,10 @@
 //   FAILED | 0 passed | 0 failed
 // GREEN (this file, post-implementation): ok | N passed | 0 failed (banked in M4 note)
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as ed from "jsr:@noble/ed25519@2";
 import { sha512 } from "jsr:@noble/hashes@1/sha512";
 import {
@@ -86,7 +89,10 @@ const BOUNDS: FlowOcapBounds = {
   perEpochCap: 300,
 };
 
-function check(pubkey: Uint8Array, over: Partial<SettlementCheck> = {}): SettlementCheck {
+function check(
+  pubkey: Uint8Array,
+  over: Partial<SettlementCheck> = {},
+): SettlementCheck {
   return {
     ownerPubkey: pubkey,
     holon: HOLON,
@@ -113,19 +119,34 @@ async function mint(signFn: MintSignFn, pubkey: Uint8Array, opts: {
   });
 }
 
-Deno.test("flow-ocap: in-bounds allocation is ALLOWed; returns the cap token to present to token.pay", SR, async () => {
-  const { pubkey, signFn } = ownerKeypair();
-  const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey));
-  assert(v.ok, `expected ALLOW, got ${JSON.stringify(v)}`);
-  assertEquals(v.token.scope.tools, ["token.pay"], "scope authorizes token.pay");
-  assertEquals(v.token.approval_receipt, RECEIPT, "carries the approval receipt");
-});
+Deno.test(
+  "flow-ocap: in-bounds allocation is ALLOWed; returns the cap token to present to token.pay",
+  SR,
+  async () => {
+    const { pubkey, signFn } = ownerKeypair();
+    const token = await mint(signFn, pubkey);
+    const v = verifyFlowOcapForAllocation(token, check(pubkey));
+    assert(v.ok, `expected ALLOW, got ${JSON.stringify(v)}`);
+    assertEquals(
+      v.token.scope.tools,
+      ["token.pay"],
+      "scope authorizes token.pay",
+    );
+    assertEquals(
+      v.token.approval_receipt,
+      RECEIPT,
+      "carries the approval receipt",
+    );
+  },
+);
 
 Deno.test("flow-ocap: over per-claimant cap REFUSES (T-12)", SR, async () => {
   const { pubkey, signFn } = ownerKeypair();
   const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey, { allocationAmount: 151 }));
+  const v = verifyFlowOcapForAllocation(
+    token,
+    check(pubkey, { allocationAmount: 151 }),
+  );
   assertEquals(v.ok, false);
   if (!v.ok) assertEquals(v.reason, "over-per-claimant-cap");
 });
@@ -133,23 +154,36 @@ Deno.test("flow-ocap: over per-claimant cap REFUSES (T-12)", SR, async () => {
 Deno.test("flow-ocap: over per-epoch cap REFUSES (T-12)", SR, async () => {
   const { pubkey, signFn } = ownerKeypair();
   const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey, { epochTotal: 300.5 }));
+  const v = verifyFlowOcapForAllocation(
+    token,
+    check(pubkey, { epochTotal: 300.5 }),
+  );
   assertEquals(v.ok, false);
   if (!v.ok) assertEquals(v.reason, "over-per-epoch-cap");
 });
 
-Deno.test("flow-ocap: stale policy-version REFUSES — revocation by re-arm (T-13)", SR, async () => {
-  const { pubkey, signFn } = ownerKeypair();
-  const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey, { currentPolicyVersion: 2 }));
-  assertEquals(v.ok, false);
-  if (!v.ok) assertEquals(v.reason, "revoked-stale-policy-version");
-});
+Deno.test(
+  "flow-ocap: stale policy-version REFUSES — revocation by re-arm (T-13)",
+  SR,
+  async () => {
+    const { pubkey, signFn } = ownerKeypair();
+    const token = await mint(signFn, pubkey);
+    const v = verifyFlowOcapForAllocation(
+      token,
+      check(pubkey, { currentPolicyVersion: 2 }),
+    );
+    assertEquals(v.ok, false);
+    if (!v.ok) assertEquals(v.reason, "revoked-stale-policy-version");
+  },
+);
 
 Deno.test("flow-ocap: wrong context REFUSES (over-scope)", SR, async () => {
   const { pubkey, signFn } = ownerKeypair();
   const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey, { context: "care" }));
+  const v = verifyFlowOcapForAllocation(
+    token,
+    check(pubkey, { context: "care" }),
+  );
   assertEquals(v.ok, false);
   if (!v.ok) assertEquals(v.reason, "over-scope-context");
 });
@@ -157,43 +191,67 @@ Deno.test("flow-ocap: wrong context REFUSES (over-scope)", SR, async () => {
 Deno.test("flow-ocap: vault-locked REFUSES (T-14)", SR, async () => {
   const { pubkey, signFn } = ownerKeypair();
   const token = await mint(signFn, pubkey);
-  const v = verifyFlowOcapForAllocation(token, check(pubkey, { vaultUnlocked: false }));
+  const v = verifyFlowOcapForAllocation(
+    token,
+    check(pubkey, { vaultUnlocked: false }),
+  );
   assertEquals(v.ok, false);
   if (!v.ok) assertEquals(v.reason, "vault-locked");
 });
 
-Deno.test("flow-ocap: missing approval receipt REFUSES (no gate evidence)", SR, async () => {
-  const { pubkey, signFn } = ownerKeypair();
-  const token = await mint(signFn, pubkey, { receipt: "" });
-  const v = verifyFlowOcapForAllocation(token, check(pubkey));
-  assertEquals(v.ok, false);
-  if (!v.ok) assertEquals(v.reason, "no-approval-receipt");
-});
+Deno.test(
+  "flow-ocap: missing approval receipt REFUSES (no gate evidence)",
+  SR,
+  async () => {
+    const { pubkey, signFn } = ownerKeypair();
+    const token = await mint(signFn, pubkey, { receipt: "" });
+    const v = verifyFlowOcapForAllocation(token, check(pubkey));
+    assertEquals(v.ok, false);
+    if (!v.ok) assertEquals(v.reason, "no-approval-receipt");
+  },
+);
 
-Deno.test("flow-ocap: a TAMPERED token fails the Ed25519 signature (mechanism, not a JS field check)", SR, async () => {
-  const { pubkey, signFn } = ownerKeypair();
-  const token = await mint(signFn, pubkey);
-  // Forge a wider per-claimant cap into the signed bounds WITHOUT re-signing.
-  const forged = {
-    ...token,
-    scope: {
-      ...token.scope,
-      domains: [token.scope.domains[0].replace("pcc=150", "pcc=999999")],
-    },
-  };
-  const v = verifyFlowOcapForAllocation(forged, check(pubkey, { allocationAmount: 500 }));
-  assertEquals(v.ok, false);
-  if (!v.ok) assertEquals(v.reason, "bad-signature", "tamper caught by signature, not bounds");
-});
+Deno.test(
+  "flow-ocap: a TAMPERED token fails the Ed25519 signature (mechanism, not a JS field check)",
+  SR,
+  async () => {
+    const { pubkey, signFn } = ownerKeypair();
+    const token = await mint(signFn, pubkey);
+    // Forge a wider per-claimant cap into the signed bounds WITHOUT re-signing.
+    const forged = {
+      ...token,
+      scope: {
+        ...token.scope,
+        domains: [token.scope.domains[0].replace("pcc=150", "pcc=999999")],
+      },
+    };
+    const v = verifyFlowOcapForAllocation(
+      forged,
+      check(pubkey, { allocationAmount: 500 }),
+    );
+    assertEquals(v.ok, false);
+    if (!v.ok) {
+      assertEquals(
+        v.reason,
+        "bad-signature",
+        "tamper caught by signature, not bounds",
+      );
+    }
+  },
+);
 
-Deno.test("flow-ocap: a foreign signer's token fails verification", SR, async () => {
-  const owner = ownerKeypair();
-  const attacker = ownerKeypair();
-  const token = await mint(attacker.signFn, attacker.pubkey); // minted by attacker
-  const v = verifyFlowOcapForAllocation(token, check(owner.pubkey)); // verified vs owner
-  assertEquals(v.ok, false);
-  if (!v.ok) assertEquals(v.reason, "bad-signature");
-});
+Deno.test(
+  "flow-ocap: a foreign signer's token fails verification",
+  SR,
+  async () => {
+    const owner = ownerKeypair();
+    const attacker = ownerKeypair();
+    const token = await mint(attacker.signFn, attacker.pubkey); // minted by attacker
+    const v = verifyFlowOcapForAllocation(token, check(owner.pubkey)); // verified vs owner
+    assertEquals(v.ok, false);
+    if (!v.ok) assertEquals(v.reason, "bad-signature");
+  },
+);
 
 Deno.test("flow-ocap: expired token REFUSES", SR, async () => {
   const { pubkey, signFn } = ownerKeypair();
@@ -205,83 +263,103 @@ Deno.test("flow-ocap: expired token REFUSES", SR, async () => {
 
 // ── B-1: the flow minters COMPOSE with the core gate (delegation-chain) ─────────
 
-Deno.test("flow delegation: mintFlowDelegationRoot + mintFlowActionLeaf produce a chain the CORE gate ALLOWs", SR, async () => {
-  const owner = ownerKeypair();
-  const engine = ownerKeypair(); // the per-policy engine key K (distinct from owner, B4)
-  const root = await mintFlowDelegationRoot({
-    ownerSignFn: owner.signFn,
-    bounds: BOUNDS,
-    aggregateCap: 1000,
-    enginePubkey: engine.pubkey,
-    approvalReceipt: RECEIPT,
-    expiryMs: 3_600_000,
-    ownerPubkeyOverride: owner.pubkey,
-  });
-  const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
-  const canonical = canonicalizePayArgs(args);
-  const binding: ActionBinding = {
-    token: canonical.token,
-    toDid: canonical.toDid,
-    amount: canonical.amount,
-    loss_bearer: canonical.loss_bearer,
-    invoice: canonical.invoice,
-    nonce: crypto.randomUUID(),
-  };
-  const leaf = await mintFlowActionLeaf({
-    engineSignFn: engine.signFn,
-    root,
-    binding,
-    expiryMs: 3_600_000,
-    enginePubkeyOverride: engine.pubkey,
-  });
-  // The CORE gate (owner pubkey on-graph, K pubkey resolved) verifies the chain.
-  const v = await verifyDelegationChain(
-    leaf,
-    root,
-    owner.pubkey,
-    engine.pubkey,
-    canonical,
-    args,
-  );
-  assert(v.ok, `expected the core gate to ALLOW the flow-minted chain, got ${JSON.stringify(v)}`);
-  if (v.ok) {
-    assertEquals(v.amount, 120);
-    assertEquals(v.aggregateCap, 1000);
-    assertEquals(v.nonce, binding.nonce);
-  }
-});
+Deno.test(
+  "flow delegation: mintFlowDelegationRoot + mintFlowActionLeaf produce a chain the CORE gate ALLOWs",
+  SR,
+  async () => {
+    const owner = ownerKeypair();
+    const engine = ownerKeypair(); // the per-policy engine key K (distinct from owner, B4)
+    const root = await mintFlowDelegationRoot({
+      ownerSignFn: owner.signFn,
+      bounds: BOUNDS,
+      aggregateCap: 1000,
+      enginePubkey: engine.pubkey,
+      approvalReceipt: RECEIPT,
+      expiryMs: 3_600_000,
+      ownerPubkeyOverride: owner.pubkey,
+    });
+    const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
+    const canonical = canonicalizePayArgs(args);
+    const binding: ActionBinding = {
+      token: canonical.token,
+      toDid: canonical.toDid,
+      amount: canonical.amount,
+      loss_bearer: canonical.loss_bearer,
+      invoice: canonical.invoice,
+      nonce: crypto.randomUUID(),
+    };
+    const leaf = await mintFlowActionLeaf({
+      engineSignFn: engine.signFn,
+      root,
+      binding,
+      expiryMs: 3_600_000,
+      enginePubkeyOverride: engine.pubkey,
+    });
+    // The CORE gate (owner pubkey on-graph, K pubkey resolved) verifies the chain.
+    const v = await verifyDelegationChain(
+      leaf,
+      root,
+      owner.pubkey,
+      engine.pubkey,
+      canonical,
+      args,
+    );
+    assert(
+      v.ok,
+      `expected the core gate to ALLOW the flow-minted chain, got ${
+        JSON.stringify(v)
+      }`,
+    );
+    if (v.ok) {
+      assertEquals(v.amount, 120);
+      assertEquals(v.aggregateCap, 1000);
+      assertEquals(v.nonce, binding.nonce);
+    }
+  },
+);
 
-Deno.test("flow delegation: a leaf signed by a key the root did NOT delegate is REFUSED by core (B4)", SR, async () => {
-  const owner = ownerKeypair();
-  const engine = ownerKeypair();
-  const rogue = ownerKeypair(); // not the delegated key
-  const root = await mintFlowDelegationRoot({
-    ownerSignFn: owner.signFn,
-    bounds: BOUNDS,
-    aggregateCap: 1000,
-    enginePubkey: engine.pubkey, // root delegates `engine`
-    approvalReceipt: RECEIPT,
-    expiryMs: 3_600_000,
-    ownerPubkeyOverride: owner.pubkey,
-  });
-  const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
-  const canonical = canonicalizePayArgs(args);
-  const binding: ActionBinding = {
-    token: canonical.token,
-    toDid: canonical.toDid,
-    amount: canonical.amount,
-    loss_bearer: canonical.loss_bearer,
-    invoice: canonical.invoice,
-    nonce: crypto.randomUUID(),
-  };
-  const leaf = await mintFlowActionLeaf({
-    engineSignFn: rogue.signFn, // signed by rogue, not engine
-    root,
-    binding,
-    expiryMs: 3_600_000,
-    enginePubkeyOverride: rogue.pubkey,
-  });
-  const v = await verifyDelegationChain(leaf, root, owner.pubkey, rogue.pubkey, canonical, args);
-  assertEquals(v.ok, false);
-  if (!v.ok) assertEquals(v.reason, "leaf-not-signed-by-delegated-key");
-});
+Deno.test(
+  "flow delegation: a leaf signed by a key the root did NOT delegate is REFUSED by core (B4)",
+  SR,
+  async () => {
+    const owner = ownerKeypair();
+    const engine = ownerKeypair();
+    const rogue = ownerKeypair(); // not the delegated key
+    const root = await mintFlowDelegationRoot({
+      ownerSignFn: owner.signFn,
+      bounds: BOUNDS,
+      aggregateCap: 1000,
+      enginePubkey: engine.pubkey, // root delegates `engine`
+      approvalReceipt: RECEIPT,
+      expiryMs: 3_600_000,
+      ownerPubkeyOverride: owner.pubkey,
+    });
+    const args = { token: "tok-A", toDid: "did:key:zClaimant", amount: 120 };
+    const canonical = canonicalizePayArgs(args);
+    const binding: ActionBinding = {
+      token: canonical.token,
+      toDid: canonical.toDid,
+      amount: canonical.amount,
+      loss_bearer: canonical.loss_bearer,
+      invoice: canonical.invoice,
+      nonce: crypto.randomUUID(),
+    };
+    const leaf = await mintFlowActionLeaf({
+      engineSignFn: rogue.signFn, // signed by rogue, not engine
+      root,
+      binding,
+      expiryMs: 3_600_000,
+      enginePubkeyOverride: rogue.pubkey,
+    });
+    const v = await verifyDelegationChain(
+      leaf,
+      root,
+      owner.pubkey,
+      rogue.pubkey,
+      canonical,
+      args,
+    );
+    assertEquals(v.ok, false);
+    if (!v.ok) assertEquals(v.reason, "leaf-not-signed-by-delegated-key");
+  },
+);

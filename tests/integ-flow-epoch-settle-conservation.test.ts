@@ -35,18 +35,28 @@ import {
 import { createLogger } from "@naoms/logging";
 
 const L = createLogger("integ-flow-settle");
-const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(/\/$/, "");
+const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
+  /\/$/,
+  "",
+);
 const SR = { sanitizeResources: false, sanitizeOps: false };
 
 let _port: number;
 let _daemon: Awaited<ReturnType<typeof startDaemonFromFixture>> | null = null;
 let _ws: WebSocket;
-let _wsSend: (ws: WebSocket, msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
+let _wsSend: (
+  ws: WebSocket,
+  msg: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
 
 async function ensureDaemon(): Promise<void> {
   if (_daemon) return;
   _port = await getRandomPort();
-  _daemon = await startDaemonFromFixture(NAOMS_ROOT, _port, "integ-flow-settle");
+  _daemon = await startDaemonFromFixture(
+    NAOMS_ROOT,
+    _port,
+    "integ-flow-settle",
+  );
   assert(_daemon, "Daemon started");
   try {
     await waitForBootReady(_port, 120000);
@@ -60,7 +70,9 @@ async function ensureDaemon(): Promise<void> {
   assert(ws.readyState === WebSocket.OPEN, "WS authenticated");
   _ws = ws;
   _wsSend = ceremony.wsSend;
-  const { unlockFixtureVault } = await import("../../../../tests/helpers/fixture-unlock.ts");
+  const { unlockFixtureVault } = await import(
+    "../../../../tests/helpers/fixture-unlock.ts"
+  );
   await unlockFixtureVault(_ws, { naomsRoot: NAOMS_ROOT });
 }
 
@@ -89,7 +101,8 @@ async function cleanupDaemon(): Promise<void> {
 }
 
 Deno.test({
-  name: "1644 M3: flow epoch settles CONSERVED (Σ(out)==surplus); refuses LOUD when unconservable",
+  name:
+    "1644 M3: flow epoch settles CONSERVED (Σ(out)==surplus); refuses LOUD when unconservable",
   ...SR,
   async fn() {
     await ensureDaemon();
@@ -115,7 +128,12 @@ Deno.test({
         ],
       });
       assert(settle.ok, `epoch_settle ok — ${JSON.stringify(settle)}`);
-      assertAlmostEquals(settle.surplus as number, 300, 1e-6, "surplus = balance - ceiling = 300");
+      assertAlmostEquals(
+        settle.surplus as number,
+        300,
+        1e-6,
+        "surplus = balance - ceiling = 300",
+      );
       assertAlmostEquals(
         settle.settledTotal as number,
         300,
@@ -123,21 +141,33 @@ Deno.test({
         "CONSERVATION: Σ(out) == surplus",
       );
       assertEquals(settle.conserved, true, "conserved flag set");
-      const allocs = settle.allocations as Array<{ id: string; amount: number }>;
+      const allocs = settle.allocations as Array<
+        { id: string; amount: number }
+      >;
       assertEquals(allocs.length, 2);
-      assertAlmostEquals(allocs[0].amount, 150, 1e-6, "equal need+trust → 150 each");
+      assertAlmostEquals(
+        allocs[0].amount,
+        150,
+        1e-6,
+        "equal need+trust → 150 each",
+      );
       assertAlmostEquals(allocs[1].amount, 150, 1e-6);
 
       // The settlement is a real committed event — read it back by fold.
       const node = await _wsSend(_ws, {
         type: "graph.query",
-        pattern: { type: "flow_settlement", where: { holon: settle.holon as string, context } },
+        pattern: {
+          type: "flow_settlement",
+          where: { holon: settle.holon as string, context },
+        },
       }) as { nodes?: Array<{ properties?: Record<string, unknown> }> };
       assert(
         (node.nodes ?? []).some((n) =>
           Math.abs(Number(n.properties?.surplus ?? -1) - 300) < 1e-6
         ),
-        `flow_settlement node projected with surplus 300 — got ${JSON.stringify(node).slice(0, 300)}`,
+        `flow_settlement node projected with surplus 300 — got ${
+          JSON.stringify(node).slice(0, 300)
+        }`,
       );
 
       // ── Refuse-loud arm: 300 surplus, claimants can absorb only 50 → loud refusal ──
@@ -147,7 +177,11 @@ Deno.test({
         balance: 800,
         claimants: [{ id: "did:nao:tiny", need: 50, trustWeight: 1 }],
       });
-      assertEquals(refused.ok, false, "unconservable surplus refused (HC-01, no silent clamp)");
+      assertEquals(
+        refused.ok,
+        false,
+        "unconservable surplus refused (HC-01, no silent clamp)",
+      );
       assertAlmostEquals(
         refused.residual as number,
         250,

@@ -33,13 +33,19 @@ import {
 import { createLogger } from "@naoms/logging";
 
 const L = createLogger("integ-flow-sim");
-const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(/\/$/, "");
+const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
+  /\/$/,
+  "",
+);
 const SR = { sanitizeResources: false, sanitizeOps: false };
 
 let _port: number;
 let _daemon: Awaited<ReturnType<typeof startDaemonFromFixture>> | null = null;
 let _ws: WebSocket;
-let _wsSend: (ws: WebSocket, msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
+let _wsSend: (
+  ws: WebSocket,
+  msg: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
 
 async function ensureDaemon(): Promise<void> {
   if (_daemon) return;
@@ -58,7 +64,9 @@ async function ensureDaemon(): Promise<void> {
   assert(ws.readyState === WebSocket.OPEN, "WS authenticated");
   _ws = ws;
   _wsSend = ceremony.wsSend;
-  const { unlockFixtureVault } = await import("../../../../tests/helpers/fixture-unlock.ts");
+  const { unlockFixtureVault } = await import(
+    "../../../../tests/helpers/fixture-unlock.ts"
+  );
   await unlockFixtureVault(_ws, { naomsRoot: NAOMS_ROOT });
 }
 
@@ -87,7 +95,8 @@ async function cleanupDaemon(): Promise<void> {
 }
 
 Deno.test({
-  name: "1644 M5: flow.simulate previews a conserved epoch with ZERO chain writes; demurrage degrades",
+  name:
+    "1644 M5: flow.simulate previews a conserved epoch with ZERO chain writes; demurrage degrades",
   ...SR,
   async fn() {
     await ensureDaemon();
@@ -98,7 +107,13 @@ Deno.test({
       const res = await _wsSend(_ws, {
         type: "flow.simulate",
         holons: [
-          { id: richId, balance: 800, floor: 100, ceiling: 500, channels: [{ to: poorId, trustWeight: 1 }] },
+          {
+            id: richId,
+            balance: 800,
+            floor: 100,
+            ceiling: 500,
+            channels: [{ to: poorId, trustWeight: 1 }],
+          },
           { id: poorId, balance: 50, floor: 400, ceiling: 900 },
         ],
         epochs: 1,
@@ -112,7 +127,12 @@ Deno.test({
         conserved: boolean;
         perHolon: Array<{ id: string; received: number }>;
       };
-      assertAlmostEquals(report.totalFlowed, 300, 1e-6, "real engine ran: 300 surplus flowed");
+      assertAlmostEquals(
+        report.totalFlowed,
+        300,
+        1e-6,
+        "real engine ran: 300 surplus flowed",
+      );
       assertEquals(report.conserved, true);
       assertAlmostEquals(
         report.perHolon.find((h) => h.id === poorId)!.received,
@@ -124,7 +144,11 @@ Deno.test({
       // demurrage preview degrades gracefully (1645 absent on this build).
       const dem = res.demurrage as { available: boolean } | undefined;
       assert(dem, "demurrage preview present in the response");
-      assertEquals(dem.available, false, "1645 absent → preview unavailable (HC-06, no 1644 engine)");
+      assertEquals(
+        dem.available,
+        false,
+        "1645 absent → preview unavailable (HC-06, no 1644 engine)",
+      );
 
       // ── ZERO-WRITE mechanism: no flow_settlement node was committed for the sim holons ──
       const q = await _wsSend(_ws, {

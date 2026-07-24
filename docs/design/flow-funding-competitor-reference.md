@@ -26,29 +26,29 @@ surface must match-or-beat.
 
 ## Capability table (owned interaction → competitor handling → match-or-beat)
 
-| Interaction (surface) | Open Collective | Sarafu/GE | Circles | Flow Funding does | Tier |
-|---|---|---|---|---|---|
-| See value flowing in/out this period (velocity) | Budget ledger, manual | Trade balance | Balance only | Live "river": in/out, net, 6-mo history, gradient-band hero | must ✓ |
-| First-run empty state (velocity) | Generic empty | n/a | n/a | Hides state chrome; "set band + create first agreement" | must ✓ |
-| Set a viability band (floor/ceiling) (policy) | n/a (no floor/ceiling) | n/a | n/a | Floor/ceiling band + felt-threshold inference | must ✓ |
-| Pick anti-hoarding mechanism (policy) | n/a | Demurrage (fixed) | Demurrage (fixed) | Gradient curve + gradient/decay/demurrage toggles | should ✓ |
-| Choose denomination (policy) | Per-collective currency | Per-voucher | Per-personal-currency | Currency/token-kind selector per policy | must ✓ |
-| Create a flow agreement (agreement) | Recurring contribution | Commitment issue | Trust connection | Formality dial: relational ↔ codified, co-sign | must ✓ |
-| Simulate before committing (simulation) | n/a | n/a | n/a | Run a FlowPolicy variant over a scenario, no chain writes | could ✓ |
-| Transparency level per relationship (policy) | Public-only | Public-only | Public graph | Outcome / story-gated / full / private edges | should ✓ |
+| Interaction (surface)                           | Open Collective         | Sarafu/GE         | Circles               | Flow Funding does                                           | Tier     |
+| ----------------------------------------------- | ----------------------- | ----------------- | --------------------- | ----------------------------------------------------------- | -------- |
+| See value flowing in/out this period (velocity) | Budget ledger, manual   | Trade balance     | Balance only          | Live "river": in/out, net, 6-mo history, gradient-band hero | must ✓   |
+| First-run empty state (velocity)                | Generic empty           | n/a               | n/a                   | Hides state chrome; "set band + create first agreement"     | must ✓   |
+| Set a viability band (floor/ceiling) (policy)   | n/a (no floor/ceiling)  | n/a               | n/a                   | Floor/ceiling band + felt-threshold inference               | must ✓   |
+| Pick anti-hoarding mechanism (policy)           | n/a                     | Demurrage (fixed) | Demurrage (fixed)     | Gradient curve + gradient/decay/demurrage toggles           | should ✓ |
+| Choose denomination (policy)                    | Per-collective currency | Per-voucher       | Per-personal-currency | Currency/token-kind selector per policy                     | must ✓   |
+| Create a flow agreement (agreement)             | Recurring contribution  | Commitment issue  | Trust connection      | Formality dial: relational ↔ codified, co-sign              | must ✓   |
+| Simulate before committing (simulation)         | n/a                     | n/a               | n/a                   | Run a FlowPolicy variant over a scenario, no chain writes   | could ✓  |
+| Transparency level per relationship (policy)    | Public-only             | Public-only       | Public graph          | Outcome / story-gated / full / private edges                | should ✓ |
 
 ## Browser-driven verification record
 
 Each must-have row is verified in-app (Verify-Before-Handoff) by driving Chrome
-against the `NAOMS_UI_MOCK` daemon and confirming the surface renders natively in
-the Flow Funding feature tab with no shell-CSS leak (puppeteer harness; owner
+against the `NAOMS_UI_MOCK` daemon and confirming the surface renders natively
+in the Flow Funding feature tab with no shell-CSS leak (puppeteer harness; owner
 re-approved 2026-06-16/17). The wired surfaces re-run this verification against
 real `flow.*` data at each surface's close (per-M-row mock-fidelity gate).
 
 ## Where Flow Funding beats the set
 
 No competitor offers the **gradient** model (simultaneous give-and-receive
-between floor and ceiling) as a *configurable* policy, a **pre-commit
+between floor and ceiling) as a _configurable_ policy, a **pre-commit
 simulation** of that policy over a scenario, or a **formality dial** that lets
 one relationship be relational trust-weight and another a codified revenue share
 on the same rail. Those are the must-beat differentiators the surfaces exist to

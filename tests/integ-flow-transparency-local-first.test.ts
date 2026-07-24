@@ -115,7 +115,9 @@ async function pollFlowOutcome(
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     // Keyed `flow-outcome-${peerDid}` by the materializer.
-    const byId = await graphQuery(ws, wsSend, { id: `flow-outcome-${aliceDid}` });
+    const byId = await graphQuery(ws, wsSend, {
+      id: `flow-outcome-${aliceDid}`,
+    });
     const direct = byId.find((n) =>
       (n.properties?.source as string | undefined) === "received"
     );
@@ -165,7 +167,10 @@ Deno.test({
     try {
       const aliceWs = pair.alice.ws!;
       const bobWs = pair.bob.ws!;
-      assert(aliceWs, "alice WS must be authenticated (fixtureStage onboarded)");
+      assert(
+        aliceWs,
+        "alice WS must be authenticated (fixtureStage onboarded)",
+      );
       assert(bobWs, "bob WS must be authenticated (fixtureStage onboarded)");
 
       // Owner/action-tier ops (flow.policy_set, sharing.apply_decisions) are
@@ -179,51 +184,57 @@ Deno.test({
       let aliceDid = "";
       let bobDid = "";
 
-      await t.step("FRESH peer-pair handshake (spawnPair + pairPeers)", async () => {
-        const { aliceOwnerDid, bobOwnerDid, fcId } = await pairPeers({
-          alice: pair.alice,
-          bob: pair.bob,
-        });
-        assert(
-          aliceOwnerDid && bobOwnerDid && aliceOwnerDid !== bobOwnerDid,
-          "peer-pair must produce two distinct owner DIDs (alice + bob)",
-        );
-        assert(
-          aliceOwnerDid.startsWith("did:key:"),
-          `aliceDid: ${aliceOwnerDid}`,
-        );
-        assert(bobOwnerDid.startsWith("did:key:"), `bobDid: ${bobOwnerDid}`);
-        assert(
-          typeof fcId === "string" && fcId.startsWith("fc-"),
-          `pairPeers must return an fc-* friendship chainId, got ${fcId}`,
-        );
-        aliceDid = aliceOwnerDid;
-        bobDid = bobOwnerDid;
-        friendshipChainId = fcId;
-      });
+      await t.step(
+        "FRESH peer-pair handshake (spawnPair + pairPeers)",
+        async () => {
+          const { aliceOwnerDid, bobOwnerDid, fcId } = await pairPeers({
+            alice: pair.alice,
+            bob: pair.bob,
+          });
+          assert(
+            aliceOwnerDid && bobOwnerDid && aliceOwnerDid !== bobOwnerDid,
+            "peer-pair must produce two distinct owner DIDs (alice + bob)",
+          );
+          assert(
+            aliceOwnerDid.startsWith("did:key:"),
+            `aliceDid: ${aliceOwnerDid}`,
+          );
+          assert(bobOwnerDid.startsWith("did:key:"), `bobDid: ${bobOwnerDid}`);
+          assert(
+            typeof fcId === "string" && fcId.startsWith("fc-"),
+            `pairPeers must return an fc-* friendship chainId, got ${fcId}`,
+          );
+          aliceDid = aliceOwnerDid;
+          bobDid = bobOwnerDid;
+          friendshipChainId = fcId;
+        },
+      );
 
       // Confirm alice sees bob as a connected contact on the fresh fc-* chain.
-      await t.step("alice: bob is a connected contact on the fresh fc-* chain", async () => {
-        const resp = await wsSend(aliceWs, { type: "connect.contacts" }) as {
-          contacts?: Array<Record<string, unknown>>;
-        };
-        const contacts = resp.contacts ?? [];
-        const bob = contacts.find((c) =>
-          c.peerDid === bobDid && c.status === "connected"
-        );
-        assert(
-          bob,
-          `alice must see bob as a connected contact after pairPeers. Got ${
-            JSON.stringify(contacts).slice(0, 300)
-          }`,
-        );
-        const cid = (bob!.chainId ?? bob!.chain_id) as string;
-        assertEquals(
-          cid,
-          friendshipChainId,
-          "alice's contact-row chainId must match pairPeers fcId",
-        );
-      });
+      await t.step(
+        "alice: bob is a connected contact on the fresh fc-* chain",
+        async () => {
+          const resp = await wsSend(aliceWs, { type: "connect.contacts" }) as {
+            contacts?: Array<Record<string, unknown>>;
+          };
+          const contacts = resp.contacts ?? [];
+          const bob = contacts.find((c) =>
+            c.peerDid === bobDid && c.status === "connected"
+          );
+          assert(
+            bob,
+            `alice must see bob as a connected contact after pairPeers. Got ${
+              JSON.stringify(contacts).slice(0, 300)
+            }`,
+          );
+          const cid = (bob!.chainId ?? bob!.chain_id) as string;
+          assertEquals(
+            cid,
+            friendshipChainId,
+            "alice's contact-row chainId must match pairPeers fcId",
+          );
+        },
+      );
 
       const context = "nao";
 
@@ -232,7 +243,12 @@ Deno.test({
         const arm = await wsSend(aliceWs, {
           type: "flow.policy_set",
           context,
-          params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 0.6 },
+          params: {
+            floor: 100,
+            ceiling: 500,
+            gradient: 0,
+            perClaimantCap: 0.6,
+          },
         }) as { ok?: boolean; error?: string };
         assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
       }
@@ -396,7 +412,9 @@ Deno.test({
           assert(
             typeof contract === "string" && contract.length > 0,
             `bob's flow_outcome.contract must be a non-empty Biscuit token (the ` +
-              `N-hop capability minted in build()); got ${JSON.stringify(contract)}`,
+              `N-hop capability minted in build()); got ${
+                JSON.stringify(contract)
+              }`,
           );
 
           // MECHANISM 3 — the hop budget is the freshly minted ceiling (2).

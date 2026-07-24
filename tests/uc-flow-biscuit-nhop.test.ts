@@ -57,45 +57,61 @@ Deno.test("mint: minted capability verifies in-scope at its budget", SR, () => {
   assertEquals(v.status, "ALLOW", "0 < max_hops(2) → ALLOW");
 });
 
-Deno.test("authorizeReshare: each authorized hop attenuates to a DISTINCT, smaller-budget token (T-27)", SR, () => {
-  const cap = mintFlowShareCapability(2)!;
+Deno.test(
+  "authorizeReshare: each authorized hop attenuates to a DISTINCT, smaller-budget token (T-27)",
+  SR,
+  () => {
+    const cap = mintFlowShareCapability(2)!;
 
-  const d1 = authorizeReshare(cap);
-  assert(d1.ok, "hop 1 authorized (budget 2)");
-  assertEquals(d1.next.hopsRemaining, 1, "budget tightened 2 → 1");
-  assertNotEquals(
-    d1.next.tokenHex,
-    cap.tokenHex,
-    "attenuation produced a new token (mechanism: attenuate ran)",
-  );
+    const d1 = authorizeReshare(cap);
+    assert(d1.ok, "hop 1 authorized (budget 2)");
+    assertEquals(d1.next.hopsRemaining, 1, "budget tightened 2 → 1");
+    assertNotEquals(
+      d1.next.tokenHex,
+      cap.tokenHex,
+      "attenuation produced a new token (mechanism: attenuate ran)",
+    );
 
-  const d2 = authorizeReshare(d1.next);
-  assert(d2.ok, "hop 2 authorized (budget 1)");
-  assertEquals(d2.next.hopsRemaining, 0, "budget tightened 1 → 0");
-});
+    const d2 = authorizeReshare(d1.next);
+    assert(d2.ok, "hop 2 authorized (budget 1)");
+    assertEquals(d2.next.hopsRemaining, 0, "budget tightened 1 → 0");
+  },
+);
 
-Deno.test("authorizeReshare: spent budget is REFUSED by the Biscuit caveat (T-25)", SR, () => {
-  const cap = mintFlowShareCapability(2)!;
-  const d1 = authorizeReshare(cap);
-  assert(d1.ok);
-  const d2 = authorizeReshare(d1.next);
-  assert(d2.ok);
+Deno.test(
+  "authorizeReshare: spent budget is REFUSED by the Biscuit caveat (T-25)",
+  SR,
+  () => {
+    const cap = mintFlowShareCapability(2)!;
+    const d1 = authorizeReshare(cap);
+    assert(d1.ok);
+    const d2 = authorizeReshare(d1.next);
+    assert(d2.ok);
 
-  // Budget is now 0. The next reshare MUST be refused — and by the caveat,
-  // not a JS guard: verify() the spent token directly DENYs.
-  const d3 = authorizeReshare(d2.next);
-  assertEquals(d3.ok, false, "out-of-scope N-hop reshare refused");
-  if (!d3.ok) assert(d3.reason.startsWith("VERIFY_DENY"), d3.reason);
+    // Budget is now 0. The next reshare MUST be refused — and by the caveat,
+    // not a JS guard: verify() the spent token directly DENYs.
+    const d3 = authorizeReshare(d2.next);
+    assertEquals(d3.ok, false, "out-of-scope N-hop reshare refused");
+    if (!d3.ok) assert(d3.reason.startsWith("VERIFY_DENY"), d3.reason);
 
-  const vSpent = verify(d2.next.tokenHex, d2.next.rootPubHex, {
-    redistribute_requested: true,
-    current_hops: 0,
-  });
-  assertEquals(vSpent.status, "DENY", "0 < max_hops(0) is false → DENY");
-});
+    const vSpent = verify(d2.next.tokenHex, d2.next.rootPubHex, {
+      redistribute_requested: true,
+      current_hops: 0,
+    });
+    assertEquals(vSpent.status, "DENY", "0 < max_hops(0) is false → DENY");
+  },
+);
 
-Deno.test("authorizeReshare: empty/absent capability is fail-closed", SR, () => {
-  const d = authorizeReshare({ tokenHex: "", rootPubHex: "", hopsRemaining: 2 });
-  assertEquals(d.ok, false);
-  assertEquals(FLOW_SHARE_MAX_HOPS, 2);
-});
+Deno.test(
+  "authorizeReshare: empty/absent capability is fail-closed",
+  SR,
+  () => {
+    const d = authorizeReshare({
+      tokenHex: "",
+      rootPubHex: "",
+      hopsRemaining: 2,
+    });
+    assertEquals(d.ok, false);
+    assertEquals(FLOW_SHARE_MAX_HOPS, 2);
+  },
+);
