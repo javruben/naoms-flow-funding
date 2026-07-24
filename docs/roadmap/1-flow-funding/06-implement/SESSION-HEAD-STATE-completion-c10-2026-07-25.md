@@ -39,7 +39,20 @@ PROC-NEW-FEATURE BUILD. Trigger: owner rejected a flow-funding demo as theatre
 - **Critic B-1/B-2/B-3/B-4** all addressed: B-2 amendment (projection) delivered; B-3 caps test added; B-4 payer receipt added; B-1 narrative fix = agent C IN PROGRESS.
 - **2-daemon browser tests** (wallet-receipt C4, agreement-accept-ui C3, narrative C6): structurally correct, GREEN pending **Kronos** (Mac iroh co-tenancy flakes at cross-peer setup). NOT env-gated, NOT faked.
 
-## 🚨 CRITICAL GAP found by agent C (C6) — DO THIS FIRST
+## ✅ CRITICAL GAP CLOSED (2026-07-25, tip 649020ea917)
+The automatedSettlementCap UI affordance is IMPLEMENTED + pushed. RED→GREEN done:
+- `flow-surfaces.js`: new "Automated settlement" card with `#automatedSettlementCap`.
+- `flow-tab.js` savePolicy sends `params.automatedSettlementCap` (>0); loadPolicy re-hydrates it.
+- uc RED "CRITICAL: automated-settlement cap" → GREEN; full uc suite **71/71 GREEN**.
+- `e2e-flow-funding-narrative.test.ts` (C6 capstone) now ARMS the cap FROM THE UI
+  (not CLI — honest) so the settle moves REAL value, and asserts the payee WALLET
+  receipt terminal. Stale "KNOWN PRODUCTION GAP" header rewritten (gap closed).
+  2-daemon browser terminals remain EXPECTED-RED-ON-MAC → GREEN pending Kronos.
+NEXT (in order): (1) reabsorb origin/main (branch 36 behind — rebase not merge,
+drainer-broadcast entangle) (2) land per-row via merge-queue.sh (3) Kronos run for
+the 3 two-daemon e2e → REAL GREEN (4) converge, NO hollow-celebrate.
+
+## 🚨 (SUPERSEDED — now CLOSED above) CRITICAL GAP found by agent C (C6)
 **UI-driven settle moves NO token value.** `moveSettlementValue` (epoch-settle.ts)
 only fires when the FlowPolicy has an armed delegation root; `policy-set.ts` arms it
 only when `params.automatedSettlementCap > 0`; but the Policy UI (`flow-tab.js
