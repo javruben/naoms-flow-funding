@@ -45,8 +45,7 @@
 //   (non-interactive, non-bypass) — NOT a pre-seeded balance; an under-cap arm
 //   REFUSES the over-cap allocation before value moves (valueMovement.refused, no
 //   credit). Cross-daemon payee-credit REPLICATION is E1/1596 (separate proof).
-// @canonical-flow YES — token.define/mint/admit → flow.policy_set (arm root + K) →
-//   flow.epoch_settle → token.pay (handlePay) under args._capability={leaf,root}
+// @canonical-flow YES — token.define/mint/admit → flow.policy_set (arm root + K) → flow.epoch_settle → token.pay (handlePay) under args._capability={leaf,root}
 // @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled
 // @honesty-rationale Single-daemon: a flow token is defined + minted + the claimants
 //   admitted (real token.define/mint/admit, action-tier approved with the fixture

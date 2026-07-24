@@ -30,9 +30,7 @@
 //   identity=pre-onboarded, iroh-mdns-disabled. NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE,
 //   NO pre-seed of the credit-under-test. The settlement's token.pay is satisfied by the
 //   CAPABILITY (no human answers an approval for it — that IS the M4 claim).
-// @canonical-flow YES — token.define/mint/admit + flow.policy_set (arm root+K) +
-//   flow.epoch_settle via the production WS ops; the credit witness is a PAYEE-side
-//   graph.query {type:"token_balance"} on the claimant daemon, never the holon's history.
+// @canonical-flow YES — token.define/mint/admit + flow.policy_set (arm root+K) + flow.epoch_settle via the production WS ops; the credit witness is a PAYEE-side graph.query {type:"token_balance"} on the claimant daemon, never the holon's history.
 // @honesty-rationale TWO real daemons (holon=issuer/payer, claimant=payee), distinct
 //   identities, real peer-pair invite ceremony — the same 2-daemon substrate E1's
 //   integ-token-pay-payee-credit proved REPLICATES a token-branch entry to the member.

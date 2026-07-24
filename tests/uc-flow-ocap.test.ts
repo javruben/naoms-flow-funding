@@ -18,7 +18,7 @@
 //   forged/edited token fails verifyToken — NOT a JS-field check); over-cap /
 //   stale-policy-version / wrong-context / vault-locked / missing-receipt all
 //   REFUSE LOUD (T-12/T-13/T-14)
-// @canonical-flow flow-funding/domain/flow-ocap.ts verifyFlowOcapForAllocation
+// @canonical-flow N/A (flow-funding/domain/flow-ocap.ts verifyFlowOcapForAllocation)
 // === END HEADER ===
 //
 // Requires the naoms_core dylib (verifyToken uses FFI ed25519/blake3). Run:
