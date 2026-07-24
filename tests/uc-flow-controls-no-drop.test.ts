@@ -348,6 +348,47 @@ Deno.test("C5/G10: policy fairness caps — present ⇒ perClaimantCap/perEpochC
   }
 });
 
+// ── CRITICAL — automated-settlement cap arms the delegation root ─────────────
+//
+// The most load-bearing "no-drop" case: `policy-set.ts` (:172-175) mints the
+// owner-signed delegation ROOT — the ONLY thing that authorizes automated value
+// movement at settle — exclusively when `params.automatedSettlementCap > 0`.
+// Without it, `epoch_settle` records allocations but `moveSettlementValue` never
+// fires ⇒ no `token.pay` ⇒ the payee wallet receipt (C4) can NEVER render from
+// a UI-driven settle. On HEAD `savePolicy` never sends `automatedSettlementCap`
+// and no control exists to set it, so a policy armed from the UI moves NO value.
+// This is the exact gap agent C flagged: the owner's core "see tokens arrive
+// from another" is unreachable from the UI. RED until the affordance is wired.
+Deno.test("CRITICAL: automated-settlement cap — present ⇒ absolute cap round-trips into policy_set params (arms the delegation root)", async () => {
+  const { win, doc, calls } = await mount();
+  setBand(doc);
+  const cap = doc.querySelector(
+    "#flow-policy #automatedSettlementCap",
+  ) as AnyEl | null;
+  assert(
+    cap,
+    "an automated-settlement cap control must be mounted in the Policy surface " +
+      "— without it the UI can never arm the delegation root and a UI-driven " +
+      "settle moves no value (the payee wallet receipt is unreachable)",
+  );
+  // A distinctive absolute token ceiling (NOT a 0–1 fraction — this is the
+  // owner-signed aggregate cap the delegation root enforces, policy-set.ts B3).
+  cap.value = "1000";
+  // deno-lint-ignore no-explicit-any
+  await (win as any).savePolicy();
+
+  assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
+  const params = calls.set[0].params as Record<string, unknown>;
+  assert(
+    deepHasKey(params, /automatedSettlementCap/i) &&
+      deepHasValue(params, "1000"),
+    "the automated-settlement cap control is in the DOM but its value (1000) " +
+      "never reaches the policy_set params — HC-C2 silent drop. policy-set.ts " +
+      "arms the delegation root ONLY when params.automatedSettlementCap > 0, so " +
+      "this drop means a UI-armed policy moves NO token value at settle.",
+  );
+});
+
 // ── G9 — agreement duration control ──────────────────────────────────────────
 
 Deno.test("C5/G9: agreement duration — present ⇒ selection round-trips into agreement_propose terms", async () => {

@@ -427,6 +427,10 @@
           if (pec && typeof p.perEpochCap === "number") {
             pec.value = p.perEpochCap;
           }
+          var asc = pq("#automatedSettlementCap");
+          if (asc && typeof p.automatedSettlementCap === "number") {
+            asc.value = p.automatedSettlementCap;
+          }
           window.updateBand();
           showStatus(
             "Loaded saved FlowPolicy v" + res.version + " for " + ctxLabel() +
@@ -480,6 +484,16 @@
     // prefer the .checked property, fall back to the [checked] attribute.
     var transpVal = readCheckedRadio("#flow-policy", "transp");
     if (transpVal) params.transparencyLevel = transpVal;
+    // CRITICAL — automated-settlement cap (absolute owner-signed ceiling). This
+    // is the ONE param that arms the delegation root (policy-set.ts mints it only
+    // when automatedSettlementCap > 0), so without it a UI-armed policy records
+    // settlements but moves NO token value. Only send a finite, positive amount;
+    // blank/0 = arm the band for simulation only (omit → no delegation root).
+    var ascEl = pq("#automatedSettlementCap");
+    if (ascEl && ascEl.value !== "" && ascEl.value != null) {
+      var asc = parseFloat(ascEl.value);
+      if (isFinite(asc) && asc > 0) params.automatedSettlementCap = asc;
+    }
     // G10/B-3 — fairness caps the allocator honors (HC-05). Only send finite,
     // in-range fractions; blank = no cap (omit).
     var pccEl = pq("#perClaimantCap");

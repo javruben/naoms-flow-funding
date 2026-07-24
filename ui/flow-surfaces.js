@@ -170,6 +170,27 @@
     "the real engine runs it as a dry-run before anything is armed live.</div>" +
     "</div></div>" +
     "</div>" +
+    // automated settlement (LIVE — the owner-signed absolute ceiling that ARMS
+    // the delegation root; policy-set.ts mints the root ONLY when this > 0. This
+    // is what authorizes automated value movement at settle. Without it, a
+    // settlement records allocations but moves NO token value.)
+    '<div class="card">' +
+    '<div class="card-head">Automated settlement</div>' +
+    '<p style="font-size:.85rem;color:var(--text2);margin:0 0 var(--s4)">The ' +
+    "owner-signed ceiling that authorizes value to move <em>automatically</em> " +
+    "when you settle a flow epoch. This mints the delegation root the settler " +
+    "uses to pay claimants on your behalf — the total it may ever move over the " +
+    "policy's life. Leave blank (or 0) to arm the band for simulation only: " +
+    "settlements will be recorded but <strong>no value will move</strong> until " +
+    "you set a cap.</p>" +
+    '<div class="threshold-row">' +
+    '<div class="th-field">' +
+    "<label>Automated-settlement cap (absolute total)</label>" +
+    '<div class="inp-row">' +
+    '<input type="number" id="automatedSettlementCap" min="0" step="1" placeholder="e.g. 1000"/>' +
+    "</div></div>" +
+    "</div>" +
+    "</div>" +
     // fairness caps (LIVE — allocator honors perClaimantCap/perEpochCap, HC-05)
     '<div class="card">' +
     '<div class="card-head">Fairness caps</div>' +

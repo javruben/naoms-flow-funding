@@ -55,22 +55,19 @@
 // payee (proof the surplus was DIRECTED to the dependent), and drives the C3 ACCEPT
 // gesture the C6 contract requires (previously skipped).
 //
-// ── KNOWN PRODUCTION GAP the wallet-receipt terminal depends on (reported, NOT faked) ──
-// The frozen C6 contract also asked the payee's WALLET to render "received N from <payer>
-// · flow settlement". That row is real (token/ui/wallet-activity.js buildRow) and is
-// proven GREEN by `e2e-flow-funding-wallet-receipt.test.ts` — but ONLY when the
-// settlement moves REAL token value. Value movement (epoch-settle.ts moveSettlementValue)
-// fires ONLY when the FlowPolicy carries an armed delegation root, and policy-set.ts arms
-// that root ONLY when `params.automatedSettlementCap > 0`. The Flow Policy UI
-// (flow-tab.js savePolicy) NEVER sends `automatedSettlementCap` — no UI field for it
-// exists anywhere in the tree (grep: only types.ts + policy-set.ts reference it). So a
-// UI-DRIVEN settle arms no delegation, moves no value, and the payee wallet row cannot
-// render from this loop. That is a real production gap in the "UI-driven whole loop"
-// contract — surfaced to the owner, NOT worked around by CLI-arming here (which would
-// make the "driven from the UI" claim a lie). This capstone therefore witnesses the
-// UI-reachable terminal (the attributed cross-boundary flow_outcome + the payee's
-// "Received" UI card); the wallet-value terminal stays covered by the CLI-armed
-// wallet-receipt test until the UI gains a delegation-arm affordance.
+// ── WALLET-RECEIPT TERMINAL — now UI-driven end-to-end (gap CLOSED) ────────────────────
+// The frozen C6 contract also asks the payee's WALLET to render "received N from <payer>
+// · flow settlement". That row is real (token/ui/wallet-activity.js buildRow) and moves
+// REAL token value ONLY when the FlowPolicy carries an armed delegation root; policy-set.ts
+// arms that root ONLY when `params.automatedSettlementCap > 0`. This USED to be an
+// UI-unreachable gap (savePolicy never sent the cap, no UI field existed) — so an earlier
+// version of this capstone terminated at the cross-boundary flow_outcome + "Received" card
+// and left the wallet terminal to the CLI-armed wallet-receipt test. The completion added
+// a real Policy-surface affordance (#automatedSettlementCap → savePolicy sends it →
+// policy-set.ts mints the delegation root). This capstone now ARMS the cap FROM THE UI
+// (not CLI — the "driven from the UI" claim stays honest) so the UI settle moves value and
+// the capstone asserts the payee WALLET row attributing the receipt to the payer. The
+// stand-alone CLI-armed wallet-receipt test remains as the isolated backend witness.
 //
 // EXPECTED-RED-ON-MAC (run env): the canonical 2-daemon real-browser E2Es carry an
 // EXPECTED-RED-ON-MAC note (see e2e-flow-funding-agreement-accept-ui.test.ts +
@@ -104,6 +101,11 @@ const FLOW_DOMAIN = "sharing.flow-funding";
 const FLOOR = 100;
 const CEILING = 500;
 const EPOCH_BALANCE = 700; // above CEILING → real surplus for the dependent.
+// The owner-signed absolute ceiling that ARMS the delegation root (policy-set.ts
+// mints it only when automatedSettlementCap > 0). Set from the UI (the affordance
+// added for the completion) so the UI-driven settle moves REAL token value — the
+// payee wallet receipt terminal below depends on it. > the ~200 surplus directed.
+const AUTOMATED_CAP = 1000;
 
 const SR = { sanitizeResources: false, sanitizeOps: false } as const;
 
@@ -206,23 +208,30 @@ Deno.test({
           () => !!document.querySelector("#flow-policy #floorInput"),
           { timeout: 30_000 },
         );
-        await payerB.page.evaluate((floor: number, ceiling: number) => {
-          function set(id: string, v: string) {
-            const el = document.querySelector(
-              "#flow-policy #" + id,
-            ) as HTMLInputElement | null;
-            if (!el) throw new Error("missing input #" + id);
-            el.value = v;
-            el.dispatchEvent(new Event("input", { bubbles: true }));
-          }
-          set("floorInput", String(floor));
-          set("ceilingInput", String(ceiling));
-          const saveBtn = Array.from(
-            document.querySelectorAll("#flow-policy .action-bar .btn.p"),
-          )[0] as HTMLButtonElement | undefined;
-          if (!saveBtn) throw new Error("Save policy button not found");
-          saveBtn.click();
-        }, FLOOR, CEILING);
+        await payerB.page.evaluate(
+          (floor: number, ceiling: number, cap: number) => {
+            function set(id: string, v: string) {
+              const el = document.querySelector(
+                "#flow-policy #" + id,
+              ) as HTMLInputElement | null;
+              if (!el) throw new Error("missing input #" + id);
+              el.value = v;
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            set("floorInput", String(floor));
+            set("ceilingInput", String(ceiling));
+            // Arm the delegation root FROM THE UI so the settle moves real value.
+            set("automatedSettlementCap", String(cap));
+            const saveBtn = Array.from(
+              document.querySelectorAll("#flow-policy .action-bar .btn.p"),
+            )[0] as HTMLButtonElement | undefined;
+            if (!saveBtn) throw new Error("Save policy button not found");
+            saveBtn.click();
+          },
+          FLOOR,
+          CEILING,
+          AUTOMATED_CAP,
+        );
         // Confirm the band armed on the payer daemon before proceeding.
         {
           let armed = false;
@@ -509,11 +518,82 @@ Deno.test({
           "[1644-m7] STAR loop closed from the UI: policy → propose → ACCEPT → settle → " +
             "surplus DIRECTED to the dependent → attributed flow_outcome CROSSED + shown.",
         );
-        // NOTE (GAP, reported to owner): the payee WALLET receipt row is intentionally
-        // NOT asserted here — see the header. A UI-armed policy carries no delegation
-        // root (no automatedSettlementCap affordance), so the UI settle moves no token
-        // value and the wallet row cannot render from this loop. That terminal stays
-        // covered by e2e-flow-funding-wallet-receipt.test.ts (CLI-armed delegation).
+
+        // ── CAPSTONE TERMINAL: the payee WALLET shows the received value ATTRIBUTED
+        // to the payer — the owner's core requirement ("see tokens arrive from
+        // another"), now reachable because the UI armed the delegation root via the
+        // automatedSettlementCap affordance (set above). Because the policy carries
+        // an armed root, epoch-settle.ts moveSettlementValue fires a real cross-device
+        // token.pay carrying the flow-settle: memo, so the row can render. Mirrors
+        // e2e-flow-funding-wallet-receipt.test.ts, but the delegation is UI-armed here.
+        const directedAmt = directed!.amount;
+        await payeeB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          if (!w._naoms || typeof w._naoms.activateApp !== "function") {
+            throw new Error("_naoms.activateApp not exposed");
+          }
+          await w._naoms.activateApp("token");
+        });
+        let walletUp = false;
+        for (let i = 0; i < 60; i++) {
+          walletUp = await payeeB.page.evaluate(
+            () => !!document.querySelector('[data-feature="wallet"]'),
+          );
+          if (walletUp) break;
+          await delay(500);
+        }
+        assert(walletUp, "payee wallet did not mount for the capstone terminal");
+        await delay(2000);
+        await payeeB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          const feat = w._naomsFeatures && w._naomsFeatures.token;
+          if (!feat || typeof feat.openActivity !== "function") {
+            throw new Error("wallet openActivity nav surface not exposed");
+          }
+          await feat.openActivity();
+        });
+        let feedUp = false;
+        for (let i = 0; i < 40; i++) {
+          feedUp = await payeeB.page.evaluate(
+            () => !!document.querySelector("[data-wallet-activity]"),
+          );
+          if (feedUp) break;
+          await delay(500);
+        }
+        assert(feedUp, "payee Activity feed did not mount for the capstone terminal");
+        await delay(2000);
+        const feed = await payeeB.page.evaluate(() => {
+          const root = document.querySelector("[data-wallet-activity]");
+          const rows = Array.from(
+            document.querySelectorAll(".wallet-activity__row"),
+          ).map((r) => (r.textContent || "").trim());
+          return { text: (root?.textContent || "").trim(), rows };
+        });
+        console.error(
+          `[1644-m7] payee wallet Activity rows: ${JSON.stringify(feed.rows)}`,
+        );
+        const payerShort = payerDid.replace(/^did:[a-z]+:/, "").slice(0, 12);
+        const feedHay = feed.text.toLowerCase();
+        const walletAttributes =
+          feedHay.includes(payerDid.toLowerCase()) ||
+          (payerShort.length >= 6 &&
+            feedHay.includes(payerShort.toLowerCase())) ||
+          (/(from|received from)/.test(feedHay) &&
+            feed.text.replace(/[^0-9]/g, " ").includes(String(directedAmt)));
+        assert(
+          walletAttributes,
+          `[capstone] after the UI-armed, UI-driven settle moved +${directedAmt} to the ` +
+            `payee, the payee wallet Activity feed does NOT attribute it to the payer ` +
+            `(${payerDid}). If the credit itself never landed this is EXPECTED-RED-ON-MAC ` +
+            `(iroh co-tenancy; GREEN on Kronos). Feed rows seen: ` +
+            `${JSON.stringify(feed.rows)}.`,
+        );
+        console.error(
+          "[1644-m7] CAPSTONE: payee WALLET row attributes the received value to the payer " +
+            "— the full star loop is UI-driven AND wallet-visible.",
+        );
       },
     );
   },
