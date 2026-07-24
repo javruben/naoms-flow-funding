@@ -39,8 +39,25 @@ PROC-NEW-FEATURE BUILD. Trigger: owner rejected a flow-funding demo as theatre
 - **Critic B-1/B-2/B-3/B-4** all addressed: B-2 amendment (projection) delivered; B-3 caps test added; B-4 payer receipt added; B-1 narrative fix = agent C IN PROGRESS.
 - **2-daemon browser tests** (wallet-receipt C4, agreement-accept-ui C3, narrative C6): structurally correct, GREEN pending **Kronos** (Mac iroh co-tenancy flakes at cross-peer setup). NOT env-gated, NOT faked.
 
+## 🚨 CRITICAL GAP found by agent C (C6) — DO THIS FIRST
+**UI-driven settle moves NO token value.** `moveSettlementValue` (epoch-settle.ts)
+only fires when the FlowPolicy has an armed delegation root; `policy-set.ts` arms it
+only when `params.automatedSettlementCap > 0`; but the Policy UI (`flow-tab.js
+savePolicy`) never sends `automatedSettlementCap` and NO UI field exists (repo-grep:
+only types.ts + policy-set.ts). ⇒ a UI-armed policy moves no value ⇒ the payee wallet
+receipt CANNOT render from the UI loop = the owner's core "see tokens arrive from
+another" is not actually reachable via UI. DECISION (owner intent = YES make it real):
+**ADD a UI affordance in the Policy surface to arm `automatedSettlementCap`** (a field
++ savePolicy sends it), so the UI-driven loop moves value → wallet receipt renders →
+C6 narrative can terminate on the real wallet row (not just flow_outcome). This is a
+small flow-tab.js/flow-surfaces.js addition (agent A's files). Add a uc/e2e RED proving
+policy_set from UI carries automatedSettlementCap and arms the root. Do NOT CLI-arm as a
+workaround (makes "driven from UI" a lie); do NOT descope silently. C6 narrative agent
+branch = `worktree-agent-a76c285e5fc9e63ec` @ 2d1368a30df (merge it).
+
 ## REMAINING
-1. Agent C: finish C6 narrative capstone fix (witness flow_outcome+wallet, real selectors) — structurally-correct RED, Kronos-pending.
+1. Merge agent C narrative (worktree-agent-a76c285e5fc9e63ec @2d1368a30df) — test-only, disjoint.
+2. Fix the CRITICAL gap above (automatedSettlementCap UI affordance) — makes the loop actually move value from UI.
 2. Integrate agent C. Run full runnable suite once more.
 3. LAND per-row via merge queue (gate=e2e or owner-approval; per-row proof). Drainer merges.
 4. Trigger Kronos run for the 3 two-daemon UI e2e to get real GREEN; if any fails, fix.
