@@ -316,6 +316,38 @@ Deno.test("C5/G9: agreement contributor-tier grid — present ⇒ selection roun
   }
 });
 
+// ── G10 (B-3) — policy fairness caps (perClaimantCap / perEpochCap) ───────────
+
+Deno.test("C5/G10: policy fairness caps — present ⇒ perClaimantCap/perEpochCap round-trip into policy_set params (B-3)", async () => {
+  const { win, doc, calls } = await mount();
+  setBand(doc);
+  const pcc = doc.querySelector("#flow-policy #perClaimantCap") as AnyEl | null;
+  const pec = doc.querySelector("#flow-policy #perEpochCap") as AnyEl | null;
+  // Distinctive, in-range fractions the allocator honors (epoch-settle.ts reads
+  // params.perClaimantCap / params.perEpochCap).
+  if (pcc) pcc.value = "0.4";
+  if (pec) pec.value = "0.25";
+  // deno-lint-ignore no-explicit-any
+  await (win as any).savePolicy();
+
+  assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
+  const params = calls.set[0].params as Record<string, unknown>;
+  if (pcc) {
+    assert(
+      deepHasKey(params, /perClaimantCap/i) && deepHasValue(params, "0.4"),
+      "per-claimant cap control is in the DOM but its value (0.4) never reaches " +
+        "the policy_set params — HC-C2 silent drop (caps were never set, G10)",
+    );
+  }
+  if (pec) {
+    assert(
+      deepHasKey(params, /perEpochCap/i) && deepHasValue(params, "0.25"),
+      "per-epoch cap control is in the DOM but its value (0.25) never reaches " +
+        "the policy_set params — HC-C2 silent drop (caps were never set, G10)",
+    );
+  }
+});
+
 // ── G9 — agreement duration control ──────────────────────────────────────────
 
 Deno.test("C5/G9: agreement duration — present ⇒ selection round-trips into agreement_propose terms", async () => {
