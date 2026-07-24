@@ -123,17 +123,17 @@
     "as your balance moves from floor toward ceiling.</p>" +
     '<div class="curve-grid">' +
     '<div class="curve-opt" onclick="selectCurve(this)">' +
-    '<svg width="60" height="32" viewBox="0 0 60 32"><path d="M4 28 C 10 28, 12 4, 56 4" fill="none" stroke="#58a6ff" stroke-width="2"/></svg>' +
+    '<svg width="60" height="32" viewBox="0 0 60 32"><path d="M4 28 C 10 28, 12 4, 56 4" fill="none" stroke="var(--accent,#58a6ff)" stroke-width="2"/></svg>' +
     '<div class="cnm">Generous early</div>' +
     '<div class="cds">Start flowing just above floor; full output near ceiling</div>' +
     "</div>" +
     '<div class="curve-opt on" onclick="selectCurve(this)">' +
-    '<svg width="60" height="32" viewBox="0 0 60 32"><line x1="4" y1="28" x2="56" y2="4" stroke="#58a6ff" stroke-width="2"/></svg>' +
+    '<svg width="60" height="32" viewBox="0 0 60 32"><line x1="4" y1="28" x2="56" y2="4" stroke="var(--accent,#58a6ff)" stroke-width="2"/></svg>' +
     '<div class="cnm">Linear</div>' +
     '<div class="cds">Even ramp from floor to ceiling; equal proportion at each point</div>' +
     "</div>" +
     '<div class="curve-opt" onclick="selectCurve(this)">' +
-    '<svg width="60" height="32" viewBox="0 0 60 32"><path d="M4 28 C 44 28, 50 8, 56 4" fill="none" stroke="#58a6ff" stroke-width="2"/></svg>' +
+    '<svg width="60" height="32" viewBox="0 0 60 32"><path d="M4 28 C 44 28, 50 8, 56 4" fill="none" stroke="var(--accent,#58a6ff)" stroke-width="2"/></svg>' +
     '<div class="cnm">Cautious</div>' +
     '<div class="cds">Hold most back until close to abundance; surge near ceiling</div>' +
     "</div></div>" +
