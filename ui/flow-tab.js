@@ -180,6 +180,7 @@
     var label = (SURFACES.filter(function (s) {
       return s.id === name;
     })[0] || {}).label || name;
+    // safeHtml: label sourced from the fixed local SURFACES config array, no user data
     c.innerHTML =
       '<div style="padding:2rem;max-width:620px;color:var(--color-text-secondary,#8b949e)">' +
       '<h2 style="color:var(--color-text-primary,#c9d1d9);margin-top:0">' +
@@ -199,6 +200,7 @@
   function mountPolicy() {
     var c = contentEl();
     if (!c) return;
+    // safeHtml: window.__flowSurfaces is a static compile-time HTML template (flow-surfaces.js)
     c.innerHTML = '<div id="flow-policy" class="flow-surface">' +
       window.__flowSurfaces.policy.html + "</div>";
     bindPolicyGlobals();
@@ -395,6 +397,7 @@
     if (typeof ctx.graphQuery !== "function") {
       return mountPlaceholder("velocity");
     }
+    // safeHtml: window.__flowSurfaces is a static compile-time HTML template (flow-surfaces.js)
     c.innerHTML = '<div id="flow-velocity" class="flow-surface">' +
       window.__flowSurfaces.velocity.html + "</div>";
     bindVelocityGlobals();
@@ -493,6 +496,7 @@
 
     if (rc) {
       rc.classList.remove("hidden");
+      // safeHtml: agRows built via esc(); simCard escapes its args via esc()
       rc.innerHTML =
         '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">' +
         simCard("Settlements", String(settlements.length)) +
@@ -531,6 +535,7 @@
     if (typeof ctx.api.simulate !== "function") {
       return mountPlaceholder("simulate");
     }
+    // safeHtml: window.__flowSurfaces is a static compile-time HTML template (flow-surfaces.js)
     c.innerHTML = '<div id="flow-simulate" class="flow-surface">' +
       window.__flowSurfaces.simulate.html + "</div>";
     // Run the REAL engine over a clearly-labelled synthetic network
@@ -626,6 +631,7 @@
         fmtNum(h.endBalance) + "</td></tr>";
     }).join("");
 
+    // safeHtml: rows built via esc(); simCard escapes its args via esc(); numeric fields via fmtNum
     results.innerHTML =
       '<div style="padding:4px 0 12px;font-size:.8rem;color:var(--text3,#8b939d)">' +
       "Illustrative synthetic network · real flow engine · " +
@@ -685,6 +691,7 @@
   function mountAgreement() {
     var c = contentEl();
     if (!c) return;
+    // safeHtml: window.__flowSurfaces is a static compile-time HTML template (flow-surfaces.js)
     c.innerHTML = '<div id="flow-agreement" class="flow-surface">' +
       window.__flowSurfaces.agreement.html + "</div>";
     bindAgreementGlobals();
