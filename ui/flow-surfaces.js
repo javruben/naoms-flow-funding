@@ -33,40 +33,42 @@
     '<button class="btn" onclick="__flowShowSurface(\'agreement\')">Create flow agreement</button>' +
     "</div></div>" +
     '<div id="riverContent"></div>' +
+    // C2/G3 — settle an epoch from the UI. flow-tab.js populates the context +
+    // real balance/claimant preview and settleEpoch() calls flow.epoch_settle.
+    '<div class="card" id="settleCard" style="display:none;margin-top:14px">' +
+    '<div class="card-head">Settle this epoch</div>' +
+    '<p style="font-size:.85rem;color:var(--text2);margin:0 0 var(--s3)">Run one ' +
+    "flow settlement for <strong id=\"settleCtxLabel\"></strong>: distribute your " +
+    "surplus above the ceiling to your below-floor claimants, conserved and " +
+    "capped. Value only moves if you hold surplus and have claimants who can " +
+    "absorb it — otherwise the daemon refuses loud (nothing is fabricated).</p>" +
+    '<div id="settlePreview" style="font-size:.82rem;color:var(--text2);margin-bottom:var(--s3)"></div>' +
+    '<div class="th-field" style="max-width:280px;margin-bottom:var(--s3)">' +
+    "<label>Your balance this epoch</label>" +
+    '<div class="inp-row">' +
+    '<input type="number" id="settleBalance" min="0" placeholder="e.g. 700"/>' +
+    "</div></div>" +
+    '<button class="btn p" id="flow-settle-btn" data-flow-settle="1" data-flow-action="settle" onclick="settleEpoch()">Settle epoch</button>' +
+    '<div id="settleResult" style="margin-top:12px"></div>' +
+    "</div>" +
     "</div>";
 
   // ── Policy — FlowPolicy config (flow.get_policy / flow.policy_set) ─────────
-  var POLICY_CONTEXTS = [
-    ["awip", "AWIP core team"],
-    ["nao", "NAO ecosystem"],
-    ["circle", "Mutual-aid circle"],
-    ["household", "Household"],
-    ["stewardship", "Watershed hive"],
-  ];
-
-  function policyNav() {
-    return POLICY_CONTEXTS.map(function (c, i) {
-      return '<button class="it' + (i === 0 ? " on" : "") +
-        '" onclick="switchCtx(this,\'' + c[0] + "')\">" + c[1] + "</button>";
-    }).join("");
-  }
-
-  function policyPills() {
-    return POLICY_CONTEXTS.map(function (c, i) {
-      return '<div class="ctx-pill' + (i === 0 ? " on" : "") +
-        '" onclick="selectCtx(this,\'' + c[1] + "')\">" + c[1] + "</div>";
-    }).join("");
-  }
+  // C1/G1: the context list is NO LONGER hardcoded. flow-tab.js enumerates the
+  // user's REAL hives (ctx.graphQuery({type:"hive"})) plus the holon-local
+  // "Personal" self-context and injects the nav (.cfg-nav .it) + pills
+  // (.ctx-pills .ctx-pill) into the placeholders below. Honest empty-state when
+  // the user has no hives (only the Personal self-context).
 
   var POLICY_HTML = '<div class="cfg-root">' +
     '<div class="cfg-nav">' +
-    '<div class="gh">Context</div>' + policyNav() +
+    '<div class="gh">Context</div><div id="ctxNav"></div>' +
     "</div>" +
     '<div class="cfg-content" id="cfgContent">' +
-    '<h2 class="cfg-h2">FlowPolicy — <span id="ctxLabel">AWIP core team</span></h2>' +
+    '<h2 class="cfg-h2">FlowPolicy — <span id="ctxLabel"></span></h2>' +
     '<p class="cfg-sub">These settings govern how value flows for you in this ' +
     "context. Changes take effect at the next flow epoch.</p>" +
-    '<div class="ctx-pills">' + policyPills() + "</div>" +
+    '<div class="ctx-pills"></div>' +
     // denomination
     '<div class="ccy-row">' +
     '<div class="ccy-field">' +
@@ -168,27 +170,48 @@
     "the real engine runs it as a dry-run before anything is armed live.</div>" +
     "</div></div>" +
     "</div>" +
-    // commons tithe (unbacked — preview)
+    // fairness caps (LIVE — allocator honors perClaimantCap/perEpochCap, HC-05)
     '<div class="card">' +
-    '<div class="card-head">Commons tithe ' + PREVIEW_TAG + "</div>" +
+    '<div class="card-head">Fairness caps</div>' +
+    '<p style="font-size:.85rem;color:var(--text2);margin:0 0 var(--s4)">Bound ' +
+    "the blast radius of a settlement (HC-05). Per-claimant cap limits the " +
+    "fraction of one epoch's surplus any single below-floor claimant may " +
+    "receive; per-epoch cap limits the fraction of your balance that may flow " +
+    "out in one epoch. Leave blank for no cap.</p>" +
+    '<div class="threshold-row">' +
+    '<div class="th-field">' +
+    "<label>Per-claimant cap (fraction 0–1)</label>" +
+    '<div class="inp-row">' +
+    '<input type="number" id="perClaimantCap" min="0" max="1" step="0.05" placeholder="e.g. 0.5"/>' +
+    "</div></div>" +
+    '<div class="th-field">' +
+    "<label>Per-epoch cap (fraction of balance 0–1)</label>" +
+    '<div class="inp-row">' +
+    '<input type="number" id="perEpochCap" min="0" max="1" step="0.05" placeholder="e.g. 0.2"/>' +
+    "</div></div>" +
+    "</div>" +
+    "</div>" +
+    // commons tithe (recorded on the policy; no live tithe engine yet in 1644)
+    '<div class="card">' +
+    '<div class="card-head">Commons tithe</div>' +
     '<p style="font-size:.85rem;color:var(--text2);margin:0 0 var(--s4)">A ' +
-    "fraction of every flow passing through you siphons automatically into the " +
-    "commons pool — collective insurance and purpose-pool funding.</p>" +
+    "fraction of every flow passing through you siphons into the commons pool " +
+    "— collective insurance and purpose-pool funding. Recorded on your policy " +
+    "and re-read when you return.</p>" +
     '<div class="range-row">' +
     "<label>Tithe %</label>" +
-    '<input type="range" min="0" max="15" step="0.5" value="3" oninput="document.getElementById(\'titheVal\').textContent=this.value+\'%\'"/>' +
+    '<input type="range" id="titheRange" min="0" max="15" step="0.5" value="3" oninput="document.getElementById(\'titheVal\').textContent=this.value+\'%\'"/>' +
     '<span class="val" id="titheVal">3%</span>' +
     "</div>" +
     "</div>" +
-    // transparency (unbacked — preview)
+    // transparency (recorded on the policy — outcome-transparency scope, design §5)
     '<div class="card">' +
-    '<div class="card-head">Transparency for this context ' + PREVIEW_TAG +
-    "</div>" +
+    '<div class="card-head">Transparency for this context</div>' +
     '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-md);padding:0 var(--s4)">' +
-    '<div class="transp-opt"><div class="to-text"><div class="to-name">Outcome-transparent</div><div class="to-sub">Network sees that value flowed and its purpose — not exact amounts</div></div><input type="radio" name="transp" checked/></div>' +
-    '<div class="transp-opt"><div class="to-text"><div class="to-name">Story-gated transparency</div><div class="to-sub">Flow becomes visible once the recipient shares a story-upstream outcome</div></div><input type="radio" name="transp"/></div>' +
-    '<div class="transp-opt"><div class="to-text"><div class="to-name">Fully transparent</div><div class="to-sub">All participants see exact amounts, timing, and terms</div></div><input type="radio" name="transp"/></div>' +
-    '<div class="transp-opt"><div class="to-text"><div class="to-name">Private edges</div><div class="to-sub">Only the parties to each flow relationship see details</div></div><input type="radio" name="transp"/></div>' +
+    '<div class="transp-opt"><div class="to-text"><div class="to-name">Outcome-transparent</div><div class="to-sub">Network sees that value flowed and its purpose — not exact amounts</div></div><input type="radio" name="transp" value="outcome" checked/></div>' +
+    '<div class="transp-opt"><div class="to-text"><div class="to-name">Story-gated transparency</div><div class="to-sub">Flow becomes visible once the recipient shares a story-upstream outcome</div></div><input type="radio" name="transp" value="story-gated"/></div>' +
+    '<div class="transp-opt"><div class="to-text"><div class="to-name">Fully transparent</div><div class="to-sub">All participants see exact amounts, timing, and terms</div></div><input type="radio" name="transp" value="full"/></div>' +
+    '<div class="transp-opt"><div class="to-text"><div class="to-name">Private edges</div><div class="to-sub">Only the parties to each flow relationship see details</div></div><input type="radio" name="transp" value="private"/></div>' +
     "</div></div>" +
     // action bar
     '<div class="action-bar">' +
@@ -275,9 +298,9 @@
     '<div class="sect">' +
     '<div class="sect-head">Contributor tier</div>' +
     '<div class="tier-grid">' +
-    '<div class="tier-opt on" onclick="selectTier(this)"><div class="ico">🌱</div><div class="nm">Founding</div><div class="ds">No expiration; permanent share for life of the org</div></div>' +
-    '<div class="tier-opt" onclick="selectTier(this)"><div class="ico">⚡</div><div class="nm">Active</div><div class="ds">Flows while active; diminishes on departure</div></div>' +
-    '<div class="tier-opt" onclick="selectTier(this)"><div class="ico">📅</div><div class="nm">Time-limited</div><div class="ds">Contract defines the exact expiry and amount</div></div>' +
+    '<div class="tier-opt on" data-tier="founding" onclick="selectTier(this)"><div class="ico">🌱</div><div class="nm">Founding</div><div class="ds">No expiration; permanent share for life of the org</div></div>' +
+    '<div class="tier-opt" data-tier="active" onclick="selectTier(this)"><div class="ico">⚡</div><div class="nm">Active</div><div class="ds">Flows while active; diminishes on departure</div></div>' +
+    '<div class="tier-opt" data-tier="time-limited" onclick="selectTier(this)"><div class="ico">📅</div><div class="nm">Time-limited</div><div class="ds">Contract defines the exact expiry and amount</div></div>' +
     "</div></div>" +
     '<div class="sect">' +
     '<div class="sect-head">Duration</div>' +

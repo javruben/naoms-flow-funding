@@ -181,7 +181,7 @@ Deno.test("M6.1b mount: surface loads via get_policy(context, tokenKind=custom)"
   );
   // it loaded via the real op
   assertEquals(calls.get.length, 1, "get_policy called once on mount");
-  assertEquals(calls.get[0].context, "awip", "default context");
+  assertEquals(calls.get[0].context, "personal", "default context (holon-local self-context, C1)");
   assertEquals(calls.get[0].tokenKind, "custom", "tokenKind custom");
 });
 
@@ -199,7 +199,7 @@ Deno.test("M6.1b save: Save dispatches policy_set with band params + humanLabel"
 
   assertEquals(calls.set.length, 1, "policy_set dispatched once");
   const sent = calls.set[0];
-  assertEquals(sent.context, "awip", "context carried");
+  assertEquals(sent.context, "personal", "context carried (holon-local self-context, C1)");
   assertEquals(sent.tokenKind, "custom", "tokenKind custom");
   const params = sent.params as Record<string, unknown>;
   assertEquals(params.floor, 1200, "floor from the surface input");
