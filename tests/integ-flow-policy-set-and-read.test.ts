@@ -20,7 +20,7 @@
 // @covers src/packages/flow-funding/handlers/policy-set.ts:1
 // @covers src/packages/flow-funding/materializers/flow-policy.ts:1
 // @mechanism-asserted flow-policy supersede via graphQueryAsync + is_latest flip
-// @bypasses db-unlock=fixture-password, identity=pre-onboarded, device-pair=pre-onboarded-fixture, keychain=fixture-shares-file, kronos-disabled, iroh-mdns-disabled
+// @bypasses db-unlock=fixture-password, identity=pre-onboarded, device-pair=pre-onboarded-fixture, keychain=fixture-shares-file, kronos-disabled, iroh-mdns-disabled, llm-mocked, mls-real-ffi-forced
 // @honesty-rationale Single-daemon integ: the flow namespace handler + generic projection + supersede enricher ARE the assertion target. identity/device-pair/keychain pre-state are upstream of flow.* and supplied by the canonical founder fixture; db-unlock=fixture-password unlocks the same encrypted DB the materializer projects into; kronos/iroh-mdns disabled — no scheduled job or peer discovery is part of the M1 single-daemon policy path. No flow.* state is pre-seeded: every node is produced by driving the real WS write path.
 // @canonical-flow YES
 // === END HEADER ===

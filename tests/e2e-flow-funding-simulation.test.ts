@@ -5,7 +5,7 @@
 // @covers flow-funding Simulation surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder → open-Flow-Funding → switch-to-Simulate → Run → assert the rendered report equals an INDEPENDENT flow.simulate over the same synthetic network (real engine, not the mock's fabricated results)
 // @owns-surface flow-simulate
-// @bypasses db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled
+// @bypasses db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled, auth=skip-browser-flow, biometric=disabled, cross-browser-identity=puppeteer-fresh-context, device-pair=pre-onboarded-fixture, keychain=fixture-mnemonic-file, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced, vault-unlock=fixture-mnemonic-file
 // @honesty-rationale flow.simulate is a DRY-RUN over synthetic state (design §6.5)
 //   — it commits nothing, so there is no chain witness by design. The honest
 //   witness ties the browser render to an INDEPENDENT real-op result: the test

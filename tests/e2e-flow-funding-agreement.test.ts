@@ -5,7 +5,7 @@
 // @covers flow-funding Agreement surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder (solo) → open-Flow-Funding → switch-to-Agreement → fill counterparty + Create → assert the daemon-originated LOUD refusal surfaces and NO flow_agreement node is created
 // @owns-surface flow-agreement
-// @bypasses db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled
+// @bypasses db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled, auth=skip-browser-flow, biometric=disabled, cross-browser-identity=puppeteer-fresh-context, device-pair=pre-onboarded-fixture, keychain=fixture-mnemonic-file, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced, vault-unlock=fixture-mnemonic-file
 // @honesty-rationale TIER-SPLIT (economics QM doctrine 2026-06-19, Honor tier
 //   order): the bilateral SUCCESS ceremony (propose+accept over two peer-paired
 //   daemons) is already proven at the INTEGRATION tier by
