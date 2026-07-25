@@ -26,7 +26,10 @@
 // @canonical-flow YES
 // === END HEADER ===
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 // deno-lint-ignore no-explicit-any
 type AnyDoc = any;
 // deno-lint-ignore no-explicit-any
@@ -147,7 +150,11 @@ Deno.test("C3/G4: an incoming flow proposal renders an Accept control that calls
   // the right id (the same call the 2-daemon e2e makes via a real pointer click).
   // deno-lint-ignore no-explicit-any
   await (win as any).agreementAccept(AGREEMENT_ID);
-  assertEquals(acceptCalls.length, 1, "agreement_accept dispatched exactly once");
+  assertEquals(
+    acceptCalls.length,
+    1,
+    "agreement_accept dispatched exactly once",
+  );
   assertEquals(
     acceptCalls[0].agreementId,
     AGREEMENT_ID,

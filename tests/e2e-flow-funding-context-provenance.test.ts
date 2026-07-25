@@ -153,7 +153,9 @@ Deno.test({
             | undefined;
         assert(
           typeof id === "string" && id.length > 0,
-          `hive create "${name}" returned no hive id: ${res.stdout.slice(0, 800)}`,
+          `hive create "${name}" returned no hive id: ${
+            res.stdout.slice(0, 800)
+          }`,
         );
         return id;
       };
@@ -205,7 +207,10 @@ Deno.test({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
-      token = registerBrowser("e2e:e2e-flow-funding-context-provenance", browser);
+      token = registerBrowser(
+        "e2e:e2e-flow-funding-context-provenance",
+        browser,
+      );
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 900 });
       await page.goto(`http://127.0.0.1:${port}/`, {
@@ -258,7 +263,9 @@ Deno.test({
         return out.filter(Boolean);
       });
       console.error(
-        `[1644-c1] rendered Policy contexts: ${JSON.stringify(renderedContexts)}`,
+        `[1644-c1] rendered Policy contexts: ${
+          JSON.stringify(renderedContexts)
+        }`,
       );
       assert(
         renderedContexts.length > 0,

@@ -144,7 +144,9 @@ async function graphNodes(
   const resp = await wsSend(ws, {
     type: "graph.query",
     pattern: { type, ...(where ? { where } : {}), limit: 200 },
-  }) as { nodes?: Array<{ id?: string; properties?: Record<string, unknown> }> };
+  }) as {
+    nodes?: Array<{ id?: string; properties?: Record<string, unknown> }>;
+  };
   return resp.nodes ?? [];
 }
 
@@ -192,7 +194,9 @@ Deno.test({
           `real peer-pair friendship chain required — got ${fcId}`,
         );
         console.error(
-          `[1644-m7] payer=${payerDid} payee=${payeeDid} fc=${fcId.slice(0, 14)}`,
+          `[1644-m7] payer=${payerDid} payee=${payeeDid} fc=${
+            fcId.slice(0, 14)
+          }`,
         );
 
         // ── (1) Payer UI: open Flow Funding, arm a FlowPolicy via the Save gesture. ──
@@ -200,7 +204,9 @@ Deno.test({
           // deno-lint-ignore no-explicit-any
           const w = window as any;
           if (!w._naoms || typeof w._naoms.activateApp !== "function") {
-            throw new Error("_naoms.activateApp not exposed — shell init incomplete");
+            throw new Error(
+              "_naoms.activateApp not exposed — shell init incomplete",
+            );
           }
           await w._naoms.activateApp("flow-funding");
         });
@@ -247,7 +253,10 @@ Deno.test({
             }
             await delay(250);
           }
-          assert(armed, "policy did not arm on the payer daemon after the UI Save");
+          assert(
+            armed,
+            "policy did not arm on the payer daemon after the UI Save",
+          );
         }
         console.error("[1644-m7] policy armed from the UI");
 
@@ -260,7 +269,10 @@ Deno.test({
           }
         });
         await payerB.page.waitForFunction(
-          () => !!document.querySelector("#flow-agreement #flowAgreementCounterparty"),
+          () =>
+            !!document.querySelector(
+              "#flow-agreement #flowAgreementCounterparty",
+            ),
           { timeout: 30_000 },
         );
         await payerB.page.evaluate((counterparty: string) => {
@@ -293,8 +305,13 @@ Deno.test({
           }
           await delay(500);
         }
-        assert(agreementId, "UI propose did not commit a flow_agreement on the payer");
-        console.error(`[1644-m7] agreement proposed from the UI: ${agreementId}`);
+        assert(
+          agreementId,
+          "UI propose did not commit a flow_agreement on the payer",
+        );
+        console.error(
+          `[1644-m7] agreement proposed from the UI: ${agreementId}`,
+        );
 
         // ── (3) Proposed lane must REPLICATE to the payee before its UI can render it.
         //        (On this Mac this is the first likely EXPECTED-RED-ON-MAC point.) ──
@@ -326,7 +343,8 @@ Deno.test({
         });
         await payeeB.page.waitForFunction(
           () =>
-            typeof (window as { __flowShowSurface?: unknown }).__flowShowSurface ===
+            typeof (window as { __flowShowSurface?: unknown })
+              .__flowShowSurface ===
               "function",
           { timeout: 30_000 },
         );
@@ -347,7 +365,9 @@ Deno.test({
         console.error("[1644-m7] payee ACCEPTED the agreement from the UI");
 
         // Bilateral fold: `active` on BOTH daemons (a one-sided flip cannot pass).
-        for (const [label, ws] of [["payee", b.ws!], ["payer", a.ws!]] as const) {
+        for (
+          const [label, ws] of [["payee", b.ws!], ["payer", a.ws!]] as const
+        ) {
           let active = false;
           for (let i = 0; i < 80; i++) {
             const r = await wsSend(ws, {
@@ -389,7 +409,9 @@ Deno.test({
           );
           await delay(1500); // let the opt-in reshare + suppress window drain
         }
-        console.error("[1644-m7] payer opted flow-funding transparency=detailed → payee");
+        console.error(
+          "[1644-m7] payer opted flow-funding transparency=detailed → payee",
+        );
 
         // ── (6) Payer UI: SETTLE THE EPOCH. The claimant is sourced from the now-active
         //        agreement counterparty (deriveClaimants); surplus above the ceiling is
@@ -448,10 +470,14 @@ Deno.test({
         assert(
           directed,
           "the UI settle did not DIRECT surplus to the below-floor dependent — no " +
-            `flow_settlement allocates amount>0 to the payee (${payeeDid.slice(0, 16)}…)`,
+            `flow_settlement allocates amount>0 to the payee (${
+              payeeDid.slice(0, 16)
+            }…)`,
         );
         console.error(
-          `[1644-m7] surplus DIRECTED to payee: ${directed!.amount} (payer allocation)`,
+          `[1644-m7] surplus DIRECTED to payee: ${
+            directed!.amount
+          } (payer allocation)`,
         );
 
         // ── (7b) TERMINAL cross-boundary witness: a `flow_outcome` node ATTRIBUTED to
@@ -493,8 +519,10 @@ Deno.test({
         let uiReceived = false;
         for (let i = 0; i < 30; i++) {
           uiReceived = await payeeB.page.evaluate(() => {
-            const rc = document.querySelector("#flow-velocity #riverContent, #flow-app #riverContent");
-            const txt = (rc?.textContent || "");
+            const rc = document.querySelector(
+              "#flow-velocity #riverContent, #flow-app #riverContent",
+            );
+            const txt = rc?.textContent || "";
             // "Received" simCard label present with a non-zero value beside it.
             return /Received/i.test(txt) && !/Received[^0-9]*0\b/i.test(txt);
           });
@@ -543,7 +571,10 @@ Deno.test({
           if (walletUp) break;
           await delay(500);
         }
-        assert(walletUp, "payee wallet did not mount for the capstone terminal");
+        assert(
+          walletUp,
+          "payee wallet did not mount for the capstone terminal",
+        );
         await delay(2000);
         await payeeB.page.evaluate(async () => {
           // deno-lint-ignore no-explicit-any
@@ -562,7 +593,10 @@ Deno.test({
           if (feedUp) break;
           await delay(500);
         }
-        assert(feedUp, "payee Activity feed did not mount for the capstone terminal");
+        assert(
+          feedUp,
+          "payee Activity feed did not mount for the capstone terminal",
+        );
         await delay(2000);
         const feed = await payeeB.page.evaluate(() => {
           const root = document.querySelector("[data-wallet-activity]");
@@ -576,8 +610,7 @@ Deno.test({
         );
         const payerShort = payerDid.replace(/^did:[a-z]+:/, "").slice(0, 12);
         const feedHay = feed.text.toLowerCase();
-        const walletAttributes =
-          feedHay.includes(payerDid.toLowerCase()) ||
+        const walletAttributes = feedHay.includes(payerDid.toLowerCase()) ||
           (payerShort.length >= 6 &&
             feedHay.includes(payerShort.toLowerCase())) ||
           (/(from|received from)/.test(feedHay) &&

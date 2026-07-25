@@ -345,7 +345,8 @@ Deno.test({
         settlements.length > 0,
         "flow.get_settlement folded no flow_settlement after the UI settle gesture",
       );
-      const legs = (settlements[0].legs as Array<Record<string, unknown>>) ?? [];
+      const legs = (settlements[0].legs as Array<Record<string, unknown>>) ??
+        [];
       assert(
         legs.some((l) => l.status === "paid" || l.status === "unconfirmed"),
         `settlement has no paid/indeterminate leg — ${JSON.stringify(legs)}`,

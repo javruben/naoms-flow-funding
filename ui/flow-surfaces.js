@@ -38,7 +38,7 @@
     '<div class="card" id="settleCard" style="display:none;margin-top:14px">' +
     '<div class="card-head">Settle this epoch</div>' +
     '<p style="font-size:.85rem;color:var(--text2);margin:0 0 var(--s3)">Run one ' +
-    "flow settlement for <strong id=\"settleCtxLabel\"></strong>: distribute your " +
+    'flow settlement for <strong id="settleCtxLabel"></strong>: distribute your ' +
     "surplus above the ceiling to your below-floor claimants, conserved and " +
     "capped. Value only moves if you hold surplus and have claimants who can " +
     "absorb it — otherwise the daemon refuses loud (nothing is fabricated).</p>" +

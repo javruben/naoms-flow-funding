@@ -801,7 +801,14 @@
         );
         return;
       }
-      renderVelocity(agreements, settlements, policies, outcomes, incoming, self);
+      renderVelocity(
+        agreements,
+        settlements,
+        policies,
+        outcomes,
+        incoming,
+        self,
+      );
     }, function (err) {
       showStatus("Could not load flows: " + errMsg(err), "warn");
     });
@@ -877,7 +884,14 @@
     return Promise.resolve(null);
   }
 
-  function renderVelocity(agreements, settlements, policies, outcomes, incoming, self) {
+  function renderVelocity(
+    agreements,
+    settlements,
+    policies,
+    outcomes,
+    incoming,
+    self,
+  ) {
     // Show the river, hide the empty state.
     var fr = vq("#firstRun");
     if (fr) fr.classList.add("hidden");
@@ -911,7 +925,7 @@
         ' <button class="btn p" data-testid="flow-agreement-accept" ' +
         'data-agreement-id="' + esc(a.agreementId) +
         '" onclick="agreementAccept(\'' + esc(a.agreementId) +
-        "')\" style=\"margin-left:8px;padding:2px 10px;font-size:.78rem\">" +
+        '\')" style="margin-left:8px;padding:2px 10px;font-size:.78rem">' +
         "Accept</button></li>";
     }).join("");
 
@@ -1151,7 +1165,8 @@
       });
       el.classList.add("on");
       var tier = (el.getAttribute && el.getAttribute("data-tier")) ||
-        ((el.querySelector(".nm") || {}).textContent || "").trim().toLowerCase();
+        ((el.querySelector(".nm") || {}).textContent || "").trim()
+          .toLowerCase();
       if (tier) state.contributorTier = tier;
     };
     // G9 — duration: record the selected duration (carried into terms).
