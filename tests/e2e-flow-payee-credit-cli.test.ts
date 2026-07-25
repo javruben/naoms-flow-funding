@@ -47,9 +47,7 @@
 //   identity=pre-onboarded, iroh-mdns-disabled, approval=installActionApprovalAutoGrant
 //   (SETUP only — disposed before the settlement). NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE,
 //   NO pre-seed of the credit-under-test.
-// @canonical-flow YES — every state mutation goes through the production `naoms` CLI
-//   verbs (contacts handshake, token define/mint/admit, flow policy-set/epoch-settle)
-//   routed through the real handlers; the credit witness is `naoms token balance` on bob.
+// @canonical-flow YES — every state mutation goes through the production `naoms` CLI verbs (contacts handshake, token define/mint/admit, flow policy-set/epoch-settle) routed through the real handlers; the credit witness is `naoms token balance` on bob.
 // @honesty-rationale Two real fresh-founder daemons (distinct ownerDids), real
 //   `naoms contacts handshake` peer-pair. The settlement's token.pay is satisfied by the
 //   CAPABILITY (the auto-grant is disposed before it — that IS the M4 claim). bob's credit
