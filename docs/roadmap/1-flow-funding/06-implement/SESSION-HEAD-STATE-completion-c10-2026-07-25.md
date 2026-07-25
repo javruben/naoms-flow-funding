@@ -1,32 +1,46 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
-## 🎯 CURRENT (2026-07-25 ~09:00Z, branch tip **de9aa530eb1**, pushed; local==origin)
-**C1,C2,C3,C4 GREEN firsthand. C6 = one clean build1 run away; build1 is healthy+quiet, run IN FLIGHT.**
-- Evidence-matched budgets on tip `de9aa530eb1`: step-3 proposed replication + bilateral fold = 40s
-  (build1-PROVEN sufficient, ×2), flow_outcome cross = 120s (build1-PROVEN needed; 311942f7d6a). No
-  budget exceeds its demonstrated need.
-- **C6 runner findings (firsthand, decisive):**
-  - build1 (healthy Linux): C6 clears policy-arm → propose → accept/fold-active → settle → directed, and
-    REACHES the flow_outcome cross; the ONLY prior fail was flow_outcome at the old 40s (now 120s). So a
-    clean build1 run at `de9aa530eb1` should be FULLY GREEN incl the `flow_outcome CROSSED` witness.
-  - build2 is a BROKEN cross-peer-iroh runner for the PROPOSED lane: step-3 fails at 40s (×3) AND at 120s
-    (×1, run4) → NOT under-budgeting, a build2-specific iroh degradation. Do NOT chase green on build2.
-    (This is why the 46b0276f66f uniform-120s bump was REVERTED at de9aa530eb1 — its rationale was
-    disproven; build1 proves 40s suffices for step-3/fold.)
-- **IN FLIGHT:** agent abc6b6cbb46053979 running C6 SOLO on quiet build1 (load ~2.3, 1.8GB free) at
-  `de9aa530eb1`, worktree `/root/dev/naoms-wt-1644c6b`, build1-native recipe (seeds symlink → build1 main
-  branch-fresh seeds, puppeteer chrome, .so present). Awaiting raw log — verify `1 passed` + `flow_outcome
-  CROSSED` FIRSTHAND (sub-agents over-claimed twice).
-- **THEN LAND:** cascade already satisfied (wallet-c4 fully absorbed, 0 unmerged). `merge-queue.sh add
-  1644-flow-completion 1644 "<desc>" --gate=owner-approval --proof "<C1-C4 Mac+build1 firsthand; C6
-  build1@de9aa530eb1 firsthand; owner-authorized owner-approval; --gate=e2e skips multidevice so manual
-  2-daemon run IS the required proof>"` → converge (NO hollow-celebrate). Branch 78-behind-main =
-  land-time PMR-B8 watch.
-- 🧹 build1 CLEANUP: earlier worktree `/root/dev/naoms-wt-1644c3` already REMOVED by agent. build2 worktree
-  `/root/dev/naoms-wt-1644c6` staged (broken-runner, low priority to clean). New build1 wt `…-1644c6b`.
-- Owner AWAKE (PROC-DAY); status filed conductor(1711)+QM(economics) 0805Z for DD relay (no own Matrix).
-  FOLLOW-ONs (NOT 1644): (1) canvas AI-dock occludes app controls at narrow widths → own BUG;
-  (2) build2 cross-peer-iroh proposed-lane degradation → infra/own BUG.
+## 🎯 CURRENT (2026-07-25 ~09:30Z, branch tip **873eae5686d**, pushed; local==origin) — REAL ROOT CAUSE FOUND
+**C6 is UNSATISFIABLE as written — a genuine PRODUCT GAP, not timing/runner/accept-path. DECISION PENDING (owner).**
+
+### What is PROVEN GREEN firsthand (real, not theatre)
+- **C4 (owner's core): GREEN on Mac + build1.** REAL token define→mint→admit(payee)→replicate → CLI-armed
+  policy (REAL tokenId) → settle MOVES value → payee wallet "received 200 from <payer> · flow settlement".
+  The owner's exact mechanism WORKS at the backend.
+- **C1 (real hives), C2 (settle-from-UI), C3 (accept-from-UI + bilateral fold on both daemons): GREEN.**
+  The UI drives arm→propose→accept→settle→DIRECTED:200. automatedSettlementCap UI field arms the delegation
+  root (log-confirmed "flow delegation root armed"). 86/86 uc/integ GREEN.
+
+### The C6 root cause (firsthand, decisive — see agent logs on build1)
+- On healthy build1, C6 clears EVERYTHING through settle+DIRECTED:200, then the payer log shows:
+  `flow settlement value-movement incomplete … attempted:true, paid:0, refused:1` → NO value moved →
+  no attributed `flow_outcome` (total_flowed>0) is EVER produced → terminal cross can't pass on ANY runner.
+- WHY paid:0: **the flow-funding UI hardcodes `token:"custom"`** (flow-tab.js:387/513/661/873). `"custom"`
+  is only the default token KIND (tools-define.ts:320,343); `token.transfer`/balance treat the `token`
+  param as a **tokenId node id** (tools-pay.ts:30 `loadNode(db, tokenId)` → `token-not-found`). C6 also
+  never does token define/mint/admit. So UI-driven flow targets a non-existent token → moves no real value.
+- C4 is green precisely because it uses the REAL tokenId (not the kind label) + provisions+admits the token.
+- ⇒ **UI-driven flow-funding cannot move real value today.** The "EXPECTED-RED-ON-MAC; GREEN-on-Kronos"
+  annotation on C6 is MISLEADING — it would fail on Kronos too. This is the owner's "no theatre" heart:
+  the product UI orchestrates flows but doesn't actually move tokens.
+
+### DECISION PENDING (surfaced to owner via DD 0930Z) — do NOT land C6
+Two fix directions (both make C6 real; the UX/scope is an owner call given reuse-vs-build + no-theatre):
+- **(A, rec) Backend auto-resolve:** make flow-funding resolve/auto-provision a real per-holon flow token
+  for the "custom" handle (UI stays simple, no picker). Smaller, matches existing UI intent.
+- **(B) UI token picker:** add a real-token selector to the flow policy surface (net-new UI), wire
+  savePolicy/get_policy/balance/settle to the chosen tokenId.
+- Then FIX C6 setup: provision+admit the real token, arm from UI, UI-settle moves value, flow_outcome crosses.
+- ALT (lighter): land C1–C4 proven core NOW (real value cross via backend PROVEN by C4) + file
+  UI-value-movement as a 10-bug/M-row follow-on. Owner's call.
+
+### Land mechanics (when unblocked)
+- Cascade satisfied (wallet-c4 fully absorbed). `--gate=e2e` skips multidevice (hollow for C6) → land is
+  `--gate=owner-approval` + firsthand proof. Branch 78-behind-main = PMR-B8 watch.
+- Budgets on branch are evidence-matched (step-3/fold 40s build1-proven; flow_outcome 120s build1-proven);
+  the disproven uniform-120s bump was REVERTED (de9aa530eb1). build2 = broken cross-peer-iroh runner (ignore).
+- 🧹 build1 wt `/root/dev/naoms-wt-1644c6b` + build2 wt `/root/dev/naoms-wt-1644c6` staged (cleanup later).
+- FOLLOW-ONs (NOT 1644): canvas AI-dock occludes controls at narrow widths; build2 iroh degradation.
 
 ## ⭐ TOP-LINE STATUS (2026-07-25 ~06:40Z, tip 4edc54fb642)
 - ✅ C4 (owner core) GREEN on Mac + build1. automatedSettlementCap gap fixed. C1/C2 GREEN. 86/86 uc/integ.
