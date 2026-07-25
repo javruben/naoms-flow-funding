@@ -1,5 +1,19 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
+## ⭐ TOP-LINE STATUS (2026-07-25 ~04:00Z, tip c61a0607bc4)
+- ✅ **Owner's core requirement DELIVERED + verified on TWO runners.** C4 wallet-receipt
+  GREEN on Mac AND build1 (Linux): payee wallet shows `"received 200 from <payer> · flow
+  settlement"`. The demo-rejection bug is fixed. Also: automatedSettlementCap UI gap fixed.
+- ✅ C1 (real hives), C2 (settle-from-UI) GREEN firsthand; 86/86 uc/integ GREEN.
+- 🔴 **C3 (agreement-accept-from-UI) — REAL BUG** found via honest build1 multi-device testing:
+  the accept-button click emits 0 `flow.agreement_accept` ops (deterministic, host-independent).
+  Full analysis + candidates + build1 env recipe: `06-implement/C3-accept-from-ui-bug-2026-07-25.md`.
+- 🔴 C6 (narrative capstone) — BLOCKED by the C3 accept bug (the narrative includes the accept step).
+- **NEXT:** fix the C3 accept-from-UI path (PROD, not test) → re-verify C3+C6 GREEN on build1
+  (env recipe in the C3 bug doc) → land via `--gate=owner-approval` with build1 evidence → converge.
+  A PMR full-tier run (bqpufd3uv) is exercising the suite on build1 (will RED on C3/C6 = expected).
+- LANDING NOT done: C3/C6 must be GREEN first (HC-C5 — no unverified cross-identity land = no theatre).
+
 **Session:** c10 (`cbb29fd9`). **Updated:** 2026-07-25 ~00:xxZ.
 **Branch/worktree:** `1644-flow-completion`
 (`.claude/worktrees/1644-flow-completion`), pushed to origin. **Owner
