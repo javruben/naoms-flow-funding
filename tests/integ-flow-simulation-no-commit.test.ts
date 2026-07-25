@@ -14,7 +14,7 @@
 // @covers src/packages/flow-funding/handlers/simulate.ts:1
 // @covers src/packages/flow-funding/sim/driver.ts:1
 // @mechanism-asserted real-engine simulation on a live daemon with ZERO flow_settlement commits (committed:false + no projected node) + 1645-demurrage soft-dep degrade
-// @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled, iroh-mdns-disabled
+// @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled, iroh-mdns-disabled, device-pair=pre-onboarded-fixture, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced
 // @honesty-rationale Single-daemon integ: the flow.simulate handler + sim driver ARE the assertion target, driven over the real authenticated WS path. The synthetic holon set is the simulation INPUT (design §6.5 — synthetic/historical state). The zero-write claim is asserted against the real graph (no flow_settlement node for the sim holons), not merely the self-reported committed flag.
 // @canonical-flow YES
 // === END HEADER ===

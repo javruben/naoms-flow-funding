@@ -5,7 +5,7 @@
 // @covers flow-funding Velocity surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description seed-policy-via-real-op → real-onboarded-founder → open-Flow-Funding → switch-to-Velocity → assert river renders the REAL armed band (not the first-run empty state)
 // @owns-surface flow-velocity
-// @bypasses action-approval=owner-credential-auto-grant, db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled
+// @bypasses action-approval=owner-credential-auto-grant, db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled, auth=skip-browser-flow, biometric=disabled, cross-browser-identity=puppeteer-fresh-context, device-pair=pre-onboarded-fixture, keychain=fixture-mnemonic-file, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced, vault-unlock=fixture-mnemonic-file
 // @honesty-rationale The Velocity "river" is a READ surface: it queries the
 //   user's real flow_policy/flow_agreement/flow_settlement graph nodes via
 //   ctx.graphQuery. The policy it reads is armed by the REAL flow.policy_set
