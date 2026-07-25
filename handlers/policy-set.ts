@@ -16,8 +16,7 @@
 // the supersede materializer (materializers/flow-policy.ts) which marks prior
 // versions `is_latest:false` — get_policy reads the single is_latest node.
 
-import { createChain, getChain } from "@naoms/core/chain/index.ts";
-import { securedAppend } from "@naoms/core/chain/secured.ts";
+import { createChain } from "@naoms/core/chain/index.ts";
 import { bridgeSign } from "@naoms/core/chain/signer/signing-bridge.ts";
 import { signingBridgeIsReady } from "@naoms/core/chain/signer/signing-bridge-readiness.ts";
 import { createLogger } from "@naoms/logging";
@@ -54,6 +53,21 @@ export interface FlowHandlerContext {
         error?: string;
       }
     >;
+  };
+  // PC-178b/PC-178j: scoped chain-read/append seam (ScopedChain subset) —
+  // replaces direct core imports of getChain / securedAppend.
+  chain: {
+    get(chainId: string): { id: string } | null;
+    append(opts: {
+      chainId: string;
+      branch: string;
+      type: string;
+      payload: string;
+      domain?: string;
+      signerDid: string;
+      signerKeyId: string;
+      tripleFormat?: { featureId: string; entityId: string };
+    }): Promise<{ id: string }>;
   };
 }
 
@@ -148,7 +162,7 @@ export async function handlePolicySet(
 
     // Provision the holon's flow chain on first use (single-writer, owner-local).
     const chainId = flowChainId(holon);
-    if (!getChain(db, chainId)) {
+    if (!ctx.chain.get(chainId)) {
       createChain(db, {
         id: chainId,
         ownerDid: holon,
@@ -269,7 +283,7 @@ export async function handlePolicySet(
         : {}),
     };
 
-    const commit = await securedAppend(db, {
+    const commit = await ctx.chain.append({
       chainId,
       branch: "content",
       type: "flow.policy_set",
