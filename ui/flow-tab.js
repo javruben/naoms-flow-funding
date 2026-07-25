@@ -75,6 +75,14 @@
     duration: "none",
     contexts: [PERSONAL_CONTEXT],
     contextsLoaded: false,
+    // C7 — the REAL token this flow moves value with. token.pay/balance need a
+    // real tokenId node (not the KIND label custom), else UI-armed settlement
+    // is refused (paid:0). Populated from the token.list op (reuse, not a new
+    // widget). Null when the user holds no token → honest empty-state, never a
+    // silent custom fallback.
+    tokenId: null,
+    tokenLabel: "",
+    tokens: [],
   };
 
   function init(featureCtx) {
@@ -86,7 +94,54 @@
   function activate() {
     if (!container) return;
     loadSurfacesModule(function () {
-      loadContexts(mountWired);
+      // C7 — load the user's REAL tokens (token.list) BEFORE surfaces mount so
+      // ALL surfaces (velocity settle + policy) see state.tokenId.
+      loadContexts(function () {
+        loadTokens(mountWired);
+      });
+    });
+  }
+
+  // C7 — enumerate the REAL tokens the user holds by REUSING the token.list op
+  // (src/packages/token/tools-list-show.ts handleList). No new token-list op or
+  // widget. filter:"all" so the payer sees tokens they issued/minted (the ones
+  // they can flow value with). Defaults state.tokenId to the first token that
+  // carries a real id (preferring one with a non-zero balance). Tolerant of an
+  // absent/failing sendReq (unit context) — leaves state.tokenId null for the
+  // honest empty-state. ALWAYS calls done() (chains the mount; never blocks it).
+  function loadTokens(done) {
+    var q = null;
+    try {
+      if (typeof ctx.sendReq === "function") {
+        q = ctx.sendReq({ type: "token.list", filter: "all" });
+      }
+    } catch (_e) {
+      q = null;
+    }
+    if (!q) return done();
+    Promise.resolve(q).then(function (resp) {
+      if (resp && resp.ok && Array.isArray(resp.tokens)) {
+        state.tokens = resp.tokens.filter(function (t) {
+          return t && t.id;
+        });
+        var chosen = null;
+        for (var i = 0; i < state.tokens.length; i++) {
+          var t = state.tokens[i];
+          var held = (Number(t.final) || 0) + (Number(t.pending) || 0);
+          if (held > 0) {
+            chosen = t;
+            break;
+          }
+        }
+        if (!chosen && state.tokens.length > 0) chosen = state.tokens[0];
+        if (chosen) {
+          state.tokenId = chosen.id;
+          state.tokenLabel = chosen.humanLabel || chosen.kind || chosen.id;
+        }
+      }
+      done();
+    }, function () {
+      done();
     });
   }
 
@@ -263,7 +318,33 @@
       window.__flowSurfaces.policy.html + "</div>";
     renderContextChoosers();
     bindPolicyGlobals();
+    populateTokenSelect();
     loadPolicy();
+  }
+
+  // C7 — fill the #tokenSelect from the REAL token.list results. No seeded
+  // options: each option is a token the user actually holds. When the user holds
+  // no token, reveal the honest empty-state (#tokenEmpty) — never silently keep the
+  // custom label.
+  function populateTokenSelect() {
+    var sel = pq("#tokenSelect");
+    var empty = pq("#tokenEmpty");
+    var hasTokens = state.tokens && state.tokens.length > 0;
+    if (sel) {
+      sel.innerHTML = "";
+      for (var i = 0; i < state.tokens.length; i++) {
+        var t = state.tokens[i];
+        var opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = t.humanLabel || t.kind || t.id;
+        sel.appendChild(opt);
+      }
+      if (state.tokenId) sel.value = state.tokenId;
+    }
+    if (empty) {
+      if (hasTokens) empty.classList.add("hidden");
+      else empty.classList.remove("hidden");
+    }
   }
 
   // C1/G1 — inject the real-context nav (.cfg-nav .it) + pills (.ctx-pill) from
@@ -378,85 +459,119 @@
     window.openSim = function () {
       showSurface("simulate");
     };
+    // C7 — pick the REAL token this flow moves value with (from token.list).
+    window.selectFlowToken = function (id) {
+      var match = null;
+      for (var i = 0; i < state.tokens.length; i++) {
+        if (state.tokens[i].id === id) {
+          match = state.tokens[i];
+          break;
+        }
+      }
+      if (match) {
+        state.tokenId = match.id;
+        state.tokenLabel = match.humanLabel || match.kind || match.id;
+      }
+      loadPolicy();
+    };
     window.savePolicy = savePolicy;
   }
 
   function loadPolicy() {
     var lbl = pq("#ctxLabel");
     if (lbl) lbl.textContent = ctxLabel();
-    ctx.api.get_policy({ context: state.context, tokenKind: "custom" }).then(
-      function (res) {
-        if (res && res.ok && res.found && res.params) {
-          var p = res.params;
-          var fi = pq("#floorInput");
-          var ci = pq("#ceilingInput");
-          if (fi && typeof p.floor === "number") fi.value = p.floor;
-          if (ci && typeof p.ceiling === "number") ci.value = p.ceiling;
-          if (typeof p.gradient === "number") {
-            state.gradient = p.gradient;
-            markCurveByGradient(p.gradient);
-          }
-          if (p.humanLabel) setCcyByLabel(p.humanLabel);
-          // Restore the wired controls so a saved policy re-reads (no silent
-          // loss of the felt/tithe/transparency/caps the owner set).
-          state.felt = !!p.feltThresholds;
-          var ft = pq("#feltToggle");
-          if (ft) {
-            if (state.felt) ft.classList.add("on");
-            else ft.classList.remove("on");
-          }
-          var tr = pq("#titheRange");
-          if (tr && typeof p.commonsTithePct === "number") {
-            tr.value = p.commonsTithePct;
-            var tv = pq("#titheVal");
-            if (tv) tv.textContent = p.commonsTithePct + "%";
-          }
-          if (p.transparencyLevel) {
-            var radios = document.querySelectorAll(
-              '#flow-policy input[name="transp"]',
+    // C7 — no token held → skip the read (a null/custom tokenKind moves no
+    // value) and show the honest empty-state instead.
+    if (!state.tokenId) {
+      var em = pq("#tokenEmpty");
+      if (em) em.classList.remove("hidden");
+      showStatus(
+        "You hold no tokens yet — define or receive a token to flow value.",
+        "warn",
+      );
+      return;
+    }
+    ctx.api.get_policy({ context: state.context, tokenKind: state.tokenId })
+      .then(
+        function (res) {
+          if (res && res.ok && res.found && res.params) {
+            var p = res.params;
+            var fi = pq("#floorInput");
+            var ci = pq("#ceilingInput");
+            if (fi && typeof p.floor === "number") fi.value = p.floor;
+            if (ci && typeof p.ceiling === "number") ci.value = p.ceiling;
+            if (typeof p.gradient === "number") {
+              state.gradient = p.gradient;
+              markCurveByGradient(p.gradient);
+            }
+            if (p.humanLabel) setCcyByLabel(p.humanLabel);
+            // Restore the wired controls so a saved policy re-reads (no silent
+            // loss of the felt/tithe/transparency/caps the owner set).
+            state.felt = !!p.feltThresholds;
+            var ft = pq("#feltToggle");
+            if (ft) {
+              if (state.felt) ft.classList.add("on");
+              else ft.classList.remove("on");
+            }
+            var tr = pq("#titheRange");
+            if (tr && typeof p.commonsTithePct === "number") {
+              tr.value = p.commonsTithePct;
+              var tv = pq("#titheVal");
+              if (tv) tv.textContent = p.commonsTithePct + "%";
+            }
+            if (p.transparencyLevel) {
+              var radios = document.querySelectorAll(
+                '#flow-policy input[name="transp"]',
+              );
+              Array.prototype.forEach.call(radios, function (r) {
+                r.checked = r.value === p.transparencyLevel;
+              });
+            }
+            var pcc = pq("#perClaimantCap");
+            if (pcc && typeof p.perClaimantCap === "number") {
+              pcc.value = p.perClaimantCap;
+            }
+            var pec = pq("#perEpochCap");
+            if (pec && typeof p.perEpochCap === "number") {
+              pec.value = p.perEpochCap;
+            }
+            var asc = pq("#automatedSettlementCap");
+            if (asc && typeof p.automatedSettlementCap === "number") {
+              asc.value = p.automatedSettlementCap;
+            }
+            window.updateBand();
+            showStatus(
+              "Loaded saved FlowPolicy v" + res.version + " for " + ctxLabel() +
+                ".",
+              "ok",
             );
-            Array.prototype.forEach.call(radios, function (r) {
-              r.checked = r.value === p.transparencyLevel;
-            });
+          } else {
+            var fi2 = pq("#floorInput");
+            var ci2 = pq("#ceilingInput");
+            if (fi2) fi2.value = "";
+            if (ci2) ci2.value = "";
+            window.updateBand();
+            showStatus(
+              "No FlowPolicy saved yet for " + ctxLabel() +
+                " — set a floor and ceiling, then Save.",
+              "",
+            );
           }
-          var pcc = pq("#perClaimantCap");
-          if (pcc && typeof p.perClaimantCap === "number") {
-            pcc.value = p.perClaimantCap;
-          }
-          var pec = pq("#perEpochCap");
-          if (pec && typeof p.perEpochCap === "number") {
-            pec.value = p.perEpochCap;
-          }
-          var asc = pq("#automatedSettlementCap");
-          if (asc && typeof p.automatedSettlementCap === "number") {
-            asc.value = p.automatedSettlementCap;
-          }
-          window.updateBand();
-          showStatus(
-            "Loaded saved FlowPolicy v" + res.version + " for " + ctxLabel() +
-              ".",
-            "ok",
-          );
-        } else {
-          var fi2 = pq("#floorInput");
-          var ci2 = pq("#ceilingInput");
-          if (fi2) fi2.value = "";
-          if (ci2) ci2.value = "";
-          window.updateBand();
-          showStatus(
-            "No FlowPolicy saved yet for " + ctxLabel() +
-              " — set a floor and ceiling, then Save.",
-            "",
-          );
-        }
-      },
-      function (err) {
-        showStatus("Could not load policy: " + errMsg(err), "warn");
-      },
-    );
+        },
+        function (err) {
+          showStatus("Could not load policy: " + errMsg(err), "warn");
+        },
+      );
   }
 
   function savePolicy() {
+    // C7 — refuse to arm without a REAL token (never send the string custom).
+    if (!state.tokenId) {
+      return showStatus(
+        "Select or hold a token to arm a flow policy.",
+        "warn",
+      );
+    }
     var floor = parseFloat((pq("#floorInput") || {}).value);
     var ceil = parseFloat((pq("#ceilingInput") || {}).value);
     if (!isFinite(floor) || !isFinite(ceil)) {
@@ -510,7 +625,7 @@
     showStatus("Saving…", "");
     return ctx.api.policy_set({
       context: state.context,
-      tokenKind: "custom",
+      tokenKind: state.tokenId,
       params: params,
     }).then(function (res) {
       if (res && res.ok) {
@@ -658,7 +773,10 @@
     var claimants = state.settleClaimants || [];
     // Read the armed band so the claimant need covers the surplus (conservation).
     showStatus("Settling epoch…", "");
-    return ctx.api.get_policy({ context: state.context, tokenKind: "custom" })
+    return ctx.api.get_policy({
+      context: state.context,
+      tokenKind: state.tokenId,
+    })
       .then(function (pol) {
         var ceiling = (pol && pol.found && pol.params &&
             typeof pol.params.ceiling === "number")
@@ -866,11 +984,13 @@
     }
   }
 
-  // Read the owner's real balance for the context's token kind, if available.
+  // Read the owner's real balance for the flow's REAL token, if available.
   function readContextBalance() {
+    // C7 — no token held → nothing to read (never query balance for custom).
+    if (!state.tokenId) return Promise.resolve(null);
     try {
       if (typeof ctx.api.balance === "function") {
-        return Promise.resolve(ctx.api.balance({ token: "custom" })).then(
+        return Promise.resolve(ctx.api.balance({ token: state.tokenId })).then(
           function (r) {
             var b = r && (r.total != null ? r.total : r.balance);
             return typeof b === "number" ? b : null;

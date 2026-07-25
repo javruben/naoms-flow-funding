@@ -27,11 +27,20 @@
 //   (3) a `flow_outcome` node ATTRIBUTED to the payer (peer_did) crosses to the SEPARATE
 //   payee daemon and the payee's Flow UI renders it as "Received". Real-pointer gestures
 //   only; the cross-boundary receipt is witnessed on the payee's own daemon, never seeded.
-// @bypasses action-approval=owner-credential-auto-grant (owner-tier writes only),
-//   db-unlock=fixture-password, identity=pre-onboarded (founder + invitee-a fixtures),
+// @bypasses action-approval=owner-credential-auto-grant (owner-tier writes only;
+//   also drives the payer's OWN token.define/mint/admit CORE_APPROVAL, DISPOSED
+//   before the settle so the settlement pay rides the UI-armed delegation root —
+//   same rigor as C4 wallet-receipt), db-unlock=fixture-password,
+//   identity=pre-onboarded (founder + invitee-a fixtures),
 //   cross-browser-identity=puppeteer-fresh-context, iroh-mdns-disabled, kronos-disabled.
 //   NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE, NO pre-seed of the settlement / flow_outcome
 //   under test.
+// @setup C7 — a REAL token is provisioned on the payer (token.define/mint/admit via
+//   WS, mirroring C4) so the flow UI can target a real tokenId node (token.pay/balance
+//   refuse the KIND label "custom" → paid:0). This is legitimate SETUP (the payer must
+//   HOLD the token they flow), NOT a pre-seed of the state under test: the policy arm,
+//   agreement accept, settlement, and cross-boundary flow_outcome all remain produced
+//   by real UI gestures / real op write paths.
 // @canonical-flow YES
 // @pre-seeds NONE — the policy, agreement, acceptance, settlement, and cross-boundary
 //   flow_outcome are all produced by real UI gestures / real op write paths; no
@@ -85,6 +94,7 @@
 import { assert, assertEquals } from "jsr:@std/assert";
 import { withNDaemonNBrowser } from "../../../../tests/helpers/n-daemon-n-browser.ts";
 import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
+import { installActionApprovalAutoGrant } from "../../../../tests/helpers/drive-action-approval.ts";
 
 const NAOMS_ROOT = new URL("../../../../", import.meta.url).pathname.replace(
   /\/$/,
@@ -210,6 +220,78 @@ Deno.test({
           }`,
         );
 
+        // ── (0) C7 SETUP: provision a REAL token on the PAYER (WS) so the flow UI
+        //        can target it. token.pay/balance need a real tokenId node — the
+        //        KIND label "custom" moves no value (paid:0). Mirrors C4's
+        //        define/mint/admit provisioning (via WS here, not CLI). The payer
+        //        auto-grants its OWN action-approval for the CORE_APPROVAL_REQUIRED
+        //        define/mint/admit writes, then DISPOSES it before the settle so the
+        //        settlement pay rides the UI-armed delegation root, not the grant. ──
+        const disposePayerGrant = installActionApprovalAutoGrant(a.ws!);
+        const TTL_72H_MS = 72 * 60 * 60 * 1000;
+        const defRes = await wsSend(a.ws!, {
+          type: "token.define",
+          kind: "custom",
+          humanLabel: "flow-favor",
+          valueBasis: "favor",
+          cap: 100_000,
+          ttlMs: TTL_72H_MS,
+          privacy: "clear",
+          transferable: false,
+          minAttesters: 2,
+        }) as { ok?: boolean; tokenId?: string; error?: string };
+        assert(
+          defRes.ok === true && typeof defRes.tokenId === "string",
+          `token.define failed: ${defRes.error ?? JSON.stringify(defRes)}`,
+        );
+        const tokenId = defRes.tokenId!;
+        const mintRes = await wsSend(a.ws!, {
+          type: "token.mint",
+          token: tokenId,
+          amount: 10_000,
+        }) as { ok?: boolean; error?: string };
+        assert(
+          mintRes.ok === true,
+          `token.mint failed: ${mintRes.error ?? JSON.stringify(mintRes)}`,
+        );
+        const admitRes = await wsSend(a.ws!, {
+          type: "token.admit",
+          token: tokenId,
+          admittedDid: payeeDid,
+        }) as { ok?: boolean; error?: string };
+        assert(
+          admitRes.ok === true,
+          `token.admit failed: ${admitRes.error ?? JSON.stringify(admitRes)}`,
+        );
+        // Poll the PAYEE for token-chain replication (budget ~150s, mirrors C4's
+        // proven-sufficient window). token.balance answers ok only once the token
+        // chain is known locally.
+        {
+          let replicated = false;
+          for (let i = 0; i < 300; i++) {
+            const bal = await wsSend(b.ws!, {
+              type: "token.balance",
+              token: tokenId,
+            }) as { ok?: boolean };
+            if (bal.ok === true) {
+              replicated = true;
+              break;
+            }
+            await delay(500);
+          }
+          assert(
+            replicated,
+            `[replication] token ${tokenId} did not replicate to the payee within ` +
+              `150s (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+          );
+        }
+        // Dispose the payer auto-grant BEFORE the settle (C4 rigor): the settlement
+        // pay must ride the UI-armed delegation root, not the action-approval grant.
+        disposePayerGrant();
+        console.error(
+          `[1644-m7] provisioned real token ${tokenId} + admitted payee`,
+        );
+
         // ── (1) Payer UI: open Flow Funding, arm a FlowPolicy via the Save gesture. ──
         await payerB.page.evaluate(async () => {
           // deno-lint-ignore no-explicit-any
@@ -226,7 +308,7 @@ Deno.test({
           { timeout: 30_000 },
         );
         await payerB.page.evaluate(
-          (floor: number, ceiling: number, cap: number) => {
+          (floor: number, ceiling: number, cap: number, tok: string) => {
             function set(id: string, v: string) {
               const el = document.querySelector(
                 "#flow-policy #" + id,
@@ -239,6 +321,22 @@ Deno.test({
             set("ceilingInput", String(ceiling));
             // Arm the delegation root FROM THE UI so the settle moves real value.
             set("automatedSettlementCap", String(cap));
+            // C7 — SELECT the provisioned REAL token in the Policy surface so the
+            // armed policy (and the settle) target a real tokenId node, not the
+            // KIND label "custom" (which moves no value). Set the <select> value +
+            // drive the real onchange handler.
+            // deno-lint-ignore no-explicit-any
+            const w = window as any;
+            const sel = document.querySelector(
+              "#flow-policy #tokenSelect",
+            ) as HTMLSelectElement | null;
+            if (sel) {
+              sel.value = tok;
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            if (typeof w.selectFlowToken === "function") {
+              w.selectFlowToken(tok);
+            }
             const saveBtn = Array.from(
               document.querySelectorAll("#flow-policy .action-bar .btn.p"),
             )[0] as HTMLButtonElement | undefined;
@@ -248,6 +346,7 @@ Deno.test({
           FLOOR,
           CEILING,
           AUTOMATED_CAP,
+          tokenId,
         );
         // Confirm the band armed on the payer daemon before proceeding.
         {
@@ -256,7 +355,7 @@ Deno.test({
             const p = await wsSend(a.ws!, {
               type: "flow.get_policy",
               context: CONTEXT,
-              tokenKind: "custom",
+              tokenKind: tokenId,
             }) as { found?: boolean };
             if (p.found === true) {
               armed = true;

@@ -8,7 +8,9 @@
 //   - on mount, the surface loads via ctx.api.get_policy({context, tokenKind})
 //   - Save dispatches ctx.api.policy_set with the band params + humanLabel
 //   - a saved policy folds back into the surface's own inputs (renderer reuse)
-//   - tokenKind stays "custom" (mechanism-switching is item 1696)
+//   - C7: the flow UI targets a REAL tokenId the user holds (reuse token.list),
+//     NEVER the hardcoded string "custom"; get_policy/policy_set carry that
+//     tokenId, and an honest empty-state refuses arming when no token is held.
 //
 // Runner: deno test --allow-read --no-check <path>
 //
@@ -93,7 +95,24 @@ async function evalInto(
   return fn(env.win, env.doc);
 }
 
-async function mountWired(getResult: Record<string, unknown>): Promise<{
+// C7: the REAL token the flow UI targets (reuse of the token.list op). A single
+// held token whose real id the UI must carry into get_policy / policy_set — NOT
+// the hardcoded string "custom".
+const DEFAULT_TOKENS: Array<Record<string, unknown>> = [
+  {
+    id: "tok-favor-1",
+    humanLabel: "Flow Favor",
+    kind: "custom",
+    final: 100,
+    pending: 0,
+    role: "issuer",
+  },
+];
+
+async function mountWired(
+  getResult: Record<string, unknown>,
+  tokens: Array<Record<string, unknown>> = DEFAULT_TOKENS,
+): Promise<{
   win: Record<string, unknown>;
   doc: AnyDoc;
   calls: ApiCalls;
@@ -115,17 +134,23 @@ async function mountWired(getResult: Record<string, unknown>): Promise<{
       return Promise.resolve({ ok: true, version: 1 });
     },
   };
+  // C7: the flow feature ctx exposes ctx.sendReq (feature-context-factory).
+  // The UI reuses the token.list op to target a REAL token the user holds.
+  const sendReq = (msg: Record<string, unknown>) =>
+    msg && msg.type === "token.list"
+      ? Promise.resolve({ ok: true, tokens })
+      : Promise.resolve({ ok: true });
   // deno-lint-ignore no-explicit-any
   const feature = (env.win._naomsFeatures as any)["flow-funding"];
   assert(feature, "flow-funding feature registered");
-  feature.init({ container: env.container, api });
+  feature.init({ container: env.container, api, sendReq });
   feature.activate();
-  // flush the get_policy .then
+  // flush loadTokens (token.list) → mount → the get_policy .then
   await new Promise((r) => setTimeout(r, 0));
   return { win: env.win, doc: env.doc, calls };
 }
 
-Deno.test("M6.1b source contract: flow-tab.js wires get_policy/policy_set with tokenKind+humanLabel", async () => {
+Deno.test("M6.1b/C7 source contract: flow-tab.js wires get_policy/policy_set with a REAL tokenId (token.list), not the hardcoded string custom", async () => {
   const src = await Deno.readTextFile(TAB_PATH);
   assert(
     src.includes("ctx.api.get_policy"),
@@ -135,9 +160,24 @@ Deno.test("M6.1b source contract: flow-tab.js wires get_policy/policy_set with t
     src.includes("ctx.api.policy_set"),
     "saves via ctx.api.policy_set",
   );
+  // C7: the UI reuses the token.list op to target a REAL token the user holds…
   assert(
-    /tokenKind:\s*"custom"/.test(src),
-    "tokenKind stays custom (mechanism-switching is 1696)",
+    src.includes("token.list"),
+    "C7: reuses the token.list op (no new token-list widget/API)",
+  );
+  // …and carries that real tokenId (state.tokenId) into the flow ops.
+  assert(
+    src.includes("state.tokenId"),
+    "C7: the flow ops target state.tokenId (the real held token)",
+  );
+  // …and NEVER falls back to the hardcoded string "custom" in the flow paths.
+  assert(
+    !/tokenKind:\s*"custom"/.test(src),
+    'C7: no get_policy/policy_set hardcodes tokenKind:"custom"',
+  );
+  assert(
+    !/token:\s*"custom"/.test(src),
+    'C7: no balance() hardcodes token:"custom"',
   );
   assert(
     src.includes("humanLabel"),
@@ -168,7 +208,7 @@ Deno.test("M6.1b source contract: flow-tab.js wires get_policy/policy_set with t
   assert(mockGone, "ui/flow-mock.js deleted (1710 mock purge)");
 });
 
-Deno.test("M6.1b mount: surface loads via get_policy(context, tokenKind=custom)", async () => {
+Deno.test("M6.1b/C7 mount: surface loads via get_policy(context, tokenKind=<real tokenId>)", async () => {
   const { doc, calls } = await mountWired({ ok: true, found: false });
   // the real Policy surface markup is mounted
   assert(
@@ -186,7 +226,11 @@ Deno.test("M6.1b mount: surface loads via get_policy(context, tokenKind=custom)"
     "personal",
     "default context (holon-local self-context, C1)",
   );
-  assertEquals(calls.get[0].tokenKind, "custom", "tokenKind custom");
+  assertEquals(
+    calls.get[0].tokenKind,
+    "tok-favor-1",
+    "C7: tokenKind is the REAL held tokenId, not the string custom",
+  );
 });
 
 Deno.test("M6.1b save: Save dispatches policy_set with band params + humanLabel", async () => {
@@ -208,7 +252,11 @@ Deno.test("M6.1b save: Save dispatches policy_set with band params + humanLabel"
     "personal",
     "context carried (holon-local self-context, C1)",
   );
-  assertEquals(sent.tokenKind, "custom", "tokenKind custom");
+  assertEquals(
+    sent.tokenKind,
+    "tok-favor-1",
+    "C7: policy_set carries the REAL held tokenId, not the string custom",
+  );
   const params = sent.params as Record<string, unknown>;
   assertEquals(params.floor, 1200, "floor from the surface input");
   assertEquals(params.ceiling, 5000, "ceiling from the surface input");
@@ -239,4 +287,43 @@ Deno.test("M6.1b load: a saved policy folds back into the surface's own inputs",
   assertEquals(String(ceil.value), "4200", "ceiling folded into the input");
   const sel = doc.querySelector("#flow-policy #ccySelect") as AnyEl;
   assertEquals(String(sel.value), "CARE", "denomination select restored");
+});
+
+Deno.test('C7 empty-state: user holds NO token → save refuses (no policy_set), tokenEmpty shown, no "custom" leaked', async () => {
+  // token.list returns an empty holding → the UI must NOT silently arm "custom".
+  const { win, doc, calls } = await mountWired(
+    { ok: true, found: false },
+    [],
+  );
+  // The Policy surface still mounts (band/save controls present), but the honest
+  // empty-state message is revealed (the #tokenEmpty help is no longer hidden).
+  assert(
+    doc.querySelector("#flow-policy #floorInput"),
+    "policy surface still mounts on empty holdings",
+  );
+  const empty = doc.querySelector("#flow-policy #tokenEmpty") as AnyEl;
+  assert(empty, "the honest empty-state element is present");
+  assert(
+    !empty.classList.contains("hidden"),
+    "the empty-state message is shown when the user holds no token",
+  );
+  // No token → the load path must NOT have called get_policy with a null/custom
+  // tokenKind (it skips the read and shows the empty-state instead).
+  assertEquals(
+    calls.get.length,
+    0,
+    "get_policy is not called with a null/custom token on empty holdings",
+  );
+  // Arming must be REFUSED — no policy_set with the string "custom" (or anything).
+  const floor = doc.querySelector("#flow-policy #floorInput") as AnyEl;
+  const ceil = doc.querySelector("#flow-policy #ceilingInput") as AnyEl;
+  floor.value = "1200";
+  ceil.value = "5000";
+  // deno-lint-ignore no-explicit-any
+  await (win as any).savePolicy();
+  assertEquals(
+    calls.set.length,
+    0,
+    'save is refused when the user holds no token (no "custom" leaked)',
+  );
 });

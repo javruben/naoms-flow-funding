@@ -83,6 +83,18 @@
     "unit. Hold more than one currency or token? Set a separate band for each " +
     "by switching here.</div>" +
     "</div>" +
+    // C7 — the REAL token this flow moves value with. Populated at mount by
+    // flow-tab.js populateTokenSelect() from the token.list op (no seeded
+    // options). token.pay/balance need a real tokenId node; the honest
+    // empty-state (#tokenEmpty) shows when the user holds no token.
+    '<div class="ccy-row">' +
+    '<div class="ccy-field">' +
+    "<label>Token this flow moves value with</label>" +
+    '<select id="tokenSelect" onchange="selectFlowToken(this.value)"></select>' +
+    "</div>" +
+    '<div class="ccy-help hidden" id="tokenEmpty">You hold no tokens yet — ' +
+    "define or receive a token to flow value.</div>" +
+    "</div>" +
     // viability band (live)
     '<div class="card" id="sectionBand">' +
     '<div class="card-head">Viability band</div>' +
