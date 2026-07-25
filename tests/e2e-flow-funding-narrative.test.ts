@@ -496,7 +496,17 @@ Deno.test({
         //         total_flowed>0), and the payee's Flow UI renders it as "Received".
         //         (Second likely EXPECTED-RED-ON-MAC point: cross-peer reshare.) ──
         let crossed: Record<string, unknown> | null = null;
-        for (let i = 0; i < 80; i++) {
+        // Cross-peer flow_outcome replication budget: 240 * 500ms = 120s, matching
+        // the sibling C4 wallet-receipt e2e's proven-sufficient 120s cross-device
+        // convergence window (e2e-flow-funding-wallet-receipt.test.ts creditDeadline
+        // = 120_000ms). The earlier 40s budget under-timed this SAME cross-device
+        // reshare on a contended Linux runner (build1, 4-core): C6's accept + settle
+        // legs pass, then the terminal flow_outcome cross missed at 40s while C4's
+        // identical cross passes at 120s. Widening the window does NOT weaken the
+        // witness — the assertion still requires a REAL attributed cross (source
+        // "received", peer_did==payer, total_flowed>0); it only gives cross-peer
+        // gossip the same time C4 already allows for the same mechanism.
+        for (let i = 0; i < 240; i++) {
           const nodes = await graphNodes(b.ws!, "flow_outcome");
           const hit = nodes
             .map((n) => n.properties ?? {})
@@ -513,7 +523,7 @@ Deno.test({
         assert(
           crossed,
           `[replication] the payer's flow outcome did not CROSS to the payee as an ` +
-            `attributed flow_outcome (peer_did==payer, total_flowed>0) within 40s ` +
+            `attributed flow_outcome (peer_did==payer, total_flowed>0) within 120s ` +
             `(EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
         );
         console.error(

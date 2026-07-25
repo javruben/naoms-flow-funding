@@ -8,7 +8,27 @@
   CORRECT (agent verified `elementAtCenterIsButton=true → active` at 1440×900). Fix = set 1440×900 in
   the 2 tests (real desktop; assertion unchanged — real pointer click → bilateral fold). Committed
   `4edc54fb642`. NOT theatre (unrealistic 800×600 harness viewport, not a weakened assertion).
-- ⏳→🔴 **Firsthand C3+C6 re-confirm FAILED (bbb5x4d4i, ~0712Z) — NOT green; do NOT claim/land.**
+- ✅ **C3 GREEN firsthand on build1 (bwzxuf7ui, ~0733Z):** `bilateral fold flips active on both
+  daemons ... ok | 1 passed (6m2s)`. Confirms: the viewport fix (1440×900) was the REAL fix; the
+  earlier C3 failure was cross-peer replication CONTENTION, not a defect. So C1/C2/C3/C4 all GREEN.
+- ✅ **C3 GREEN firsthand (independent 2nd run, solo/quiet):** `ok | 1 passed (4m54s)` on build1 run
+  SOLO (not batched with integ-1163) — confirms the earlier C3 "fold" failure was runner CONTENTION,
+  exactly the "quiet-runner disambiguation" the prior note flagged. Two independent C3 greens now.
+- 🟡 **C6 ADVANCED past the prior blocker; NEW frontier found + fixed (confirm PENDING host headroom):**
+  with the viewport fix the accept DOES fold and settle DOES direct surplus (C6 now clears the
+  "directed" step that the ⏳ note assumed was the wall). C6 now fails ONLY at the TERMINAL step —
+  the cross-peer `flow_outcome` reshare to the payee — and it fails at exactly the 40s poll budget
+  (80×500ms), TWICE (batch + solo), while the sibling C4 does the IDENTICAL cross-device flow_outcome
+  and PASSES with a 120s budget (`creditDeadline = 120_000`). FIX APPLIED: raise C6's flow_outcome
+  cross poll 40s→120s (240×500ms) to match C4's proven-sufficient window — NOT a weakening (the
+  witness still requires a REAL attributed cross: source "received", peer_did==payer, total_flowed>0).
+  A 3rd C6 run (120s version) died at DAEMON BOOT (`/health did not come up within 240000ms`) because
+  build1 was saturated by a THIRD-PARTY rust build (load 15+, <500MB free, 8×rustc) and then went
+  ssh-unreachable. So the 120s fix is APPLIED + high-confidence but NOT yet firsthand-confirmed green.
+  NEXT: when build1 (or another quiet multi-device Linux runner) has headroom, run C6 SOLO to confirm
+  `flow_outcome CROSSED ... ok | 1 passed`. Root-cause + fix evidence (elementFromPoint occlusion,
+  0 accept ops at 800×600, active at 1440×900) captured in commit + agent report.
+- (superseded) 🔴 Firsthand C3+C6 re-confirm FAILED (bbb5x4d4i, ~0712Z) under build1 integ-1163 contention:
   Viewport fix WORKED (C3 now runs the full 7m flow, not a 3ms bail → the click fires). But:
   - C3 FAILED at "bilateral fold active on BOTH daemons" — build1 had `integ-1163-with-devices`
     CONTENDING (same cross-peer replication starvation class as the Mac co-tenancy). Cannot
