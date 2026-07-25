@@ -1,5 +1,25 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
+## 🎯 CURRENT (2026-07-25 ~07:45Z, branch tip **311942f7d6a**, pushed; local==origin, no divergence)
+**C1,C2,C3,C4 GREEN firsthand on real runners. C6 fix applied, ONE confirm run away from done.**
+- Commit chain: 4edc54fb642 (viewport 1440×900 fix, C3/C6) → head-state commits → **311942f7d6a**
+  (C6: flow_outcome cross-peer reshare poll 40s→120s to match sibling C4's proven 120s window;
+  assertion unchanged — real attributed cross required). BOTH fixes are HONEST test-harness fixes
+  (unrealistic 800×600 viewport + too-tight 40s cross budget), NOT weakened assertions, NOT prod bugs.
+- **THE ONE REMAINING ACTION:** run C6 (`e2e-flow-funding-narrative`) SOLO at commit **311942f7d6a**
+  (NOT 4edc54!) on a QUIET multi-device Linux runner (build1 recipe in `C3-accept-from-ui-bug-2026-07-25.md`).
+  Expect GREEN (C6 already clears accept+settle+directed; the only prior fail was the 40s cross budget,
+  which 311942 fixes; C4 proves the identical 120s cross converges). If GREEN → C1-C6 all verified.
+  ⚠️ My bg run `b6obeyurh` is STALE (tests 4edc54, pre-120s-fix) → will fail at terminal cross; IGNORE it.
+- **THEN LAND:** cascade-merge any sibling 1644 branches (owner rule 0632Z: ALWAYS cascade) →
+  `merge-queue.sh add 1644-flow-completion 1644 "<desc>" --gate=owner-approval --proof "<C1-C6 evidence:
+  C4 Mac+build1, C1/C2 Mac, C3 build1 2× solo, C6 build1@311942; owner authorized owner-approval>"` →
+  converge (NO hollow-celebrate).
+- 🧹 **build1 CLEANUP FLAG:** worktree `/root/dev/naoms-wt-1644c3` (+ run-*.sh/*.log) left by a sub-agent
+  when build1 went unreachable — `git worktree remove --force` it once build1 recovers (shared-host hygiene).
+- Owner AWAKE (PROC-DAY); status filed conductor(1711)+QM(economics) for DD relay (no own Matrix).
+  FOLLOW-ON (canvas-desktop, NOT 1644): AI concierge dock occludes app controls at narrow widths → own BUG.
+
 ## ⭐ TOP-LINE STATUS (2026-07-25 ~06:40Z, tip 4edc54fb642)
 - ✅ C4 (owner core) GREEN on Mac + build1. automatedSettlementCap gap fixed. C1/C2 GREEN. 86/86 uc/integ.
 - ✅ **C3/C6 ROOT-CAUSED + FIXED (not a prod bug):** the accept/settle click emitted 0 ops because
