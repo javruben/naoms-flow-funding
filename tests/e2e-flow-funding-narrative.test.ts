@@ -327,8 +327,14 @@ Deno.test({
         // ── (3) Proposed lane must REPLICATE to the payee before its UI can render it.
         //        (On this Mac this is the first likely EXPECTED-RED-ON-MAC point.) ──
         {
+          // Cross-peer replication budget: 240 * 500ms = 120s, uniform with the
+          // flow_outcome cross (below) and C4's proven creditDeadline (120_000).
+          // Ceiling only — the poll breaks the instant the proposal replicates, so
+          // widening never masks a failure; it only gives cross-peer iroh gossip the
+          // proven window. Evidence: build2 needed >40s here (3/3 runs) while build1
+          // met 40s — the 40s ceiling was under-budgeted for slower runners.
           let seen = false;
-          for (let i = 0; i < 80; i++) {
+          for (let i = 0; i < 240; i++) {
             const r = await wsSend(b.ws!, {
               type: "flow.get_agreement",
               agreementId,
@@ -342,7 +348,7 @@ Deno.test({
           assert(
             seen,
             `[replication] proposed agreement ${agreementId} did not replicate to the ` +
-              `payee within 40s — cross-peer setup (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+              `payee within 120s — cross-peer setup (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
           );
         }
 
@@ -379,8 +385,12 @@ Deno.test({
         for (
           const [label, ws] of [["payee", b.ws!], ["payer", a.ws!]] as const
         ) {
+          // Cross-peer replication budget: 240 * 500ms = 120s (uniform with the
+          // proposed lane + flow_outcome cross + C4). Ceiling only; the payer leg
+          // (a.ws, local) breaks immediately, the payee leg (b.ws) needs the accept
+          // to replicate cross-peer — the same class that was under-budgeted at 40s.
           let active = false;
-          for (let i = 0; i < 80; i++) {
+          for (let i = 0; i < 240; i++) {
             const r = await wsSend(ws, {
               type: "flow.get_agreement",
               agreementId,
@@ -394,7 +404,7 @@ Deno.test({
           assert(
             active,
             `[replication] agreement ${agreementId} did not fold active on the ${label} ` +
-              `within 40s (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+              `within 120s (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
           );
         }
         console.error("[1644-m7] agreement is ACTIVE on both daemons");
