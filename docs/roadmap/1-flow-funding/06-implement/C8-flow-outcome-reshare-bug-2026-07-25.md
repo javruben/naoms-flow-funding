@@ -15,6 +15,16 @@ within 120s`. Grep finds ZERO `flow_outcome` nodes on EITHER daemon.
   `flow-funding-transparency`).
 - `[sharing.apply_decisions] applied {peerDid:<payee>, domainCount:1, overrideCount:1}` — payee granted access.
 
+## CORRECTED narrowing (firsthand code read)
+- `build()` (flow-domain.ts) is FINE: it aggregates `total_flowed` from `flow_settlement.settledTotal`
+  (=200, present immediately at settle) — NOT from confirmed-paid legs. So confirm-on-push timing is NOT the
+  cause; the payload the payer should share carries `total_flowed:200`.
+- ⇒ The bug is in **share EMISSION/DELIVERY**: the `sharing.flow-funding` reshare is never emitted/delivered to
+  the payee (agent grep: zero flow-funding reshare emission; only token FROST signer-reshare from admit). So the
+  payee's `materialize()` never fires → no `flow_outcome` node. Focus: `evaluateReshare` + suppress/flush in the
+  sharing engine, whether the payer's transparency override actually makes the payee a share RECIPIENT, and
+  cross-peer delivery of the share event. This is a sharing-engine subsystem issue, deeper than "UI wiring".
+
 ## Where the gap is (candidates, for a focused fix)
 The reshare is TRIGGERED but produces/crosses NO `flow_outcome`. The receive-side `flow-domain.ts materialize()`
 writes `flow_outcome` from a peer's shared payload — so the payer's SHARE payload (build side) is either not
