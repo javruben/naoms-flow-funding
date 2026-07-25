@@ -15,6 +15,10 @@ export interface DemurragePreview {
   reason?: string;
 }
 
+import { createLogger } from "@naoms/logging";
+
+const L = createLogger("flow-funding:demurrage-preview");
+
 // Candidate module paths where item 1645 publishes its demurrage computation. Held
 // as data (not a static `import "…"`) so this file type-checks and runs on a build
 // where 1645 is absent — the dynamic import simply rejects and we degrade.
@@ -43,8 +47,12 @@ export async function previewDemurrage(
       if (typeof charge === "number" && Number.isFinite(charge)) {
         return { available: true, charge };
       }
-    } catch {
-      // try the next candidate path
+    } catch (e) {
+      // try the next candidate path — 1645 absent/not-wired on this build is expected.
+      L.debug("previewDemurrage: candidate module not resolvable", {
+        path,
+        error: (e as Error).message,
+      });
     }
   }
   return {
