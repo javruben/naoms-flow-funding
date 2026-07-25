@@ -111,6 +111,23 @@ Deno.test({
         const bobB = ctx.browsers[1];
         assert(bobB, "daemon B (invitee-a) browser present");
 
+        // Realistic desktop viewport (real users are not on puppeteer's default
+        // 800x600). On the canvas desktop the ambient AI concierge window DOCKS
+        // to the RIGHT edge (canvas-desktop.js AI_DOCK_RIGHT_MARGIN, viewport-
+        // following). At 800px wide that right-docked panel overlaps the centred
+        // flow-funding app window's right half, so `document.elementFromPoint` at
+        // the Accept button's centre resolves to the AI window's chip — a real
+        // pointer `page.click` (which hit-tests the centre coordinate) lands on
+        // the AI chip and the inline onclick NEVER fires (0 `flow.agreement_accept`
+        // ops). At a real desktop width the Accept button is unobstructed and the
+        // same real pointer click folds the agreement `active` on both daemons
+        // (verified on build1: elementAtCenterIsButton=true → REAL page.click →
+        // active). This is a harness-viewport artifact, NOT an accept-path defect
+        // — the C3/G4 wiring (ctx.api.agreement_accept → bilateral fold) is
+        // correct. Set a real desktop size so the mechanism-asserted real pointer
+        // click reflects a real user's environment.
+        await bobB.page.setViewport({ width: 1440, height: 900 });
+
         // ── SETUP (real write path on A, NOT a pre-seed of the accept state) ──
         const propose = await wsSend(a.ws!, {
           type: "flow.agreement_propose",

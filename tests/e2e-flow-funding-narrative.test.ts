@@ -182,6 +182,17 @@ Deno.test({
         const payeeB = ctx.browsers[1];
         assert(a.ws && b.ws, "both daemons have an authenticated WS");
         assert(payerB && payeeB, "both browsers present");
+        // Realistic desktop viewport for both browsers (real users are not on
+        // puppeteer's default 800x600). On the canvas desktop the ambient AI
+        // concierge window docks to the RIGHT edge and, at 800px wide, overlaps
+        // the centred flow-funding app window's right half — a real pointer
+        // `page.click` on the Accept / settle controls hit-tests the AI window's
+        // chip instead of the app control, so the inline onclick never fires
+        // (0 flow ops). At a real desktop width the controls are unobstructed and
+        // the same real pointer click drives the accept + settle path (verified
+        // on build1). Harness-viewport artifact, NOT a UI-wiring defect.
+        await payerB.page.setViewport({ width: 1440, height: 900 });
+        await payeeB.page.setViewport({ width: 1440, height: 900 });
         const payerDid = a.ownerDid!;
         const payeeDid = b.ownerDid!;
         assert(
