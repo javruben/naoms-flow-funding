@@ -39,6 +39,41 @@ PROC-NEW-FEATURE BUILD. Trigger: owner rejected a flow-funding demo as theatre
 - **Critic B-1/B-2/B-3/B-4** all addressed: B-2 amendment (projection) delivered; B-3 caps test added; B-4 payer receipt added; B-1 narrative fix = agent C IN PROGRESS.
 - **2-daemon browser tests** (wallet-receipt C4, agreement-accept-ui C3, narrative C6): structurally correct, GREEN pending **Kronos** (Mac iroh co-tenancy flakes at cross-peer setup). NOT env-gated, NOT faked.
 
+## 🧭 NIGHT-END STATE (2026-07-25 ~03:05Z, tip df22fb1cd39, pushed) — LANDING = PROVEN BLOCK
+**Code complete + owner's core requirement VERIFIED. Landing blocked on multi-device runner (all down for the night).**
+
+DONE + verified firsthand THIS session (not relayed):
+- automatedSettlementCap UI affordance (the #1 gap) — RED→GREEN, `649020ea917`.
+- Owner's ACTUAL bug (wallet receipt invisible) — root-caused + FIXED + verified on the
+  REAL 2-daemon path: `["received 200 from z6Mki4X2y24A… · flow settlement"]`, `2c95e039029`.
+- Firsthand GREEN: C1 context-provenance, C2 settle-from-ui, policy e2e (single-daemon);
+  **C4 wallet-receipt (2-daemon)**; 86/86 uc/integ (flow uc 71 + token uc-1644 12 + new integ 3).
+
+PROVEN BLOCK on landing (C3 agreement-accept-ui + C6 narrative are EXPECTED-RED-ON-MAC):
+- This Mac: sustained load ~19-20 + 8 co-tenant test-daemons → the 40s UI-proposal cross-peer
+  replication window loses to iroh co-tenancy (narrative failed there 2×; wallet-receipt passed
+  because it uses CLI-settle + 120s credit poll — the tighter window is the difference).
+- Configured regression runners build1 + build2: BOTH UNREACHABLE (Indonesia-night; expected).
+- build3=Linux/no-chrome/no-dylib/no-commit; gpu-host + prime = off-limits.
+- **merge-gate default regression tier SKIPS multi-device** (needs NAOMS_PMR_INCLUDE_MULTIDEVICE=1,
+  full tier) → a plain `--gate=owner-approval` submit would MERGE without running C3/C6 = theatre.
+  NOT DONE (would violate "no theatre / I will catch it each time").
+
+EXACT NEXT (when build1/build2 return, likely Indonesia daytime):
+1. Run C3+C6 on a multi-device runner for REAL GREEN, e.g.
+   `NAOMS_PMR_INCLUDE_E2E=1 NAOMS_PMR_INCLUDE_MULTIDEVICE=1 scripts/pre-merge-regression.sh --tier=full`
+   (remote-dispatches to build1/build2) OR run the 3 two-daemon e2e directly on a quiet
+   provisioned runner. Fix any real failures (C3/C6 are structurally correct; C4's terminal is
+   already GREEN so the wallet logic is proven).
+2. THEN enroll the 6 touched e2e in the critic-queue with honest `--tests-passed` (live critic
+   1238 is running) → get Phase-2 verdicts → `merge-queue.sh add 1644-flow-completion 1644 "<desc>"
+   --gate=e2e --tests-passed` (regression re-verifies on the runner). Plan re-submit
+   `critic-queue.sh plan-review 1644 1644-flow-completion "<desc>"` first (was rejected-plan-rework;
+   B-1..B-4 all addressed).
+3. Converge; NO hollow-celebrate (multi-device GREEN is the real proof, HC-C5).
+- RESIDUAL M-row candidate (non-blocking): payee replica `state.holders` sometimes omits self on
+  admit membership fold (racy) — party-based subscribe grading makes the wallet correct regardless.
+
 ## ✅✅ OWNER'S CORE BUG FIXED + VERIFIED FIRSTHAND (2026-07-25 ~00:52Z, tip 2c95e039029)
 The wallet-receipt-invisible bug is FIXED and I re-ran the REAL 2-daemon test MYSELF:
 `payee Activity feed rows: ["received 200 from z6Mki4X2y24A1aTQ… · flow settlement"]`,
