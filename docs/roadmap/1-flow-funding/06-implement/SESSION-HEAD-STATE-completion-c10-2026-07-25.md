@@ -39,7 +39,67 @@ PROC-NEW-FEATURE BUILD. Trigger: owner rejected a flow-funding demo as theatre
 - **Critic B-1/B-2/B-3/B-4** all addressed: B-2 amendment (projection) delivered; B-3 caps test added; B-4 payer receipt added; B-1 narrative fix = agent C IN PROGRESS.
 - **2-daemon browser tests** (wallet-receipt C4, agreement-accept-ui C3, narrative C6): structurally correct, GREEN pending **Kronos** (Mac iroh co-tenancy flakes at cross-peer setup). NOT env-gated, NOT faked.
 
-## ✅ CRITICAL GAP CLOSED (2026-07-25, tip 649020ea917)
+## ✅✅ OWNER'S CORE BUG FIXED + VERIFIED FIRSTHAND (2026-07-25 ~00:52Z, tip 2c95e039029)
+The wallet-receipt-invisible bug is FIXED and I re-ran the REAL 2-daemon test MYSELF:
+`payee Activity feed rows: ["received 200 from z6Mki4X2y24A1aTQ… · flow settlement"]`,
+`credited=200`, `ok | 1 passed | 0 failed`. Regression firsthand: **86/86 GREEN** (new integ 3
++ token uc-1644 12 + flow uc 71). The exact row the owner asked for now renders on the real
+cross-identity path.
+Root cause (agent-confirmed via instrumented 2-daemon diagnostic, I reviewed the diff + HC-43):
+  1. `_autoTripleWrap` promotes namespace-registered events (token.transfer) to JSON-LD
+     (@context/@graph, entry as rdf:JSON literal); push.ts did plain `JSON.parse().entry` →
+     undefined → entry_kind/amount/memo projected NULL on both daemons. FIX: push.ts unwraps
+     BOTH shapes via canonical `unwrapJsonLdPayload`/`unwrapJsonLdLiteral` + stores `to_did`.
+  2. payee's replica `state.holders` listed only issuer → isTokenHolder(payee)=false → graded
+     RELAY → feed dropped it. FIX: tools-subscribe grades a NAMED PARTY (to_did or signer) as
+     holder of THEIR OWN event. HC-43 verified intact: relay branch returns base only
+     (commit_id/chain_id/token_id/grade) — `to_did` used for grading, NEVER returned to a relay.
+  New test: `token/tests/integ-wallet-receipt-jsonld-projection-subscribe.test.ts` (real wrap→
+  projection→subscribe; success + failure-mode). RED/GREEN in commit body.
+RESIDUAL (follow-on M-row candidate, NOT blocking): the deeper cause of #2 — why the admit
+`membership.added` fold sometimes doesn't add the payee to their own replica's state.holders
+(racy) — is UNFIXED; the party-based grading makes the wallet correct regardless.
+
+## (history) 🚨🚨 NEW CRITICAL BUG (2026-07-25 ~00:05Z) — owner's core complaint STILL PRESENT
+Ran the REAL 2-daemon `e2e-flow-funding-wallet-receipt.test.ts` on Mac (did NOT flake —
+replication + value movement WORKED). Result: value moved (`paid 200`, payee `credited=200`,
+wallet total shows `["200","200"]`) BUT the payee Activity feed = `["Activity","Activity",
+"Minted","genesis"]` — **the incoming flow settlement is INVISIBLE** (no "received 200 from
+<payer>" row). This is EXACTLY the owner's rejection ("i dont see the tokens coming into my
+wallet from another"). The 12/12 token uc-1644 MISSED it (they mock the token_event entry).
+- Full analysis: `06-implement/CRITICAL-wallet-receipt-invisible-2026-07-25.md`.
+- Root-cause candidates: (1) token.subscribe grades the transfer token_event "relay" via
+  isTokenHolder(state.holders=membership roster, not folded balance) → strips
+  entry_kind/signer_did/amount/memo; (2) transfer token_event not projected on payee's
+  post-commit hook path; (3) fields absent. NOT yet confirmed — needs diagnostic run.
+- **DELEGATED to 1 background agent** (root-cause→fix→verify with the real 2-daemon test),
+  brief carries full evidence + HC-43 constraint (a genuine relay still ciphertext floor; a
+  balance-holder seeing their OWN received value is not a leak). Do NOT run a 2-daemon test
+  concurrently (iroh co-tenancy contention). Await its result.
+- This blocks C4 (wallet-receipt) + C6 (narrative capstone now asserts the wallet terminal).
+  C1/C2 single-daemon e2e + all uc suites GREEN + unaffected.
+- KEY LESSON (re-confirmed): run the REAL 2-daemon path; do NOT trust uc-green +
+  "structurally-correct-Kronos-pending". The Mac runs 2-daemon fine at night (quiet fleet).
+
+## Landing pipeline mechanics (learned 2026-07-25 — for when code is GREEN)
+- Merge gate IS Kronos: `scripts/merge-queue.sh add <branch> <item> "<desc>" --gate=e2e --tests-passed`
+  → kronos:picker-tick → merge-gate-runner runs regression on the RUNNER peer.
+- BUT `--gate=e2e` REFUSES unless every touched `e2e-*/integ-*.test.ts` has an approved
+  Phase-2 critic verdict in `.naoms/critic-queue.json` (git-common-dir, NOT worktree).
+- `critic-queue.sh add <path> <branch> <item> "<desc>" --kind=e2e` REQUIRES `--tests-passed`
+  (100% local pass) + combined-tier ≥80% coverage. NO defer-to-Kronos enrollment exists —
+  every approved e2e in the queue is locally GREEN first. So the 3 two-daemon e2e MUST pass
+  locally (Mac at night works) or on a provisioned runner before enrollment.
+- LIVE formal critic (1238) is running (`review --loop` + critic session on system-stability).
+  Route verdicts THROUGH it (independent) — never self-stamp. My plan sits `rejected-plan-rework`
+  (the REVISE I addressed); resubmit `critic-queue.sh plan-review` ONLY after code is GREEN
+  (Honor: build/fix prod → test → submit; do not submit mid-fix).
+- Branch: 13 ahead / 36 behind origin/main; ZERO file overlap with main's 36 → clean merge,
+  no reabsorb needed for conflicts.
+- Touched e2e needing Phase-2 verdicts: context-provenance✅, settle-from-ui✅, policy✅ (all
+  GREEN on Mac firsthand), agreement-accept-ui⏳, wallet-receipt⏳(BUG), narrative⏳.
+
+## ✅ CRITICAL GAP CLOSED (2026-07-25, tip 649020ea917) — automatedSettlementCap
 The automatedSettlementCap UI affordance is IMPLEMENTED + pushed. RED→GREEN done:
 - `flow-surfaces.js`: new "Automated settlement" card with `#automatedSettlementCap`.
 - `flow-tab.js` savePolicy sends `params.automatedSettlementCap` (>0); loadPolicy re-hydrates it.
