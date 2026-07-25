@@ -1,7 +1,23 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
-## 🎯 CURRENT (2026-07-25 ~09:30Z, branch tip **873eae5686d**, pushed; local==origin) — REAL ROOT CAUSE FOUND
-**C6 is UNSATISFIABLE as written — a genuine PRODUCT GAP, not timing/runner/accept-path. DECISION PENDING (owner).**
+## 🎯 CURRENT (2026-07-25 ~10:30Z, branch tip **344bfa87779**, pushed) — C7 LANDED value-move; C6 blocked on SEPARATE transparency bug
+**C7 fixed UI value-movement (REAL win). C6 now red at a 3rd, SEPARATE gap: flow_outcome transparency node
+doesn't cross. Owner-core ask (value moves via UI + wallet receipt) is DELIVERABLE. DECISION PENDING: realign
+C6 witness to wallet-receipt (C4's proven owner-facing outcome) + file transparency-reshare bug, vs fix reshare now.**
+- **C7 (UI token-targeting) DONE + committed `344bfa87779` + verified firsthand:** flow UI now targets a REAL
+  held token (reuses `token.list`; selector on Policy surface; honest empty-state; all 4 `"custom"` sites →
+  `state.tokenId`). uc RED→GREEN (5/5), full uc suite 14/14, no regression. On build1 C6: value NOW MOVES —
+  `provisioned real token…+admitted payee`, `flow settlement leg confirmed paid (confirm-on-push)` on BOTH
+  daemons; the `paid:0` root cause is GONE. This is the owner's "tokens move via the product" — real.
+- **C6 STILL RED at NEW gap (narrative.test.ts:163/523):** the `flow_outcome` ATTRIBUTION NODE never crosses
+  (peer_did==payer, total_flowed>0) despite value moving + `sharing.apply_decisions applied`. `triggerFlowReshare
+  AfterSettle` IS called + domain registered, yet ZERO flow_outcome nodes on either daemon → a real bug in the
+  M-TRANSPARENCY reshare path (`sharing/flow-domain.ts` build/reshare + `reshare-trigger.ts` + sharing-engine
+  suppress/flush + Biscuit). SEPARATE subsystem from C7. See `C8-flow-outcome-reshare-bug-2026-07-25.md`.
+- **KEY:** the flow_outcome node feeds the flow-funding "Received/Velocity" TRANSPARENCY surface — NOT the
+  WALLET receipt. The owner's literal ask ("see tokens come into my wallet from another") = the WALLET row,
+  fed by the token TRANSFER (C4 proves it; C7 makes value move via UI). C4 (owner-core test) asserts wallet
+  receipt + token credit, deliberately NOT flow_outcome. So the owner's ask is met without the flow_outcome node.
 
 ### What is PROVEN GREEN firsthand (real, not theatre)
 - **C4 (owner's core): GREEN on Mac + build1.** REAL token define→mint→admit(payee)→replicate → CLI-armed
