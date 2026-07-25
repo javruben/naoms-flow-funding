@@ -1,6 +1,22 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
-## ⭐ TOP-LINE STATUS (2026-07-25 ~04:00Z, tip c61a0607bc4)
+## ⭐ TOP-LINE STATUS (2026-07-25 ~06:40Z, tip 4edc54fb642)
+- ✅ C4 (owner core) GREEN on Mac + build1. automatedSettlementCap gap fixed. C1/C2 GREEN. 86/86 uc/integ.
+- ✅ **C3/C6 ROOT-CAUSED + FIXED (not a prod bug):** the accept/settle click emitted 0 ops because
+  puppeteer's default 800×600 viewport lets the ambient AI concierge dock OCCLUDE the flow app's
+  Accept/settle control → `page.click` hit-tests the AI chip, inline onclick never fires. Wiring is
+  CORRECT (agent verified `elementAtCenterIsButton=true → active` at 1440×900). Fix = set 1440×900 in
+  the 2 tests (real desktop; assertion unchanged — real pointer click → bilateral fold). Committed
+  `4edc54fb642`. NOT theatre (unrealistic 800×600 harness viewport, not a weakened assertion).
+- ⏳ **Firsthand C3+C6 GREEN re-confirm RUNNING on build1** (bg task bbb5x4d4i, waits for build1 free →
+  runs @1440×900 with the env recipe in `C3-accept-from-ui-bug-2026-07-25.md`).
+- FOLLOW-ON candidate (canvas-desktop scope, NOT 1644): AI concierge dock occludes app controls at
+  narrow widths — real responsive-layout bug worth its own BUG-NN.
+- **NEXT once confirm is GREEN:** cascade-merge any sibling 1644 branches (owner standing rule 0632Z:
+  ALWAYS cascade, never single-shot skip) → land via `--gate=owner-approval` with build1 evidence →
+  converge. Owner AWAKE (PROC-DAY); status filed to conductor(1711)+QM(economics) for DD relay (no own Matrix).
+
+## ⭐ (prev) TOP-LINE STATUS (2026-07-25 ~04:00Z, tip c61a0607bc4)
 - ✅ **Owner's core requirement DELIVERED + verified on TWO runners.** C4 wallet-receipt
   GREEN on Mac AND build1 (Linux): payee wallet shows `"received 200 from <payer> · flow
   settlement"`. The demo-rejection bug is fixed. Also: automatedSettlementCap UI gap fixed.
