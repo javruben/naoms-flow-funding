@@ -1,24 +1,32 @@
 # 1644 flow-funding COMPLETION — SESSION HEAD-STATE (read first)
 
-## 🎯 CURRENT (2026-07-25 ~07:45Z, branch tip **311942f7d6a**, pushed; local==origin, no divergence)
-**C1,C2,C3,C4 GREEN firsthand on real runners. C6 fix applied, ONE confirm run away from done.**
-- Commit chain: 4edc54fb642 (viewport 1440×900 fix, C3/C6) → head-state commits → **311942f7d6a**
-  (C6: flow_outcome cross-peer reshare poll 40s→120s to match sibling C4's proven 120s window;
-  assertion unchanged — real attributed cross required). BOTH fixes are HONEST test-harness fixes
-  (unrealistic 800×600 viewport + too-tight 40s cross budget), NOT weakened assertions, NOT prod bugs.
-- **THE ONE REMAINING ACTION:** run C6 (`e2e-flow-funding-narrative`) SOLO at commit **311942f7d6a**
-  (NOT 4edc54!) on a QUIET multi-device Linux runner (build1 recipe in `C3-accept-from-ui-bug-2026-07-25.md`).
-  Expect GREEN (C6 already clears accept+settle+directed; the only prior fail was the 40s cross budget,
-  which 311942 fixes; C4 proves the identical 120s cross converges). If GREEN → C1-C6 all verified.
-  ⚠️ My bg run `b6obeyurh` is STALE (tests 4edc54, pre-120s-fix) → will fail at terminal cross; IGNORE it.
-- **THEN LAND:** cascade-merge any sibling 1644 branches (owner rule 0632Z: ALWAYS cascade) →
-  `merge-queue.sh add 1644-flow-completion 1644 "<desc>" --gate=owner-approval --proof "<C1-C6 evidence:
-  C4 Mac+build1, C1/C2 Mac, C3 build1 2× solo, C6 build1@311942; owner authorized owner-approval>"` →
-  converge (NO hollow-celebrate).
-- 🧹 **build1 CLEANUP FLAG:** worktree `/root/dev/naoms-wt-1644c3` (+ run-*.sh/*.log) left by a sub-agent
-  when build1 went unreachable — `git worktree remove --force` it once build1 recovers (shared-host hygiene).
-- Owner AWAKE (PROC-DAY); status filed conductor(1711)+QM(economics) for DD relay (no own Matrix).
-  FOLLOW-ON (canvas-desktop, NOT 1644): AI concierge dock occludes app controls at narrow widths → own BUG.
+## 🎯 CURRENT (2026-07-25 ~09:00Z, branch tip **de9aa530eb1**, pushed; local==origin)
+**C1,C2,C3,C4 GREEN firsthand. C6 = one clean build1 run away; build1 is healthy+quiet, run IN FLIGHT.**
+- Evidence-matched budgets on tip `de9aa530eb1`: step-3 proposed replication + bilateral fold = 40s
+  (build1-PROVEN sufficient, ×2), flow_outcome cross = 120s (build1-PROVEN needed; 311942f7d6a). No
+  budget exceeds its demonstrated need.
+- **C6 runner findings (firsthand, decisive):**
+  - build1 (healthy Linux): C6 clears policy-arm → propose → accept/fold-active → settle → directed, and
+    REACHES the flow_outcome cross; the ONLY prior fail was flow_outcome at the old 40s (now 120s). So a
+    clean build1 run at `de9aa530eb1` should be FULLY GREEN incl the `flow_outcome CROSSED` witness.
+  - build2 is a BROKEN cross-peer-iroh runner for the PROPOSED lane: step-3 fails at 40s (×3) AND at 120s
+    (×1, run4) → NOT under-budgeting, a build2-specific iroh degradation. Do NOT chase green on build2.
+    (This is why the 46b0276f66f uniform-120s bump was REVERTED at de9aa530eb1 — its rationale was
+    disproven; build1 proves 40s suffices for step-3/fold.)
+- **IN FLIGHT:** agent abc6b6cbb46053979 running C6 SOLO on quiet build1 (load ~2.3, 1.8GB free) at
+  `de9aa530eb1`, worktree `/root/dev/naoms-wt-1644c6b`, build1-native recipe (seeds symlink → build1 main
+  branch-fresh seeds, puppeteer chrome, .so present). Awaiting raw log — verify `1 passed` + `flow_outcome
+  CROSSED` FIRSTHAND (sub-agents over-claimed twice).
+- **THEN LAND:** cascade already satisfied (wallet-c4 fully absorbed, 0 unmerged). `merge-queue.sh add
+  1644-flow-completion 1644 "<desc>" --gate=owner-approval --proof "<C1-C4 Mac+build1 firsthand; C6
+  build1@de9aa530eb1 firsthand; owner-authorized owner-approval; --gate=e2e skips multidevice so manual
+  2-daemon run IS the required proof>"` → converge (NO hollow-celebrate). Branch 78-behind-main =
+  land-time PMR-B8 watch.
+- 🧹 build1 CLEANUP: earlier worktree `/root/dev/naoms-wt-1644c3` already REMOVED by agent. build2 worktree
+  `/root/dev/naoms-wt-1644c6` staged (broken-runner, low priority to clean). New build1 wt `…-1644c6b`.
+- Owner AWAKE (PROC-DAY); status filed conductor(1711)+QM(economics) 0805Z for DD relay (no own Matrix).
+  FOLLOW-ONs (NOT 1644): (1) canvas AI-dock occludes app controls at narrow widths → own BUG;
+  (2) build2 cross-peer-iroh proposed-lane degradation → infra/own BUG.
 
 ## ⭐ TOP-LINE STATUS (2026-07-25 ~06:40Z, tip 4edc54fb642)
 - ✅ C4 (owner core) GREEN on Mac + build1. automatedSettlementCap gap fixed. C1/C2 GREEN. 86/86 uc/integ.
