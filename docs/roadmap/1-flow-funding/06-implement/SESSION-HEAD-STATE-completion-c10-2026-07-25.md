@@ -8,8 +8,19 @@
   CORRECT (agent verified `elementAtCenterIsButton=true → active` at 1440×900). Fix = set 1440×900 in
   the 2 tests (real desktop; assertion unchanged — real pointer click → bilateral fold). Committed
   `4edc54fb642`. NOT theatre (unrealistic 800×600 harness viewport, not a weakened assertion).
-- ⏳ **Firsthand C3+C6 GREEN re-confirm RUNNING on build1** (bg task bbb5x4d4i, waits for build1 free →
-  runs @1440×900 with the env recipe in `C3-accept-from-ui-bug-2026-07-25.md`).
+- ⏳→🔴 **Firsthand C3+C6 re-confirm FAILED (bbb5x4d4i, ~0712Z) — NOT green; do NOT claim/land.**
+  Viewport fix WORKED (C3 now runs the full 7m flow, not a 3ms bail → the click fires). But:
+  - C3 FAILED at "bilateral fold active on BOTH daemons" — build1 had `integ-1163-with-devices`
+    CONTENDING (same cross-peer replication starvation class as the Mac co-tenancy). Cannot
+    disambiguate contention-vs-real-defect without a genuinely QUIET multi-device runner.
+  - C6 FAILED at "UI settle did not DIRECT surplus to the payee — no flow_settlement allocates
+    amount>0" — DOWNSTREAM of the accept not folding active (payee never becomes an active-agreement
+    counterparty → deriveClaimants omits them → settle allocates 0). So C6 hinges on C3's fold.
+  - build1 env note (non-fatal): dylib built WITHOUT embeddings feature (onnx null → ollama fallthrough).
+  NEXT to disambiguate: run C3 alone on a QUIET build1 (no integ-1163) — if it folds active, it was
+  contention (viewport fix sufficient, just needs a non-co-tenant runner); if it still fails at the
+  fold with 0 accept-replication, there is a REAL accept-fold/replication defect to fix. Only after C3
+  folds active can C6 settle be judged.
 - FOLLOW-ON candidate (canvas-desktop scope, NOT 1644): AI concierge dock occludes app controls at
   narrow widths — real responsive-layout bug worth its own BUG-NN.
 - **NEXT once confirm is GREEN:** cascade-merge any sibling 1644 branches (owner standing rule 0632Z:
