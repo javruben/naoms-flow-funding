@@ -59,7 +59,27 @@ PROVEN BLOCK on landing (C3 agreement-accept-ui + C6 narrative are EXPECTED-RED-
   full tier) → a plain `--gate=owner-approval` submit would MERGE without running C3/C6 = theatre.
   NOT DONE (would violate "no theatre / I will catch it each time").
 
-EXACT NEXT (when build1/build2 return, likely Indonesia daytime):
+## BUILD1 ATTEMPT (2026-07-25 ~01:30-02:20Z) — runner came back but is UNDER-PROVISIONED for these e2e
+build1 (Linux, sf-node, `/root/dev/naoms`) returned mid-night. I tried to get C3/C4/C6 GREEN
+there via the sanctioned remote-worktree helper + direct SSH runs. Hit env gap after gap:
+1. `xdg-mime` absent → OAuth default-browser pre-condition throws. Fix: `NAOMS_SKIP_DEFAULT_BROWSER_CHECK=1`
+   (sanctioned CI bypass, tests/helpers/default-browser.ts:257 — only skips the OAuth deep-link check
+   these tests don't exercise).
+2. `findBrowser()` can't use snap chromium (wrapper). Fix: `NAOMS_BROWSER_PATH=/root/.cache/puppeteer/
+   chrome/linux-151.0.7922.34/chrome-linux64/chrome` (Chrome-for-Testing 151, works).
+3. git-snapshot worktree lacks gitignored fixtures. Fix: `ln -s /root/dev/naoms/tests/fixtures/
+   state-seeds <wt>/tests/fixtures/state-seeds` (main checkout HAS founder/naoms.db + invitee-a/b + keys).
+4. **BLOCKER (not solved):** with 1-3 applied, `startDaemonFromFixturePath` fails — the **daemon
+   subprocess EXITS before /health binds** (fixture-daemon.ts:1614). Likely a dylib/feature or
+   crypto-smoke mismatch on build1's `libnaoms_core.so` (needs a rust rebuild with signer-ffi/whisper —
+   heavy, do NOT do ad-hoc). Also fresh-founder onboarding (wallet-receipt) exited 1 (~4m) — same class.
+CONCLUSION: build1 accessed ad-hoc is NOT a provisioned e2e runner. The PROPER path is the Kronos
+merge-gate runner with `NAOMS_PMR_INCLUDE_MULTIDEVICE=1` (full tier) — it provisions dylib+fixtures+
+browser correctly. Env fixes 1-3 above still apply and should be exported for any manual runner attempt.
+NOT DONE: forcing a `--gate=owner-approval` land WITHOUT C3/C6 CI-verified would violate HC-C5 (cross-
+identity value tests MUST run in CI, not unverified) — that is the theatre this seam exists to prevent.
+
+EXACT NEXT (when a PROVISIONED multi-device runner is available):
 1. Run C3+C6 on a multi-device runner for REAL GREEN, e.g.
    `NAOMS_PMR_INCLUDE_E2E=1 NAOMS_PMR_INCLUDE_MULTIDEVICE=1 scripts/pre-merge-regression.sh --tier=full`
    (remote-dispatches to build1/build2) OR run the 3 two-daemon e2e directly on a quiet
