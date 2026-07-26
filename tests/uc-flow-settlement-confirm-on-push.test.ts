@@ -27,7 +27,7 @@
 // exercises (the leg is unconfirmed FIRST, then a separate late commit confirms it).
 //
 // === TEST-THEATRE PREVENTION HEADER ===
-// @test-tier integration
+// @test-tier unit
 // @covers src/packages/flow-funding/domain/settlement-confirm-hook.ts:1
 // @covers src/packages/flow-funding/handlers/epoch-settle.ts:handleGetSettlement
 // @mechanism-asserted M-CONFIRM-ON-PUSH indeterminate→paid — a flow_settlement leg with NO
