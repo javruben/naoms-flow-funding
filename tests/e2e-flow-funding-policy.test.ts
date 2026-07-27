@@ -5,7 +5,7 @@
 // @covers flow-funding Policy surface (src/packages/flow-funding/ui/flow-tab.js)
 // @flow-description real-onboarded-founder → open-Flow-Funding → fill+Save Policy form → assert flow.get_policy backend fold
 // @owns-surface flow-policy
-// @bypasses action-approval=owner-credential-auto-grant, db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled
+// @bypasses action-approval=owner-credential-auto-grant, db-unlock=fixture-password, identity=pre-onboarded-founder, kronos-disabled, iroh-mdns-disabled, auth=skip-browser-flow, biometric=disabled, cross-browser-identity=puppeteer-fresh-context, device-pair=pre-onboarded-fixture, keychain=fixture-mnemonic-file, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced, vault-unlock=fixture-mnemonic-file
 // @honesty-rationale The Policy is armed by a REAL browser gesture — the wired
 //   Policy surface (non-NAOMS_UI_MOCK path) is filled and its Save button clicked
 //   in a real Chrome under real WS auth, dispatching flow.policy_set over the

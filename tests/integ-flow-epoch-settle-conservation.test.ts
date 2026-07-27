@@ -16,7 +16,7 @@
 // @covers src/packages/flow-funding/handlers/epoch-settle.ts:1
 // @covers src/packages/flow-funding/engine/allocate.ts:1
 // @mechanism-asserted conservation Σ(out)==surplus on the real flow.epoch_settled commit + refuse-loud residual path (HC-01)
-// @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled, iroh-mdns-disabled
+// @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled, iroh-mdns-disabled, device-pair=pre-onboarded-fixture, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced
 // @honesty-rationale Single-daemon integ: the epoch-settle handler + engines ARE the assertion target. The FlowPolicy is armed by driving the real flow.policy_set write path (not pre-seeded); the settlement reads the projected policy and commits flow.epoch_settled through the real handler. The epoch balance + claimants are the SCENARIO INPUT to the settlement (the same shape M5's simulation supplies), not a pre-seed of the settlement's output. The negative arm exercises the production refuse path, paired with the success arm (Layer-9).
 // @canonical-flow YES
 // === END HEADER ===
