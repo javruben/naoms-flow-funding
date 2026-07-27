@@ -1,26 +1,50 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier e2e
-// @intent 1644 COMPLETION C6/G5 — the STAR capstone (frozen-plan M7): a node supports a
-//   dependent end-to-end, DRIVEN FROM THE UI, and the payee's wallet shows the receipt
-//   ATTRIBUTED to the payer.
+// @intent 1644 COMPLETION C6/G5 — the STAR capstone (frozen-plan M7): the whole flow
+//   loop is DRIVEN FROM THE UI on two REAL cross-identity daemons, and the surplus a
+//   node holds above its ceiling is DIRECTED to a below-floor dependent and CROSSES the
+//   boundary to that dependent as an attributed flow outcome.
 // @covers flow-funding whole-loop UI (src/packages/flow-funding/ui/flow-tab.js,
 //   src/packages/flow-funding/ui/flow-surfaces.js) + epoch-settle
-//   (src/packages/flow-funding/handlers/epoch-settle.ts) + payee wallet attribution
-// @flow-description two REAL cross-identity daemons (founder=payer w/ browser, bob=payee) →
-//   `naoms contacts handshake` peer-pair → arm FlowPolicy on a REAL context via the UI Save
-//   gesture → propose a flow agreement to the payee via the UI → cross ceiling → SETTLE THE
-//   EPOCH FROM THE UI → below-floor payee receives → the PAYEE's wallet shows the receipt
-//   ATTRIBUTED to the payer ("received N from <payer>"), not a bare balance.
+//   (src/packages/flow-funding/handlers/epoch-settle.ts) +
+//   src/packages/flow-funding/handlers/agreement.ts (agreement_accept via the UI) +
+//   src/packages/flow-funding/sharing/flow-domain.ts (the cross-boundary flow_outcome)
+// @flow-description two REAL cross-identity daemons (founder=payer w/ browser,
+//   invitee-a=payee w/ browser), real peer-pair (withDevices friendship ceremony) →
+//   payer UI: arm a FlowPolicy on a REAL context (Save gesture) → payer UI: propose a
+//   flow agreement to the payee → payee UI: ACCEPT it (real [data-testid] pointer click)
+//   → agreement folds `active` on BOTH daemons → payer opts into flow-funding
+//   transparency toward the payee (the user's sharing decision) → payer UI: SETTLE THE
+//   EPOCH (real #flow-settle-btn click) so surplus above the ceiling is allocated to the
+//   below-floor claimant → the payer's flow_settlement allocation names the payee, and
+//   the payee's daemon materializes a cross-boundary `flow_outcome` node ATTRIBUTED to
+//   the payer (peer_did == payer) which the payee's Flow UI renders as "Received".
 // @owns-surface flow-funding whole loop
-// @mechanism-asserted the star loop is drivable end-to-end FROM THE UI on 2 real daemons and
-//   terminates in an ATTRIBUTED payee wallet receipt. Real-pointer gestures only; value seeded
-//   via the real write path; payee credit witnessed on the SEPARATE payee daemon.
-// @bypasses action-approval=owner-credential-auto-grant (owner-tier writes only),
-//   db-unlock=fixture-password, identity=pre-onboarded (founder + bob fixtures),
-//   iroh-mdns-disabled, kronos-disabled. NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE,
-//   NO pre-seed of the payee credit under test.
+// @mechanism-asserted the star loop is drivable end-to-end FROM THE UI on 2 real daemons:
+//   (1) accept flips the agreement to `active` on BOTH daemons (bilateral fold, not a
+//   one-sided flip); (2) the UI settle commits a flow_settlement whose allocation NAMES
+//   the payee with amount>0 (surplus DIRECTED to the dependent, read on the payer daemon);
+//   (3) a `flow_outcome` node ATTRIBUTED to the payer (peer_did) crosses to the SEPARATE
+//   payee daemon and the payee's Flow UI renders it as "Received". Real-pointer gestures
+//   only; the cross-boundary receipt is witnessed on the payee's own daemon, never seeded.
+// @bypasses action-approval=owner-credential-auto-grant (owner-tier writes only;
+//   also drives the payer's OWN token.define/mint/admit CORE_APPROVAL, DISPOSED
+//   before the settle so the settlement pay rides the UI-armed delegation root —
+//   same rigor as C4 wallet-receipt), db-unlock=fixture-password,
+//   identity=pre-onboarded (founder + invitee-a fixtures),
+//   cross-browser-identity=puppeteer-fresh-context, iroh-mdns-disabled, kronos-disabled.
+//   NO NAOMS_NO_AUTH, NO NAOMS_TEST_MODE, NO pre-seed of the settlement / flow_outcome
+//   under test.
+// @setup C7 — a REAL token is provisioned on the payer (token.define/mint/admit via
+//   WS, mirroring C4) so the flow UI can target a real tokenId node (token.pay/balance
+//   refuse the KIND label "custom" → paid:0). This is legitimate SETUP (the payer must
+//   HOLD the token they flow), NOT a pre-seed of the state under test: the policy arm,
+//   agreement accept, settlement, and cross-boundary flow_outcome all remain produced
+//   by real UI gestures / real op write paths.
 // @canonical-flow YES
-// @pre-seeds vault.unlocked (both daemons)
+// @pre-seeds NONE — the policy, agreement, acceptance, settlement, and cross-boundary
+//   flow_outcome are all produced by real UI gestures / real op write paths; no
+//   flow_policy / flow_agreement / flow_settlement / flow_outcome row is seeded.
 // @cross-identity 2-daemon, real-pointer (HC-09) — NOT env-gated (HC-C5): runs by default.
 // === END HEADER ===
 //
@@ -28,388 +52,702 @@
 // "What if money knew when to keep moving … so no node hoards while a dependent goes
 // without?"). This is the capstone that drives EVERY MVP intent end-to-end from the UI.
 //
-// RED-FIRST — this test MUST FAIL on current `main`, at the whole-loop gaps:
-//   (G5-a) the Flow UI exposes NO epoch-settle gesture — the surfaces are
-//          policy / agreement / velocity(read-only) / simulate(dry-run). A user cannot
-//          "settle the epoch from the UI"; the star loop dead-ends after Propose.
-//   (G5-b) even when a settlement runs, the payee's wallet shows a BARE balance, not the
-//          receipt ATTRIBUTED to the payer ("received N from <payer>").
-// The test drives the real loop up to the settlement trigger and asserts both. It is NOT
-// env-gated (HC-C5) and uses two real cross-identity daemons (HC-09).
+// ── WHY THE WITNESS IS `flow_outcome`, NOT `flow_settlement` (critic B-1) ──────────────
+// The prior version of this file polled the PAYEE daemon for a `flow_settlement` node.
+// That node is single-writer / holon-local: `sharing/flow-domain.ts` declares
+// `triggerKinds:["flow_settlement"], readTypes:["flow_settlement"],
+// writesNodeTypes:["flow_outcome"]`, and the receive side (flow-domain.ts materialize)
+// projects a peer's shared outcome into a LOCAL `flow_outcome`. `flow_settlement` never
+// crosses the boundary, so the old assertion could never go GREEN even after every C-row
+// landed. This version witnesses the node that DOES cross — the payee's `flow_outcome`,
+// attributed to the payer via `peer_did` — plus the payer-side allocation that names the
+// payee (proof the surplus was DIRECTED to the dependent), and drives the C3 ACCEPT
+// gesture the C6 contract requires (previously skipped).
 //
-// Run (build-host / laptop — dylib prebuilt in the MAIN tree):
+// ── WALLET-RECEIPT TERMINAL — now UI-driven end-to-end (gap CLOSED) ────────────────────
+// The frozen C6 contract also asks the payee's WALLET to render "received N from <payer>
+// · flow settlement". That row is real (token/ui/wallet-activity.js buildRow) and moves
+// REAL token value ONLY when the FlowPolicy carries an armed delegation root; policy-set.ts
+// arms that root ONLY when `params.automatedSettlementCap > 0`. This USED to be an
+// UI-unreachable gap (savePolicy never sent the cap, no UI field existed) — so an earlier
+// version of this capstone terminated at the cross-boundary flow_outcome + "Received" card
+// and left the wallet terminal to the CLI-armed wallet-receipt test. The completion added
+// a real Policy-surface affordance (#automatedSettlementCap → savePolicy sends it →
+// policy-set.ts mints the delegation root). This capstone now ARMS the cap FROM THE UI
+// (not CLI — the "driven from the UI" claim stays honest) so the UI settle moves value and
+// the capstone asserts the payee WALLET row attributing the receipt to the payer. The
+// stand-alone CLI-armed wallet-receipt test remains as the isolated backend witness.
+//
+// EXPECTED-RED-ON-MAC (run env): the canonical 2-daemon real-browser E2Es carry an
+// EXPECTED-RED-ON-MAC note (see e2e-flow-funding-agreement-accept-ui.test.ts +
+// M-1494-M25) — Mac iroh co-tenancy with sibling claude / rustc / git starves the
+// cross-peer replication setup. Authored + intended to run GREEN on Kronos / gpu-host;
+// on this Mac it is expected to fail at the cross-peer REPLICATION step (proposed→payee
+// or flow_outcome→payee), NOT at a wrong-node / wrong-selector bug. Full 2-daemon GREEN
+// pending Kronos.
+//
+// Run (build-host / gpu-host — NOT MBP for a GREEN pass):
 //   NAOMS_FFI_LIB_PATH=/Users/mujo/dev/naoms/rust/target/release \
-//     deno test -A --no-check --unstable-sloppy-imports \
-//     --config <repoRoot>/deno.json \
+//     deno test -A --no-check --unstable-sloppy-imports --config <repoRoot>/deno.json \
 //     src/packages/flow-funding/tests/e2e-flow-funding-narrative.test.ts
 
-import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import puppeteer from "npm:puppeteer-core";
-import {
-  delay,
-  evalWithRetry,
-  findBrowser,
-  getRandomPort,
-  startDaemonFromFixture,
-} from "../../../../tests/helpers/browser-e2e.ts";
-import { authenticateWs } from "../../../../tests/helpers/ws-ceremony.ts";
-import { unlockFixtureVault } from "../../../../tests/helpers/fixture-unlock.ts";
+import { assert, assertEquals } from "jsr:@std/assert";
+import { withNDaemonNBrowser } from "../../../../tests/helpers/n-daemon-n-browser.ts";
+import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
 import { installActionApprovalAutoGrant } from "../../../../tests/helpers/drive-action-approval.ts";
-import { runNaomsCli } from "../../../../tests/helpers/cli-e2e.ts";
-import { spawnSingleDaemon } from "../../../../tests/helpers/two-daemon-call.ts";
-import { fetchFounderDidFromHealth } from "../../../../tests/helpers/fixture-daemon.ts";
-import { testLogin } from "../../../../tests/helpers/login.ts";
-import {
-  registerBrowser,
-  unregisterBrowser,
-} from "../../../../tests/helpers/process-registry.ts";
-import { join } from "node:path";
 
 const NAOMS_ROOT = new URL("../../../../", import.meta.url).pathname.replace(
   /\/$/,
   "",
 );
-const BOOT_BUDGET_MS = 240_000;
 
-/** Extract the last JSON object from CLI stdout. */
-function lastJson(stdout: string): Record<string, unknown> | null {
-  const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const l = lines[i];
-    if (l.startsWith("{")) {
-      try {
-        return JSON.parse(l) as Record<string, unknown>;
-      } catch { /* keep scanning up */ }
+// The holon-local self-context the wired Policy surface defaults to after C1
+// removed the fabricated "awip" literal (matches e2e-flow-funding-settle-from-ui).
+const CONTEXT = "personal";
+// The flow-funding sharing domain key (flow-domain.ts `domain`). The payer's
+// transparency decision opts this in toward the payee so the settle reshares.
+const FLOW_DOMAIN = "sharing.flow-funding";
+// A viability band whose ceiling the payer's balance crosses → surplus flows out.
+const FLOOR = 100;
+const CEILING = 500;
+const EPOCH_BALANCE = 700; // above CEILING → real surplus for the dependent.
+// The owner-signed absolute ceiling that ARMS the delegation root (policy-set.ts
+// mints it only when automatedSettlementCap > 0). Set from the UI (the affordance
+// added for the completion) so the UI-driven settle moves REAL token value — the
+// payee wallet receipt terminal below depends on it. > the ~200 surplus directed.
+const AUTOMATED_CAP = 1000;
+
+const SR = { sanitizeResources: false, sanitizeOps: false } as const;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Parse a flow_settlement node's `allocations` (native array OR JSON string). */
+function parseAllocations(
+  raw: unknown,
+): Array<{ id: string; amount: number }> {
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
     }
   }
-  return null;
+  if (!Array.isArray(arr)) return [];
+  const out: Array<{ id: string; amount: number }> = [];
+  for (const a of arr) {
+    const o = (a ?? {}) as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    if (id) out.push({ id, amount: Number(o.amount ?? 0) });
+  }
+  return out;
+}
+
+// deno-lint-ignore no-explicit-any
+async function graphNodes(
+  ws: WebSocket,
+  type: string,
+  where?: Record<string, unknown>,
+): Promise<Array<{ id?: string; properties?: Record<string, unknown> }>> {
+  const resp = await wsSend(ws, {
+    type: "graph.query",
+    pattern: { type, ...(where ? { where } : {}), limit: 200 },
+  }) as {
+    nodes?: Array<{ id?: string; properties?: Record<string, unknown> }>;
+  };
+  return resp.nodes ?? [];
 }
 
 Deno.test({
+  ...SR,
   name:
-    "1644 C6/G5 [narrative, 2-daemon] the STAR: arm policy → propose+settle a flow from the " +
-    "UI → the payee's wallet shows the receipt ATTRIBUTED to the payer",
-  sanitizeResources: false,
-  sanitizeOps: false,
+    "1644 C6/G5 [narrative, 2-daemon] the STAR: arm policy → propose+ACCEPT a flow → " +
+    "settle from the UI → surplus is DIRECTED to the below-floor dependent and CROSSES " +
+    "to the payee as an attributed flow_outcome",
   fn: async () => {
     if (!Deno.env.get("NAOMS_FFI_LIB_PATH")) {
       Deno.env.set("NAOMS_FFI_LIB_PATH", `${NAOMS_ROOT}/rust/target/release`);
     }
-    const payerPort = await getRandomPort();
-    // deno-lint-ignore no-explicit-any
-    let payerDaemon: any = null;
-    // deno-lint-ignore no-explicit-any
-    let browser: any = null;
-    let ws: WebSocket | null = null;
-    let disposeGrant: (() => void) | null = null;
-    let token: number | null = null;
-    // deno-lint-ignore no-explicit-any
-    let payee: any = null;
 
-    try {
-      // ── (1) Two REAL cross-identity daemons: payer=founder (browser), payee=bob (CLI). ──
-      const started = await startDaemonFromFixture(
-        NAOMS_ROOT,
-        payerPort,
-        "1644-m7-narrative-payer",
-        undefined,
-        "founder",
-      );
-      payerDaemon = started.daemon;
-      const payerKeysDir = started.keysDir;
-
-      payee = await spawnSingleDaemon("bob", { bootTimeoutMs: BOOT_BUDGET_MS });
-
-      const payerUrl = `ws://127.0.0.1:${payerPort}/ws`;
-      const payerKeyFile = join(payerKeysDir, "user.ed25519");
-      const payeePort = payee.handle.port as number;
-      const payeeUrl = `ws://127.0.0.1:${payeePort}/ws`;
-      const payeeKeyFile = join(
-        payee.handle.dataDir as string,
-        ".keys",
-        "user.ed25519",
-      );
-      const payerCli = (args: string[], opts?: { timeoutMs?: number }) =>
-        runNaomsCli(args, {
-          daemonUrl: payerUrl,
-          keyFile: payerKeyFile,
-          timeoutMs: opts?.timeoutMs,
-        });
-      const payeeCli = (args: string[], opts?: { timeoutMs?: number }) =>
-        runNaomsCli(args, {
-          daemonUrl: payeeUrl,
-          keyFile: payeeKeyFile,
-          timeoutMs: opts?.timeoutMs,
-        });
-
-      const payerDid = await fetchFounderDidFromHealth(payerPort);
-      const payeeDid = await fetchFounderDidFromHealth(payeePort);
-      assert(
-        typeof payerDid === "string" && payerDid.length > 0,
-        "payer owner DID",
-      );
-      assert(
-        typeof payeeDid === "string" && payeeDid.length > 0,
-        "payee owner DID",
-      );
-      assert(payerDid !== payeeDid, "distinct payer/payee owner DIDs (cross-identity)");
-      console.error(`[1644-m7] payer=${payerDid} payee=${payeeDid}`);
-
-      // ── (2) Owner-authenticated WS on the payer — arms the signer + drives the
-      //        owner-tier approval auto-grant for the UI policy Save. ──
-      const auth = await authenticateWs(payerPort, payerKeysDir);
-      ws = auth.ws;
-      await unlockFixtureVault(ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
-      const appPassword = Deno.readTextFileSync(
-        `${NAOMS_ROOT}/tests/fixtures/state-seeds/founder/keys/founder-password.txt`,
-      ).trim();
-      disposeGrant = installActionApprovalAutoGrant(ws, { appPassword });
-
-      // ── (3) Peer-pair payer↔payee via the REAL `naoms contacts handshake` CLI verb. ──
-      const pair = await payerCli([
-        "contacts",
-        "handshake",
-        "--daemon-url",
-        payerUrl,
-        "--peer-daemon-url",
-        payeeUrl,
-        "--json",
-      ], { timeoutMs: 180_000 });
-      assert(
-        pair.code === 0,
-        `contacts handshake exit=${pair.code}: ${pair.stderr.slice(0, 600)}`,
-      );
-      const pairJson = lastJson(pair.stdout);
-      assert(
-        pairJson !== null && typeof pairJson.chainId === "string" &&
-          (pairJson.chainId as string).startsWith("fc-"),
-        `peer-pair did not return an fc-* friendship chain: ${pair.stdout.slice(0, 600)}`,
-      );
-      console.error(`[1644-m7] paired ${pairJson!.chainId}`);
-
-      // ── (4) Browser: real login as the payer, open Flow Funding. ──
-      browser = await puppeteer.launch({
-        executablePath: findBrowser(),
+    await withNDaemonNBrowser(
+      {
+        // Two REAL cross-identity daemons + one real browser each. invitee-a is a
+        // real peer (a real active friendship = a real below-floor dependent) —
+        // the same real-claimant sourcing Agent A used for the settle test, here
+        // realized as a LIVE second daemon so the flow_outcome actually crosses.
+        groups: [
+          { identity: "founder", devices: 1 }, // 0 = payer
+          { identity: "invitee-a", devices: 1 }, // 1 = payee (dependent)
+        ],
+        peerPairAcrossGroups: true,
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
-      token = registerBrowser("e2e:e2e-flow-funding-narrative", browser);
-      const page = await browser.newPage();
-      await page.setViewport({ width: 1280, height: 900 });
-      await page.goto(`http://127.0.0.1:${payerPort}/`, {
-        waitUntil: "networkidle2",
-        timeout: 60000,
-      });
-      await delay(2000);
-      const loginResult = await testLogin(page, {
-        url: `http://127.0.0.1:${payerPort}/`,
-        timeoutMs: 60000,
-      });
-      assert(loginResult.success, `login failed: ${loginResult.errors.join("; ")}`);
-      await delay(2000);
-
-      await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
-        if (!w._naoms || typeof w._naoms.activateApp !== "function") {
-          throw new Error("_naoms.activateApp not exposed — shell init incomplete");
-        }
-        await w._naoms.activateApp("flow-funding");
-      });
-
-      // ── (5) Arm a FlowPolicy on a REAL context via the UI Save gesture. ──
-      let policyMounted = false;
-      for (let i = 0; i < 40; i++) {
-        policyMounted = await evalWithRetry(
-          page,
-          () => !!document.querySelector("#flow-policy #floorInput"),
+        auth: true, // real first-launch / vault-unlock so _naomsFeatures populate
+        convergenceTimeoutMs: 60_000,
+      },
+      async (ctx) => {
+        const [a, b] = ctx.devices.allHandles; // a=payer, b=payee
+        const payerB = ctx.browsers[0];
+        const payeeB = ctx.browsers[1];
+        assert(a.ws && b.ws, "both daemons have an authenticated WS");
+        assert(payerB && payeeB, "both browsers present");
+        // Realistic desktop viewport for both browsers (real users are not on
+        // puppeteer's default 800x600). On the canvas desktop the ambient AI
+        // concierge window docks to the RIGHT edge and, at 800px wide, overlaps
+        // the centred flow-funding app window's right half — a real pointer
+        // `page.click` on the Accept / settle controls hit-tests the AI window's
+        // chip instead of the app control, so the inline onclick never fires
+        // (0 flow ops). At a real desktop width the controls are unobstructed and
+        // the same real pointer click drives the accept + settle path (verified
+        // on build1). Harness-viewport artifact, NOT a UI-wiring defect.
+        await payerB.page.setViewport({ width: 1440, height: 900 });
+        await payeeB.page.setViewport({ width: 1440, height: 900 });
+        const payerDid = a.ownerDid!;
+        const payeeDid = b.ownerDid!;
+        assert(
+          payerDid && payeeDid && payerDid !== payeeDid,
+          `two DISTINCT peer identities required — payer=${payerDid} payee=${payeeDid}`,
         );
-        if (policyMounted) break;
-        await delay(500);
-      }
-      assert(policyMounted, "Policy surface did not mount within 20s of activateApp");
-
-      // A viability band whose ceiling the payer's balance will cross → surplus flows out.
-      await page.evaluate(() => {
-        function set(id: string, v: string) {
-          const el = document.querySelector(
-            "#flow-policy #" + id,
-          ) as HTMLInputElement | null;
-          if (!el) throw new Error("missing input #" + id);
-          el.value = v;
-          el.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-        set("floorInput", "100");
-        set("ceilingInput", "500");
-        const saveBtn = Array.from(
-          document.querySelectorAll("#flow-policy .action-bar .btn.p"),
-        )[0] as HTMLButtonElement | undefined;
-        if (!saveBtn) throw new Error("Save policy button not found");
-        saveBtn.click();
-      });
-      await delay(3000);
-      console.error("[1644-m7] policy armed from the UI");
-
-      // ── (6) Propose a flow agreement to the payee via the UI. ──
-      await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
-        if (typeof w.__flowShowSurface === "function") {
-          w.__flowShowSurface("agreement");
-        }
-      });
-      let agreementMounted = false;
-      for (let i = 0; i < 40; i++) {
-        agreementMounted = await evalWithRetry(
-          page,
-          () => !!document.querySelector("#flow-agreement #flowAgreementCounterparty"),
+        const fcId = ctx.devices.friendshipChainIds["0-1"];
+        assert(
+          typeof fcId === "string" && fcId.startsWith("fc-"),
+          `real peer-pair friendship chain required — got ${fcId}`,
         );
-        if (agreementMounted) break;
-        await delay(500);
-      }
-      assert(agreementMounted, "Agreement surface did not mount");
-      await page.evaluate((counterparty: string) => {
-        const el = document.querySelector(
-          "#flow-agreement #flowAgreementCounterparty",
-        ) as HTMLInputElement | null;
-        if (!el) throw new Error("counterparty input missing");
-        el.value = counterparty;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        const createBtn = Array.from(
-          document.querySelectorAll("#flow-agreement .btnrow .btn.p"),
-        )[0] as HTMLButtonElement | undefined;
-        if (!createBtn) throw new Error("Create agreement button not found");
-        createBtn.click();
-      }, payeeDid);
-      await delay(3000);
-      console.error("[1644-m7] agreement proposed from the UI");
+        console.error(
+          `[1644-m7] payer=${payerDid} payee=${payeeDid} fc=${
+            fcId.slice(0, 14)
+          }`,
+        );
 
-      // ── (7) CROSS CEILING → SETTLE THE EPOCH FROM THE UI. ──
-      // The star's beating heart: the user must be able to trigger a settlement so
-      // surplus flows to the below-floor dependent. Search the ENTIRE mounted Flow app
-      // for a real epoch-settle gesture (button/control) and drive it.
-      // GAP (G5-a): the Flow surfaces expose policy / agreement / velocity(read) /
-      // simulate(dry-run) only — there is NO settle trigger, so the loop dead-ends here.
-      const settleControl: { found: boolean; label: string } = await evalWithRetry(
-        page,
-        () => {
-          const RE = /settle|run epoch|distribute now|flow now|release surplus/i;
-          // Exclude the Simulate surface's "Run simulation" (dry-run, commits nothing).
-          const controls = Array.from(
-            document.querySelectorAll(
-              "#flow-app button, #flow-app .btn, #flow-app [role=button]",
-            ),
-          ) as HTMLElement[];
-          for (const c of controls) {
-            const t = (c.textContent || "").trim();
-            if (RE.test(t) && !/simulat/i.test(t)) {
-              return { found: true, label: t };
+        // ── (0) C7 SETUP: provision a REAL token on the PAYER (WS) so the flow UI
+        //        can target it. token.pay/balance need a real tokenId node — the
+        //        KIND label "custom" moves no value (paid:0). Mirrors C4's
+        //        define/mint/admit provisioning (via WS here, not CLI). The payer
+        //        auto-grants its OWN action-approval for the CORE_APPROVAL_REQUIRED
+        //        define/mint/admit writes, then DISPOSES it before the settle so the
+        //        settlement pay rides the UI-armed delegation root, not the grant. ──
+        const disposePayerGrant = installActionApprovalAutoGrant(a.ws!);
+        const TTL_72H_MS = 72 * 60 * 60 * 1000;
+        const defRes = await wsSend(a.ws!, {
+          type: "token.define",
+          kind: "custom",
+          humanLabel: "flow-favor",
+          valueBasis: "favor",
+          cap: 100_000,
+          ttlMs: TTL_72H_MS,
+          privacy: "clear",
+          transferable: false,
+          minAttesters: 2,
+        }) as { ok?: boolean; tokenId?: string; error?: string };
+        assert(
+          defRes.ok === true && typeof defRes.tokenId === "string",
+          `token.define failed: ${defRes.error ?? JSON.stringify(defRes)}`,
+        );
+        const tokenId = defRes.tokenId!;
+        const mintRes = await wsSend(a.ws!, {
+          type: "token.mint",
+          token: tokenId,
+          amount: 10_000,
+        }) as { ok?: boolean; error?: string };
+        assert(
+          mintRes.ok === true,
+          `token.mint failed: ${mintRes.error ?? JSON.stringify(mintRes)}`,
+        );
+        const admitRes = await wsSend(a.ws!, {
+          type: "token.admit",
+          token: tokenId,
+          admittedDid: payeeDid,
+        }) as { ok?: boolean; error?: string };
+        assert(
+          admitRes.ok === true,
+          `token.admit failed: ${admitRes.error ?? JSON.stringify(admitRes)}`,
+        );
+        // Poll the PAYEE for token-chain replication (budget ~150s, mirrors C4's
+        // proven-sufficient window). token.balance answers ok only once the token
+        // chain is known locally.
+        {
+          let replicated = false;
+          for (let i = 0; i < 300; i++) {
+            const bal = await wsSend(b.ws!, {
+              type: "token.balance",
+              token: tokenId,
+            }) as { ok?: boolean };
+            if (bal.ok === true) {
+              replicated = true;
+              break;
             }
+            await delay(500);
           }
-          return { found: false, label: "" };
-        },
-      );
-      console.error(
-        `[1644-m7] UI settle control: found=${settleControl.found} label=${JSON.stringify(settleControl.label)}`,
-      );
-      assert(
-        settleControl.found,
-        "G5-a: the Flow UI exposes NO epoch-settle gesture — a user cannot settle an epoch " +
-          "from the UI, so the star loop (arm → propose → SETTLE → dependent receives) cannot " +
-          "be driven end-to-end from the interface. The four surfaces are policy / agreement / " +
-          "velocity(read-only) / simulate(dry-run). This is the C6/G5 whole-loop gap.",
-      );
+          assert(
+            replicated,
+            `[replication] token ${tokenId} did not replicate to the payee within ` +
+              `150s (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+          );
+        }
+        // Dispose the payer auto-grant BEFORE the settle (C4 rigor): the settlement
+        // pay must ride the UI-armed delegation root, not the action-approval grant.
+        disposePayerGrant();
+        console.error(
+          `[1644-m7] provisioned real token ${tokenId} + admitted payee`,
+        );
 
-      // Drive the real settlement from the UI (unreached on main — asserted above).
-      await page.evaluate((label: string) => {
-        const controls = Array.from(
-          document.querySelectorAll(
-            "#flow-app button, #flow-app .btn, #flow-app [role=button]",
-          ),
-        ) as HTMLElement[];
-        const btn = controls.find((c) => (c.textContent || "").trim() === label);
-        if (btn) (btn as HTMLButtonElement).click();
-      }, settleControl.label);
+        // ── (1) Payer UI: open Flow Funding, arm a FlowPolicy via the Save gesture. ──
+        await payerB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          if (!w._naoms || typeof w._naoms.activateApp !== "function") {
+            throw new Error(
+              "_naoms.activateApp not exposed — shell init incomplete",
+            );
+          }
+          await w._naoms.activateApp("flow-funding");
+        });
+        await payerB.page.waitForFunction(
+          () => !!document.querySelector("#flow-policy #floorInput"),
+          { timeout: 30_000 },
+        );
+        await payerB.page.evaluate(
+          (floor: number, ceiling: number, cap: number, tok: string) => {
+            function set(id: string, v: string) {
+              const el = document.querySelector(
+                "#flow-policy #" + id,
+              ) as HTMLInputElement | null;
+              if (!el) throw new Error("missing input #" + id);
+              el.value = v;
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            set("floorInput", String(floor));
+            set("ceilingInput", String(ceiling));
+            // Arm the delegation root FROM THE UI so the settle moves real value.
+            set("automatedSettlementCap", String(cap));
+            // C7 — SELECT the provisioned REAL token in the Policy surface so the
+            // armed policy (and the settle) target a real tokenId node, not the
+            // KIND label "custom" (which moves no value). Set the <select> value +
+            // drive the real onchange handler.
+            // deno-lint-ignore no-explicit-any
+            const w = window as any;
+            const sel = document.querySelector(
+              "#flow-policy #tokenSelect",
+            ) as HTMLSelectElement | null;
+            if (sel) {
+              sel.value = tok;
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            if (typeof w.selectFlowToken === "function") {
+              w.selectFlowToken(tok);
+            }
+            const saveBtn = Array.from(
+              document.querySelectorAll("#flow-policy .action-bar .btn.p"),
+            )[0] as HTMLButtonElement | undefined;
+            if (!saveBtn) throw new Error("Save policy button not found");
+            saveBtn.click();
+          },
+          FLOOR,
+          CEILING,
+          AUTOMATED_CAP,
+          tokenId,
+        );
+        // Confirm the band armed on the payer daemon before proceeding.
+        {
+          let armed = false;
+          for (let i = 0; i < 40; i++) {
+            const p = await wsSend(a.ws!, {
+              type: "flow.get_policy",
+              context: CONTEXT,
+              tokenKind: tokenId,
+            }) as { found?: boolean };
+            if (p.found === true) {
+              armed = true;
+              break;
+            }
+            await delay(250);
+          }
+          assert(
+            armed,
+            "policy did not arm on the payer daemon after the UI Save",
+          );
+        }
+        console.error("[1644-m7] policy armed from the UI");
 
-      // ── (8) TERMINAL: the payee's wallet shows the receipt ATTRIBUTED to the payer. ──
-      // Not a bare balance — "received N from <payer>". Witnessed on the SEPARATE payee
-      // daemon via the real read path (flow_settlement allocations carry the payer holon).
-      // GAP (G5-b): the settlement/wallet does not attribute the receipt to the payer.
-      let attributed = false;
-      let lastSeen = "";
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        const st = await payeeCli([
-          "graph",
-          "query",
-          "--type",
-          "flow_settlement",
-          "--json",
-        ], { timeoutMs: 45_000 });
-        if (st.code === 0) {
-          const j = lastJson(st.stdout);
-          const nodes = ((j?.nodes ??
-            (j?.result as Record<string, unknown> | undefined)?.nodes) ??
-            []) as Array<Record<string, unknown>>;
+        // ── (2) Payer UI: propose a flow agreement to the payee. ──
+        await payerB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          if (typeof w.__flowShowSurface === "function") {
+            w.__flowShowSurface("agreement");
+          }
+        });
+        await payerB.page.waitForFunction(
+          () =>
+            !!document.querySelector(
+              "#flow-agreement #flowAgreementCounterparty",
+            ),
+          { timeout: 30_000 },
+        );
+        await payerB.page.evaluate((counterparty: string) => {
+          const el = document.querySelector(
+            "#flow-agreement #flowAgreementCounterparty",
+          ) as HTMLInputElement | null;
+          if (!el) throw new Error("counterparty input missing");
+          el.value = counterparty;
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          const createBtn = Array.from(
+            document.querySelectorAll("#flow-agreement .btnrow .btn.p"),
+          )[0] as HTMLButtonElement | undefined;
+          if (!createBtn) throw new Error("Create agreement button not found");
+          createBtn.click();
+        }, payeeDid);
+        // Read the proposed agreement id back off the payer daemon (a real graph
+        // read of the UI's write — not a shortcut for the gesture).
+        let agreementId = "";
+        for (let i = 0; i < 60; i++) {
+          const nodes = await graphNodes(a.ws!, "flow_agreement");
+          const mine = nodes
+            .map((n) => n.properties ?? {})
+            .find((p) =>
+              p.proposer === payerDid && p.counterparty === payeeDid &&
+              typeof p.agreementId === "string"
+            );
+          if (mine) {
+            agreementId = String(mine.agreementId);
+            break;
+          }
+          await delay(500);
+        }
+        assert(
+          agreementId,
+          "UI propose did not commit a flow_agreement on the payer",
+        );
+        console.error(
+          `[1644-m7] agreement proposed from the UI: ${agreementId}`,
+        );
+
+        // ── (3) Proposed lane must REPLICATE to the payee before its UI can render it.
+        //        (On this Mac this is the first likely EXPECTED-RED-ON-MAC point.) ──
+        {
+          let seen = false;
+          for (let i = 0; i < 80; i++) {
+            const r = await wsSend(b.ws!, {
+              type: "flow.get_agreement",
+              agreementId,
+            }) as { found?: boolean; proposer?: string };
+            if (r.found === true && r.proposer === payerDid) {
+              seen = true;
+              break;
+            }
+            await delay(500);
+          }
+          assert(
+            seen,
+            `[replication] proposed agreement ${agreementId} did not replicate to the ` +
+              `payee within 40s — cross-peer setup (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+          );
+        }
+
+        // ── (4) Payee UI: open Flow Funding, view Flow, ACCEPT via the real control. ──
+        await payeeB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          await w._naoms.activateApp("flow-funding");
+        });
+        await payeeB.page.waitForFunction(
+          () =>
+            typeof (window as { __flowShowSurface?: unknown })
+              .__flowShowSurface ===
+              "function",
+          { timeout: 30_000 },
+        );
+        await payeeB.page.evaluate(() => {
+          (window as unknown as { __flowShowSurface: (n: string) => void })
+            .__flowShowSurface("velocity");
+        });
+        // The incoming proposal must surface the real accept control (C3/G4).
+        const acceptEl = await payeeB.page.waitForSelector(
+          '[data-testid="flow-agreement-accept"]',
+          { timeout: 30_000 },
+        ).catch(() => null);
+        assert(
+          acceptEl,
+          `no accept control surfaced on the payee for incoming proposal ${agreementId}`,
+        );
+        await payeeB.page.click('[data-testid="flow-agreement-accept"]');
+        console.error("[1644-m7] payee ACCEPTED the agreement from the UI");
+
+        // Bilateral fold: `active` on BOTH daemons (a one-sided flip cannot pass).
+        for (
+          const [label, ws] of [["payee", b.ws!], ["payer", a.ws!]] as const
+        ) {
+          let active = false;
+          for (let i = 0; i < 80; i++) {
+            const r = await wsSend(ws, {
+              type: "flow.get_agreement",
+              agreementId,
+            }) as { status?: string };
+            if (r.status === "active") {
+              active = true;
+              break;
+            }
+            await delay(500);
+          }
+          assert(
+            active,
+            `[replication] agreement ${agreementId} did not fold active on the ${label} ` +
+              `within 40s (EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+          );
+        }
+        console.error("[1644-m7] agreement is ACTIVE on both daemons");
+
+        // ── (5) Payer's transparency decision: opt flow-funding into `detailed` toward
+        //        the payee so the post-settle reshare crosses. This is the user's
+        //        sharing decision (UI home: sharing-decision-modal.js); driven here
+        //        over WS as a documented precondition, not the state under test. The
+        //        sharing domain defaults to `off` (flow-domain.ts defaultLevel). ──
+        {
+          const resp = await wsSend(a.ws!, {
+            type: "sharing.apply_decisions",
+            connectionId: fcId,
+            peerDid: payeeDid,
+            chainId: fcId,
+            decisions: { [FLOW_DOMAIN]: "detailed" },
+          }) as { ok?: boolean; error?: string };
+          assert(
+            resp.ok === true,
+            `payer flow-funding transparency opt-in failed: ${
+              resp.error ?? JSON.stringify(resp)
+            }`,
+          );
+          await delay(1500); // let the opt-in reshare + suppress window drain
+        }
+        console.error(
+          "[1644-m7] payer opted flow-funding transparency=detailed → payee",
+        );
+
+        // ── (6) Payer UI: SETTLE THE EPOCH. The claimant is sourced from the now-active
+        //        agreement counterparty (deriveClaimants); surplus above the ceiling is
+        //        allocated to the below-floor dependent. ──
+        await payerB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          if (typeof w.__flowShowSurface === "function") {
+            w.__flowShowSurface("velocity");
+          }
+        });
+        // The settle affordance (Velocity surface). RED-first witness on main was its
+        // absence; here it MUST be present (C2/G3 landed).
+        const settleBtn = await payerB.page.waitForSelector(
+          "#flow-app #flow-settle-btn, #flow-app [data-flow-settle], " +
+            "#flow-app [data-flow-action='settle']",
+          { timeout: 30_000 },
+        ).catch(() => null);
+        assert(
+          settleBtn,
+          "C2/G3: the Flow UI exposes NO epoch-settle gesture — the star loop cannot be " +
+            "driven from the interface",
+        );
+        await payerB.page.evaluate((bal: number) => {
+          const el = document.querySelector(
+            "#flow-velocity #settleBalance, #flow-app #settleBalance",
+          ) as HTMLInputElement | null;
+          if (!el) throw new Error("settle balance input not found");
+          el.value = String(bal);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }, EPOCH_BALANCE);
+        await payerB.page.click(
+          "#flow-app #flow-settle-btn, #flow-app [data-flow-settle], " +
+            "#flow-app [data-flow-action='settle']",
+        );
+        console.error("[1644-m7] epoch settled from the UI");
+
+        // ── (7a) Payer-side witness: the settlement DIRECTED surplus to the payee —
+        //         a flow_settlement whose allocation names the payee with amount>0. ──
+        let directed: { id: string; amount: number } | null = null;
+        for (let i = 0; i < 40; i++) {
+          const nodes = await graphNodes(a.ws!, "flow_settlement");
           for (const n of nodes) {
-            const props = (n.properties ?? n.props ?? n) as Record<string, unknown>;
-            // The receipt the payee sees MUST name the payer holon that sent it.
-            const raw = JSON.stringify(props);
-            lastSeen = raw.slice(0, 400);
-            const namesPayer = raw.includes(payerDid);
-            let creditsPayee = false;
-            try {
-              const allocs = typeof props.allocations === "string"
-                ? JSON.parse(props.allocations as string)
-                : props.allocations;
-              if (Array.isArray(allocs)) {
-                creditsPayee = allocs.some(
-                  (a) => a && a.id === payeeDid && Number(a.amount) > 0,
-                );
-              }
-            } catch { /* tolerate */ }
-            if (namesPayer && creditsPayee) {
-              attributed = true;
+            const p = n.properties ?? {};
+            if (Number(p.settledTotal ?? 0) <= 0) continue;
+            const alloc = parseAllocations(p.allocations)
+              .find((x) => x.id === payeeDid && x.amount > 0);
+            if (alloc) {
+              directed = alloc;
               break;
             }
           }
+          if (directed) break;
+          await delay(500);
         }
-        if (attributed) break;
-        await delay(3000);
-      }
-      assert(
-        attributed,
-        "G5-b: the payee's wallet must show the flow receipt ATTRIBUTED to the payer " +
-          `("received N from ${payerDid.slice(0, 16)}…") — a receipt naming the payer holon ` +
-          "AND crediting the payee. On main the payee sees no such attributed receipt " +
-          `(last flow_settlement seen on payee: ${lastSeen || "none"}).`,
-      );
-      console.error("[1644-m7] payee wallet shows attributed receipt — star loop closed");
-    } finally {
-      if (disposeGrant) {
-        try {
-          disposeGrant();
-        } catch { /* best-effort */ }
-      }
-      if (ws) {
-        try {
-          ws.close();
-        } catch { /* already closed */ }
-      }
-      if (browser) {
-        try {
-          await browser.close();
-        } catch { /* already closed */ }
-        if (token !== null) unregisterBrowser(token);
-      }
-      if (payerDaemon) {
-        try {
-          payerDaemon.process.kill("SIGTERM");
-        } catch { /* already dead */ }
-      }
-      if (payee) {
-        await payee.cleanup?.().catch(() => {});
-      }
-    }
+        assert(
+          directed,
+          "the UI settle did not DIRECT surplus to the below-floor dependent — no " +
+            `flow_settlement allocates amount>0 to the payee (${
+              payeeDid.slice(0, 16)
+            }…)`,
+        );
+        console.error(
+          `[1644-m7] surplus DIRECTED to payee: ${
+            directed!.amount
+          } (payer allocation)`,
+        );
+
+        // ── (7b) TERMINAL cross-boundary witness: a `flow_outcome` node ATTRIBUTED to
+        //         the payer crosses to the SEPARATE payee daemon (peer_did == payer,
+        //         total_flowed>0), and the payee's Flow UI renders it as "Received".
+        //         (Second likely EXPECTED-RED-ON-MAC point: cross-peer reshare.) ──
+        let crossed: Record<string, unknown> | null = null;
+        // Cross-peer flow_outcome replication budget: 240 * 500ms = 120s, matching
+        // the sibling C4 wallet-receipt e2e's proven-sufficient 120s cross-device
+        // convergence window (e2e-flow-funding-wallet-receipt.test.ts creditDeadline
+        // = 120_000ms). The earlier 40s budget under-timed this SAME cross-device
+        // reshare on a contended Linux runner (build1, 4-core): C6's accept + settle
+        // legs pass, then the terminal flow_outcome cross missed at 40s while C4's
+        // identical cross passes at 120s. Widening the window does NOT weaken the
+        // witness — the assertion still requires a REAL attributed cross (source
+        // "received", peer_did==payer, total_flowed>0); it only gives cross-peer
+        // gossip the same time C4 already allows for the same mechanism.
+        for (let i = 0; i < 240; i++) {
+          const nodes = await graphNodes(b.ws!, "flow_outcome");
+          const hit = nodes
+            .map((n) => n.properties ?? {})
+            .find((p) =>
+              p.source === "received" && p.peer_did === payerDid &&
+              Number(p.total_flowed ?? 0) > 0
+            );
+          if (hit) {
+            crossed = hit;
+            break;
+          }
+          await delay(500);
+        }
+        assert(
+          crossed,
+          `[replication] the payer's flow outcome did not CROSS to the payee as an ` +
+            `attributed flow_outcome (peer_did==payer, total_flowed>0) within 120s ` +
+            `(EXPECTED-RED-ON-MAC; GREEN on Kronos)`,
+        );
+        console.error(
+          `[1644-m7] flow_outcome CROSSED to payee, attributed to payer: ` +
+            `total_flowed=${crossed!.total_flowed}`,
+        );
+
+        // The payee's Flow UI must SURFACE the received outcome (real UI witness, not a
+        // window.__ read): the Velocity surface renders a "Received" aggregate card.
+        await payeeB.page.evaluate(() => {
+          (window as unknown as { __flowShowSurface: (n: string) => void })
+            .__flowShowSurface("velocity");
+        });
+        let uiReceived = false;
+        for (let i = 0; i < 30; i++) {
+          uiReceived = await payeeB.page.evaluate(() => {
+            const rc = document.querySelector(
+              "#flow-velocity #riverContent, #flow-app #riverContent",
+            );
+            const txt = rc?.textContent || "";
+            // "Received" simCard label present with a non-zero value beside it.
+            return /Received/i.test(txt) && !/Received[^0-9]*0\b/i.test(txt);
+          });
+          if (uiReceived) break;
+          await delay(500);
+        }
+        assert(
+          uiReceived,
+          "the payee's Flow UI did not render the cross-boundary receipt as a non-zero " +
+            "'Received' card after the flow_outcome crossed",
+        );
+
+        // Sanity: the amount the payer directed equals what the payee saw flow (single
+        // epoch, single claimant → the shared aggregate equals the directed allocation).
+        assertEquals(
+          Number(crossed!.total_flowed),
+          directed!.amount,
+          "the crossed flow_outcome total must equal the surplus the payer directed",
+        );
+        console.error(
+          "[1644-m7] STAR loop closed from the UI: policy → propose → ACCEPT → settle → " +
+            "surplus DIRECTED to the dependent → attributed flow_outcome CROSSED + shown.",
+        );
+
+        // ── CAPSTONE TERMINAL: the payee WALLET shows the received value ATTRIBUTED
+        // to the payer — the owner's core requirement ("see tokens arrive from
+        // another"), now reachable because the UI armed the delegation root via the
+        // automatedSettlementCap affordance (set above). Because the policy carries
+        // an armed root, epoch-settle.ts moveSettlementValue fires a real cross-device
+        // token.pay carrying the flow-settle: memo, so the row can render. Mirrors
+        // e2e-flow-funding-wallet-receipt.test.ts, but the delegation is UI-armed here.
+        const directedAmt = directed!.amount;
+        await payeeB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          if (!w._naoms || typeof w._naoms.activateApp !== "function") {
+            throw new Error("_naoms.activateApp not exposed");
+          }
+          await w._naoms.activateApp("token");
+        });
+        let walletUp = false;
+        for (let i = 0; i < 60; i++) {
+          walletUp = await payeeB.page.evaluate(
+            () => !!document.querySelector('[data-feature="wallet"]'),
+          );
+          if (walletUp) break;
+          await delay(500);
+        }
+        assert(
+          walletUp,
+          "payee wallet did not mount for the capstone terminal",
+        );
+        await delay(2000);
+        await payeeB.page.evaluate(async () => {
+          // deno-lint-ignore no-explicit-any
+          const w = window as any;
+          const feat = w._naomsFeatures && w._naomsFeatures.token;
+          if (!feat || typeof feat.openActivity !== "function") {
+            throw new Error("wallet openActivity nav surface not exposed");
+          }
+          await feat.openActivity();
+        });
+        let feedUp = false;
+        for (let i = 0; i < 40; i++) {
+          feedUp = await payeeB.page.evaluate(
+            () => !!document.querySelector("[data-wallet-activity]"),
+          );
+          if (feedUp) break;
+          await delay(500);
+        }
+        assert(
+          feedUp,
+          "payee Activity feed did not mount for the capstone terminal",
+        );
+        await delay(2000);
+        const feed = await payeeB.page.evaluate(() => {
+          const root = document.querySelector("[data-wallet-activity]");
+          const rows = Array.from(
+            document.querySelectorAll(".wallet-activity__row"),
+          ).map((r) => (r.textContent || "").trim());
+          return { text: (root?.textContent || "").trim(), rows };
+        });
+        console.error(
+          `[1644-m7] payee wallet Activity rows: ${JSON.stringify(feed.rows)}`,
+        );
+        const payerShort = payerDid.replace(/^did:[a-z]+:/, "").slice(0, 12);
+        const feedHay = feed.text.toLowerCase();
+        const walletAttributes = feedHay.includes(payerDid.toLowerCase()) ||
+          (payerShort.length >= 6 &&
+            feedHay.includes(payerShort.toLowerCase())) ||
+          (/(from|received from)/.test(feedHay) &&
+            feed.text.replace(/[^0-9]/g, " ").includes(String(directedAmt)));
+        assert(
+          walletAttributes,
+          `[capstone] after the UI-armed, UI-driven settle moved +${directedAmt} to the ` +
+            `payee, the payee wallet Activity feed does NOT attribute it to the payer ` +
+            `(${payerDid}). If the credit itself never landed this is EXPECTED-RED-ON-MAC ` +
+            `(iroh co-tenancy; GREEN on Kronos). Feed rows seen: ` +
+            `${JSON.stringify(feed.rows)}.`,
+        );
+        console.error(
+          "[1644-m7] CAPSTONE: payee WALLET row attributes the received value to the payer " +
+            "— the full star loop is UI-driven AND wallet-visible.",
+        );
+      },
+    );
   },
 });

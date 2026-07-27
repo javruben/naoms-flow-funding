@@ -60,7 +60,7 @@ const NAOMS_ROOT = new URL("../../../../", import.meta.url).pathname.replace(
   "",
 );
 
-const CONTEXT = "awip"; // the wired Policy surface's default context
+const CONTEXT = "personal"; // the wired Policy surface's default holon-local self-context (C1: fabricated "awip" removed)
 const TOKEN_KIND = "custom"; // default denomination mechanism
 const FLOOR = 1234;
 const CEILING = 5678;

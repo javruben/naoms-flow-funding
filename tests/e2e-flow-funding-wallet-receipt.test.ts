@@ -96,10 +96,11 @@ Deno.test({
     "from/to attribution is RED)",
   fn: async () => {
     if (!Deno.env.get("NAOMS_FFI_LIB_PATH")) {
-      const repoRoot = new URL("../../../../", import.meta.url).pathname.replace(
-        /\/$/,
-        "",
-      );
+      const repoRoot = new URL("../../../../", import.meta.url).pathname
+        .replace(
+          /\/$/,
+          "",
+        );
       Deno.env.set("NAOMS_FFI_LIB_PATH", `${repoRoot}/rust/target/release`);
     }
     console.error(`[1644-receipt] spawning payer(alice) + payee(bob)...`);
@@ -124,7 +125,10 @@ Deno.test({
       const claimantCli = cliFor(claimant.handle);
       const holonDid = await fetchFounderDidFromHealth(holon.handle.port);
       const claimantDid = await fetchFounderDidFromHealth(claimant.handle.port);
-      assert(holonDid && claimantDid && holonDid !== claimantDid, "distinct DIDs");
+      assert(
+        holonDid && claimantDid && holonDid !== claimantDid,
+        "distinct DIDs",
+      );
       const holonUrl = `ws://127.0.0.1:${holon.handle.port}/ws`;
       const claimantUrl = `ws://127.0.0.1:${claimant.handle.port}/ws`;
       const context = "nao-receipt";
@@ -251,9 +255,10 @@ Deno.test({
         claimantUrl,
         "--json",
       ], { timeoutMs: 30_000 });
-      const beforeBals =
-        (lastJson(balBefore.stdout)?.balances as Array<Record<string, unknown>>) ??
-          [];
+      const beforeBals = (lastJson(balBefore.stdout)?.balances as Array<
+        Record<string, unknown>
+      >) ??
+        [];
       const beforeCredit = beforeBals.reduce(
         (s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0),
         0,
@@ -329,9 +334,10 @@ Deno.test({
           claimantUrl,
           "--json",
         ], { timeoutMs: 30_000 });
-        const bals =
-          (lastJson(balAfter.stdout)?.balances as Array<Record<string, unknown>>) ??
-            [];
+        const bals = (lastJson(balAfter.stdout)?.balances as Array<
+          Record<string, unknown>
+        >) ??
+          [];
         afterCredit = bals.reduce(
           (s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0),
           0,
@@ -467,7 +473,8 @@ Deno.test({
       const attributesToPayer =
         // full or short payer DID present anywhere in the feed
         feedHay.includes(holonDid.toLowerCase()) ||
-        (payerShort.length >= 6 && feedHay.includes(payerShort.toLowerCase())) ||
+        (payerShort.length >= 6 &&
+          feedHay.includes(payerShort.toLowerCase())) ||
         // a from/received-from line carrying the amount
         (/(from|received from)/.test(feedHay) &&
           feed.text.replace(/[^0-9]/g, " ").includes(String(credited)));

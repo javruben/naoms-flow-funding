@@ -39,7 +39,13 @@
 //   The daemon/WS path is not the subject — whether policy_set / agreement_
 //   propose is actually dispatched over the wire is covered by
 //   integ-flow-policy-set-and-read / integ-flow-agreement-bilateral. No flow
-//   state is pre-seeded; the surface reads only the stubbed ctx it is given.
+//   state is pre-seeded; the surface reads only the stubbed ctx it is given —
+//   that ctx mirrors the production shape, including the `sendReq` the real
+//   feature-context-factory REQUIRES (it throws without one), over which the UI
+//   reuses `token.list` to target a real tokenId (C7). A held token is ordinary
+//   state, not a bypass: `savePolicy` legitimately refuses on an empty holding,
+//   and that refusal is asserted by the "C7 empty-state" test in
+//   uc-flow-policy-surface-wired.test.ts.
 //   The contract is deliberately satisfiable by REMOVING a control from the DOM,
 //   so a build-crew that deletes an unbacked control (rather than wiring it)
 //   still turns this GREEN — it forbids only the silent-drop middle ground.
@@ -116,6 +122,27 @@ async function evalInto(
   fn(env.win, env.doc);
 }
 
+// C7 — the REAL token the user holds. The production feature ctx ALWAYS carries
+// `sendReq` (clients/browser/public/feature-context-factory.js:84-85 THROWS
+// without it), and flow-tab.js reuses the `token.list` op through it to target a
+// real tokenId. A holding is therefore part of the ordinary, non-degenerate
+// state this no-drop contract is written about: `savePolicy` legitimately
+// refuses to dispatch when the user holds NO token (never leaking the "custom"
+// kind label), so a token-less ctx would make every assertion below vacuous.
+// The refusal path itself stays covered — see the "C7 empty-state" test in
+// uc-flow-policy-surface-wired.test.ts, which drives the same `savePolicy` with
+// an empty holding and asserts policy_set is NOT dispatched.
+const HELD_TOKENS: Array<Record<string, unknown>> = [
+  {
+    id: "tok-favor-1",
+    humanLabel: "Flow Favor",
+    kind: "custom",
+    final: 100,
+    pending: 0,
+    role: "issuer",
+  },
+];
+
 /** Mount the feature down the real (non-mock) path with a spy ctx.api. */
 async function mount(): Promise<{
   win: Record<string, unknown>;
@@ -141,12 +168,18 @@ async function mount(): Promise<{
       return Promise.resolve({ ok: true, agreementId: "flow-agreement-x" });
     },
   };
+  // C7 — mirror the production ctx shape: the shell always wires `sendReq`, and
+  // the flow UI reuses the `token.list` op over it to pick a real tokenId.
+  const sendReq = (msg: Record<string, unknown>) =>
+    msg && msg.type === "token.list"
+      ? Promise.resolve({ ok: true, tokens: HELD_TOKENS })
+      : Promise.resolve({ ok: true });
   // deno-lint-ignore no-explicit-any
   const feature = (env.win._naomsFeatures as any)["flow-funding"];
   assert(feature, "flow-funding feature registered");
-  feature.init({ container: env.container, api });
+  feature.init({ container: env.container, api, sendReq });
   feature.activate();
-  // flush the get_policy .then so the Policy surface finishes loading
+  // flush loadTokens (token.list) → mount → the get_policy .then
   await new Promise((r) => setTimeout(r, 0));
   return { win: env.win, doc: env.doc, calls };
 }
@@ -314,6 +347,79 @@ Deno.test("C5/G9: agreement contributor-tier grid — present ⇒ selection roun
         "(selectTier only toggles a CSS class)",
     );
   }
+});
+
+// ── G10 (B-3) — policy fairness caps (perClaimantCap / perEpochCap) ───────────
+
+Deno.test("C5/G10: policy fairness caps — present ⇒ perClaimantCap/perEpochCap round-trip into policy_set params (B-3)", async () => {
+  const { win, doc, calls } = await mount();
+  setBand(doc);
+  const pcc = doc.querySelector("#flow-policy #perClaimantCap") as AnyEl | null;
+  const pec = doc.querySelector("#flow-policy #perEpochCap") as AnyEl | null;
+  // Distinctive, in-range fractions the allocator honors (epoch-settle.ts reads
+  // params.perClaimantCap / params.perEpochCap).
+  if (pcc) pcc.value = "0.4";
+  if (pec) pec.value = "0.25";
+  // deno-lint-ignore no-explicit-any
+  await (win as any).savePolicy();
+
+  assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
+  const params = calls.set[0].params as Record<string, unknown>;
+  if (pcc) {
+    assert(
+      deepHasKey(params, /perClaimantCap/i) && deepHasValue(params, "0.4"),
+      "per-claimant cap control is in the DOM but its value (0.4) never reaches " +
+        "the policy_set params — HC-C2 silent drop (caps were never set, G10)",
+    );
+  }
+  if (pec) {
+    assert(
+      deepHasKey(params, /perEpochCap/i) && deepHasValue(params, "0.25"),
+      "per-epoch cap control is in the DOM but its value (0.25) never reaches " +
+        "the policy_set params — HC-C2 silent drop (caps were never set, G10)",
+    );
+  }
+});
+
+// ── CRITICAL — automated-settlement cap arms the delegation root ─────────────
+//
+// The most load-bearing "no-drop" case: `policy-set.ts` (:172-175) mints the
+// owner-signed delegation ROOT — the ONLY thing that authorizes automated value
+// movement at settle — exclusively when `params.automatedSettlementCap > 0`.
+// Without it, `epoch_settle` records allocations but `moveSettlementValue` never
+// fires ⇒ no `token.pay` ⇒ the payee wallet receipt (C4) can NEVER render from
+// a UI-driven settle. On HEAD `savePolicy` never sends `automatedSettlementCap`
+// and no control exists to set it, so a policy armed from the UI moves NO value.
+// This is the exact gap agent C flagged: the owner's core "see tokens arrive
+// from another" is unreachable from the UI. RED until the affordance is wired.
+Deno.test("CRITICAL: automated-settlement cap — present ⇒ absolute cap round-trips into policy_set params (arms the delegation root)", async () => {
+  const { win, doc, calls } = await mount();
+  setBand(doc);
+  const cap = doc.querySelector(
+    "#flow-policy #automatedSettlementCap",
+  ) as AnyEl | null;
+  assert(
+    cap,
+    "an automated-settlement cap control must be mounted in the Policy surface " +
+      "— without it the UI can never arm the delegation root and a UI-driven " +
+      "settle moves no value (the payee wallet receipt is unreachable)",
+  );
+  // A distinctive absolute token ceiling (NOT a 0–1 fraction — this is the
+  // owner-signed aggregate cap the delegation root enforces, policy-set.ts B3).
+  cap.value = "1000";
+  // deno-lint-ignore no-explicit-any
+  await (win as any).savePolicy();
+
+  assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
+  const params = calls.set[0].params as Record<string, unknown>;
+  assert(
+    deepHasKey(params, /automatedSettlementCap/i) &&
+      deepHasValue(params, "1000"),
+    "the automated-settlement cap control is in the DOM but its value (1000) " +
+      "never reaches the policy_set params — HC-C2 silent drop. policy-set.ts " +
+      "arms the delegation root ONLY when params.automatedSettlementCap > 0, so " +
+      "this drop means a UI-armed policy moves NO token value at settle.",
+  );
 });
 
 // ── G9 — agreement duration control ──────────────────────────────────────────

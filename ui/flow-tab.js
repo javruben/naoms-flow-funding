@@ -38,13 +38,11 @@
   var ctx = null;
   var container = null;
 
-  var CONTEXTS = [
-    { id: "awip", label: "AWIP core team" },
-    { id: "nao", label: "NAO ecosystem" },
-    { id: "circle", label: "Mutual-aid circle" },
-    { id: "household", label: "Household" },
-    { id: "stewardship", label: "Watershed hive" },
-  ];
+  // C1/G1: contexts are enumerated from the user's REAL hives at activate time
+  // (loadContexts → ctx.graphQuery({type:"hive"})), plus the holon-local
+  // "Personal" self-context. NO hardcoded example contexts. Populated into
+  // state.contexts; the Policy nav/pills render from it.
+  var PERSONAL_CONTEXT = { id: "personal", label: "Personal" };
   var CURVE_GRADIENT = {
     "Generous early": 0.8,
     "Linear": 0.5,
@@ -68,7 +66,24 @@
     { id: "simulate", label: "Simulate" },
   ];
 
-  var state = { context: "awip", ccy: "USD", gradient: 0.5 };
+  var state = {
+    context: "personal",
+    ccy: "USD",
+    gradient: 0.5,
+    felt: false,
+    contributorTier: "founding",
+    duration: "none",
+    contexts: [PERSONAL_CONTEXT],
+    contextsLoaded: false,
+    // C7 — the REAL token this flow moves value with. token.pay/balance need a
+    // real tokenId node (not the KIND label custom), else UI-armed settlement
+    // is refused (paid:0). Populated from the token.list op (reuse, not a new
+    // widget). Null when the user holds no token → honest empty-state, never a
+    // silent custom fallback.
+    tokenId: null,
+    tokenLabel: "",
+    tokens: [],
+  };
 
   function init(featureCtx) {
     if (!featureCtx) return;
@@ -78,7 +93,107 @@
 
   function activate() {
     if (!container) return;
-    loadSurfacesModule(mountWired);
+    loadSurfacesModule(function () {
+      // C7 — load the user's REAL tokens (token.list) BEFORE surfaces mount so
+      // ALL surfaces (velocity settle + policy) see state.tokenId.
+      loadContexts(function () {
+        loadTokens(mountWired);
+      });
+    });
+  }
+
+  // C7 — enumerate the REAL tokens the user holds by REUSING the token.list op
+  // (src/packages/token/tools-list-show.ts handleList). No new token-list op or
+  // widget. filter:"all" so the payer sees tokens they issued/minted (the ones
+  // they can flow value with). Defaults state.tokenId to the first token that
+  // carries a real id (preferring one with a non-zero balance). Tolerant of an
+  // absent/failing sendReq (unit context) — leaves state.tokenId null for the
+  // honest empty-state. ALWAYS calls done() (chains the mount; never blocks it).
+  function loadTokens(done) {
+    var q = null;
+    try {
+      if (typeof ctx.sendReq === "function") {
+        q = ctx.sendReq({ type: "token.list", filter: "all" });
+      }
+    } catch (_e) {
+      q = null;
+    }
+    if (!q) return done();
+    Promise.resolve(q).then(function (resp) {
+      if (resp && resp.ok && Array.isArray(resp.tokens)) {
+        state.tokens = resp.tokens.filter(function (t) {
+          return t && t.id;
+        });
+        var chosen = null;
+        for (var i = 0; i < state.tokens.length; i++) {
+          var t = state.tokens[i];
+          var held = (Number(t.final) || 0) + (Number(t.pending) || 0);
+          if (held > 0) {
+            chosen = t;
+            break;
+          }
+        }
+        if (!chosen && state.tokens.length > 0) chosen = state.tokens[0];
+        if (chosen) {
+          state.tokenId = chosen.id;
+          state.tokenLabel = chosen.humanLabel || chosen.kind || chosen.id;
+        }
+      }
+      done();
+    }, function () {
+      done();
+    });
+  }
+
+  // C1/G1 — enumerate the REAL contexts a policy can bind to: the holon-local
+  // "Personal" self-context + every hive the user actually belongs to
+  // (ctx.graphQuery({type:"hive"}), the same read wallet-tab/repos-tab use). No
+  // hardcoded example contexts. Honest empty-state = only "Personal" when the
+  // user has no hives. Tolerant of an absent graphQuery (unit context) — falls
+  // back to the Personal self-context alone.
+  function loadContexts(done) {
+    var base = [PERSONAL_CONTEXT];
+    var q = null;
+    try {
+      if (typeof ctx.graphQuery === "function") {
+        q = ctx.graphQuery({ type: "hive", limit: 200 });
+      }
+    } catch (_e) {
+      q = null;
+    }
+    if (!q) {
+      state.contexts = base;
+      state.context = base[0].id;
+      state.contextsLoaded = true;
+      return done();
+    }
+    Promise.resolve(q).then(function (r) {
+      var nodes = (r && r.nodes) ? r.nodes : (Array.isArray(r) ? r : []);
+      var hives = [];
+      for (var i = 0; i < nodes.length; i++) {
+        var p = propsOf(nodes[i]);
+        var id = p.chainId || p.chain_id || p.hiveChainId || p.id ||
+          nodes[i].id || "";
+        var label = p.name || p.label || nodes[i].label || id;
+        if (id) hives.push({ id: String(id), label: String(label) });
+      }
+      state.contexts = base.concat(hives);
+      state.context = state.contexts[0].id;
+      state.contextsLoaded = true;
+      done();
+    }, function () {
+      state.contexts = base;
+      state.context = base[0].id;
+      state.contextsLoaded = true;
+      done();
+    });
+  }
+
+  function contextById(id) {
+    for (var i = 0; i < state.contexts.length; i++) {
+      if (state.contexts[i].id === id) return state.contexts[i];
+    }
+    return null;
   }
 
   function destroy() {
@@ -201,8 +316,75 @@
     if (!c) return;
     c.innerHTML = '<div id="flow-policy" class="flow-surface">' +
       window.__flowSurfaces.policy.html + "</div>";
+    renderContextChoosers();
     bindPolicyGlobals();
+    populateTokenSelect();
     loadPolicy();
+  }
+
+  // C7 — fill the #tokenSelect from the REAL token.list results. No seeded
+  // options: each option is a token the user actually holds. When the user holds
+  // no token, reveal the honest empty-state (#tokenEmpty) — never silently keep the
+  // custom label.
+  function populateTokenSelect() {
+    var sel = pq("#tokenSelect");
+    var empty = pq("#tokenEmpty");
+    var hasTokens = state.tokens && state.tokens.length > 0;
+    if (sel) {
+      sel.innerHTML = "";
+      for (var i = 0; i < state.tokens.length; i++) {
+        var t = state.tokens[i];
+        var opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = t.humanLabel || t.kind || t.id;
+        sel.appendChild(opt);
+      }
+      if (state.tokenId) sel.value = state.tokenId;
+    }
+    if (empty) {
+      if (hasTokens) empty.classList.add("hidden");
+      else empty.classList.remove("hidden");
+    }
+  }
+
+  // C1/G1 — inject the real-context nav (.cfg-nav .it) + pills (.ctx-pill) from
+  // state.contexts (Personal + the user's hives). No hardcoded literals. When the
+  // user has only the Personal self-context, that is an HONEST minimal list, not
+  // an empty render.
+  function renderContextChoosers() {
+    var nav = pq("#ctxNav");
+    var pills = pq(".ctx-pills");
+    if (nav) nav.innerHTML = "";
+    if (pills) pills.innerHTML = "";
+    state.contexts.forEach(function (cx) {
+      if (nav) {
+        var b = document.createElement("button");
+        b.className = "it" + (cx.id === state.context ? " on" : "");
+        b.textContent = cx.label;
+        b.onclick = function () {
+          window.switchCtx(b, cx.id);
+        };
+        nav.appendChild(b);
+      }
+      if (pills) {
+        var d = document.createElement("div");
+        d.className = "ctx-pill" + (cx.id === state.context ? " on" : "");
+        d.textContent = cx.label;
+        d.onclick = function () {
+          window.selectCtx(d, cx.label);
+        };
+        pills.appendChild(d);
+      }
+    });
+    if (state.contexts.length <= 1) {
+      var help = pq(".cfg-sub");
+      if (help) {
+        help.textContent =
+          "These settings govern how value flows for you. You have no hives " +
+          "yet — this is your Personal band. Join or create a hive to arm a " +
+          "context-scoped policy.";
+      }
+    }
   }
 
   function fmtCcy(n) {
@@ -247,10 +429,11 @@
       el.classList.add("on");
       var lbl = pq("#ctxLabel");
       if (lbl) lbl.textContent = label;
-      var match = CONTEXTS.filter(function (c) {
+      var match = state.contexts.filter(function (c) {
         return c.label === label;
       })[0];
-      state.context = match ? match.id : "awip";
+      state.context = match ? match.id : state.context;
+      syncCtxNav();
       loadPolicy();
     };
     window.switchCtx = function (el, id) {
@@ -258,18 +441,38 @@
       Array.prototype.forEach.call(its, function (i) {
         i.classList.remove("on");
       });
-      el.classList.add("on");
-      state.context = id || "awip";
+      if (el) el.classList.add("on");
+      state.context = id || state.context;
+      syncCtxPills();
       loadPolicy();
     };
+    // G6 felt-threshold toggle — WIRED: records the owner's felt-threshold
+    // preference onto the policy (persists in policy_set params, re-read on load).
     window.toggleFelt = function () {
-      showStatus(
-        "Felt-threshold inference is being wired — enter floor/ceiling amounts directly for now.",
-        "warn",
-      );
+      state.felt = !state.felt;
+      var t = pq("#feltToggle");
+      if (t) {
+        if (state.felt) t.classList.add("on");
+        else t.classList.remove("on");
+      }
     };
     window.openSim = function () {
       showSurface("simulate");
+    };
+    // C7 — pick the REAL token this flow moves value with (from token.list).
+    window.selectFlowToken = function (id) {
+      var match = null;
+      for (var i = 0; i < state.tokens.length; i++) {
+        if (state.tokens[i].id === id) {
+          match = state.tokens[i];
+          break;
+        }
+      }
+      if (match) {
+        state.tokenId = match.id;
+        state.tokenLabel = match.humanLabel || match.kind || match.id;
+      }
+      loadPolicy();
     };
     window.savePolicy = savePolicy;
   }
@@ -277,45 +480,98 @@
   function loadPolicy() {
     var lbl = pq("#ctxLabel");
     if (lbl) lbl.textContent = ctxLabel();
-    ctx.api.get_policy({ context: state.context, tokenKind: "custom" }).then(
-      function (res) {
-        if (res && res.ok && res.found && res.params) {
-          var p = res.params;
-          var fi = pq("#floorInput");
-          var ci = pq("#ceilingInput");
-          if (fi && typeof p.floor === "number") fi.value = p.floor;
-          if (ci && typeof p.ceiling === "number") ci.value = p.ceiling;
-          if (typeof p.gradient === "number") {
-            state.gradient = p.gradient;
-            markCurveByGradient(p.gradient);
+    // C7 — no token held → skip the read (a null/custom tokenKind moves no
+    // value) and show the honest empty-state instead.
+    if (!state.tokenId) {
+      var em = pq("#tokenEmpty");
+      if (em) em.classList.remove("hidden");
+      showStatus(
+        "You hold no tokens yet — define or receive a token to flow value.",
+        "warn",
+      );
+      return;
+    }
+    ctx.api.get_policy({ context: state.context, tokenKind: state.tokenId })
+      .then(
+        function (res) {
+          if (res && res.ok && res.found && res.params) {
+            var p = res.params;
+            var fi = pq("#floorInput");
+            var ci = pq("#ceilingInput");
+            if (fi && typeof p.floor === "number") fi.value = p.floor;
+            if (ci && typeof p.ceiling === "number") ci.value = p.ceiling;
+            if (typeof p.gradient === "number") {
+              state.gradient = p.gradient;
+              markCurveByGradient(p.gradient);
+            }
+            if (p.humanLabel) setCcyByLabel(p.humanLabel);
+            // Restore the wired controls so a saved policy re-reads (no silent
+            // loss of the felt/tithe/transparency/caps the owner set).
+            state.felt = !!p.feltThresholds;
+            var ft = pq("#feltToggle");
+            if (ft) {
+              if (state.felt) ft.classList.add("on");
+              else ft.classList.remove("on");
+            }
+            var tr = pq("#titheRange");
+            if (tr && typeof p.commonsTithePct === "number") {
+              tr.value = p.commonsTithePct;
+              var tv = pq("#titheVal");
+              if (tv) tv.textContent = p.commonsTithePct + "%";
+            }
+            if (p.transparencyLevel) {
+              var radios = document.querySelectorAll(
+                '#flow-policy input[name="transp"]',
+              );
+              Array.prototype.forEach.call(radios, function (r) {
+                r.checked = r.value === p.transparencyLevel;
+              });
+            }
+            var pcc = pq("#perClaimantCap");
+            if (pcc && typeof p.perClaimantCap === "number") {
+              pcc.value = p.perClaimantCap;
+            }
+            var pec = pq("#perEpochCap");
+            if (pec && typeof p.perEpochCap === "number") {
+              pec.value = p.perEpochCap;
+            }
+            var asc = pq("#automatedSettlementCap");
+            if (asc && typeof p.automatedSettlementCap === "number") {
+              asc.value = p.automatedSettlementCap;
+            }
+            window.updateBand();
+            showStatus(
+              "Loaded saved FlowPolicy v" + res.version + " for " + ctxLabel() +
+                ".",
+              "ok",
+            );
+          } else {
+            var fi2 = pq("#floorInput");
+            var ci2 = pq("#ceilingInput");
+            if (fi2) fi2.value = "";
+            if (ci2) ci2.value = "";
+            window.updateBand();
+            showStatus(
+              "No FlowPolicy saved yet for " + ctxLabel() +
+                " — set a floor and ceiling, then Save.",
+              "",
+            );
           }
-          if (p.humanLabel) setCcyByLabel(p.humanLabel);
-          window.updateBand();
-          showStatus(
-            "Loaded saved FlowPolicy v" + res.version + " for " + ctxLabel() +
-              ".",
-            "ok",
-          );
-        } else {
-          var fi2 = pq("#floorInput");
-          var ci2 = pq("#ceilingInput");
-          if (fi2) fi2.value = "";
-          if (ci2) ci2.value = "";
-          window.updateBand();
-          showStatus(
-            "No FlowPolicy saved yet for " + ctxLabel() +
-              " — set a floor and ceiling, then Save.",
-            "",
-          );
-        }
-      },
-      function (err) {
-        showStatus("Could not load policy: " + errMsg(err), "warn");
-      },
-    );
+        },
+        function (err) {
+          showStatus("Could not load policy: " + errMsg(err), "warn");
+        },
+      );
   }
 
   function savePolicy() {
+    // C7 — refuse to arm without a REAL token (never send the string custom).
+    if (!state.tokenId) {
+      return showStatus(
+        "Select or hold a token to arm a flow policy.",
+        "warn",
+      );
+    }
     var floor = parseFloat((pq("#floorInput") || {}).value);
     var ceil = parseFloat((pq("#ceilingInput") || {}).value);
     if (!isFinite(floor) || !isFinite(ceil)) {
@@ -324,16 +580,53 @@
     if (ceil < floor) {
       return showStatus("Ceiling must be at or above the floor.", "warn");
     }
+    var params = {
+      floor: floor,
+      ceiling: ceil,
+      gradient: state.gradient,
+      humanLabel: CCY_LABEL[state.ccy] || CCY_LABEL.USD,
+      // G6 — felt-threshold preference (recorded on the policy, re-read on load).
+      feltThresholds: !!state.felt,
+    };
+    // G7 — commons tithe %: read the live slider value.
+    var titheEl = pq("#titheRange");
+    if (titheEl && titheEl.value !== "" && titheEl.value != null) {
+      var titheVal = parseFloat(titheEl.value);
+      if (isFinite(titheVal)) params.commonsTithePct = titheVal;
+    }
+    // G8 — transparency level (design §5 transparency_level). Read the checked
+    // radio tolerantly (deno-dom does not implement the :checked pseudo-class):
+    // prefer the .checked property, fall back to the [checked] attribute.
+    var transpVal = readCheckedRadio("#flow-policy", "transp");
+    if (transpVal) params.transparencyLevel = transpVal;
+    // CRITICAL — automated-settlement cap (absolute owner-signed ceiling). This
+    // is the ONE param that arms the delegation root (policy-set.ts mints it only
+    // when automatedSettlementCap > 0), so without it a UI-armed policy records
+    // settlements but moves NO token value. Only send a finite, positive amount;
+    // blank/0 = arm the band for simulation only (omit → no delegation root).
+    var ascEl = pq("#automatedSettlementCap");
+    if (ascEl && ascEl.value !== "" && ascEl.value != null) {
+      var asc = parseFloat(ascEl.value);
+      if (isFinite(asc) && asc > 0) params.automatedSettlementCap = asc;
+    }
+    // G10/B-3 — fairness caps the allocator honors (HC-05). Only send finite,
+    // in-range fractions; blank = no cap (omit).
+    var pccEl = pq("#perClaimantCap");
+    if (pccEl && pccEl.value !== "" && pccEl.value != null) {
+      var pcc = parseFloat(pccEl.value);
+      if (isFinite(pcc)) params.perClaimantCap = pcc;
+    }
+    var pecEl = pq("#perEpochCap");
+    if (pecEl && pecEl.value !== "" && pecEl.value != null) {
+      var pec = parseFloat(pecEl.value);
+      if (isFinite(pec)) params.perEpochCap = pec;
+    }
+
     showStatus("Saving…", "");
     return ctx.api.policy_set({
       context: state.context,
-      tokenKind: "custom",
-      params: {
-        floor: floor,
-        ceiling: ceil,
-        gradient: state.gradient,
-        humanLabel: CCY_LABEL[state.ccy] || CCY_LABEL.USD,
-      },
+      tokenKind: state.tokenId,
+      params: params,
     }).then(function (res) {
       if (res && res.ok) {
         showStatus(
@@ -350,10 +643,31 @@
   }
 
   function ctxLabel() {
-    var m = CONTEXTS.filter(function (c) {
-      return c.id === state.context;
-    })[0];
+    var m = contextById(state.context);
     return m ? m.label : state.context;
+  }
+
+  // Keep the nav buttons + pills reflecting the selected context (they are two
+  // views of the same state.contexts list).
+  function syncCtxPills() {
+    var lbl = ctxLabel();
+    Array.prototype.forEach.call(
+      document.querySelectorAll("#flow-policy .ctx-pill"),
+      function (p) {
+        p.classList.toggle("on", (p.textContent || "").trim() === lbl);
+      },
+    );
+    var l = pq("#ctxLabel");
+    if (l) l.textContent = lbl;
+  }
+  function syncCtxNav() {
+    var lbl = ctxLabel();
+    Array.prototype.forEach.call(
+      document.querySelectorAll("#flow-policy .cfg-nav .it"),
+      function (i) {
+        i.classList.toggle("on", (i.textContent || "").trim() === lbl);
+      },
+    );
   }
 
   function markCurveByGradient(g) {
@@ -412,6 +726,141 @@
       if (fr) setHidden(fr, !firstrun);
       if (rc) setHidden(rc, firstrun);
     };
+    // C3/G4 — accept an incoming flow agreement from the UI.
+    window.agreementAccept = agreementAccept;
+    // C2/G3 — settle a flow epoch from the UI.
+    window.settleEpoch = settleEpoch;
+  }
+
+  // ── C3/G4 — accept an incoming agreement ─────────────────────────────────────
+  function agreementAccept(agreementId) {
+    if (!agreementId || typeof ctx.api.agreement_accept !== "function") return;
+    showStatus("Accepting agreement…", "");
+    return ctx.api.agreement_accept({ agreementId: agreementId }).then(
+      function (res) {
+        if (res && res.ok) {
+          showStatus("Agreement " + agreementId + " is now active.", "ok");
+          loadVelocity();
+        } else {
+          showStatus(
+            "Accept failed: " + ((res && res.error) || "unknown"),
+            "warn",
+          );
+        }
+      },
+      function (err) {
+        showStatus("Accept failed: " + errMsg(err), "warn");
+      },
+    );
+  }
+
+  // ── C2/G3 — settle a flow epoch from the UI ──────────────────────────────────
+  // Sources balance + claimants from REAL data (HC-C1): balance from the owner's
+  // real epoch-balance input (design HC-04 — settlement is explicit, the caller
+  // supplies the balance), and claimants from the holon's REAL flow relationships
+  // (active/proposed agreements' counterparties, else non-self trust contacts).
+  // NO fabricated peers/amounts. If there is no surplus or no claimant, the
+  // daemon refuses LOUD (HC-01) and the UI surfaces it — never a silent success.
+  function settleEpoch() {
+    var balEl = vq("#settleBalance");
+    var balance = parseFloat(balEl && balEl.value);
+    if (!isFinite(balance) || balance < 0) {
+      return showStatus(
+        "Enter your balance this epoch to settle (design: settlement is explicit).",
+        "warn",
+      );
+    }
+    var claimants = state.settleClaimants || [];
+    // Read the armed band so the claimant need covers the surplus (conservation).
+    showStatus("Settling epoch…", "");
+    return ctx.api.get_policy({
+      context: state.context,
+      tokenKind: state.tokenId,
+    })
+      .then(function (pol) {
+        var ceiling = (pol && pol.found && pol.params &&
+            typeof pol.params.ceiling === "number")
+          ? pol.params.ceiling
+          : 0;
+        var surplus = Math.max(0, balance - ceiling);
+        // Each real claimant can absorb up to the full surplus (headroom); the
+        // conserved allocator distributes by need × trust-weight. Need = the
+        // surplus the owner is flowing out this epoch (a real, visible figure).
+        var payload = {
+          context: state.context,
+          balance: balance,
+          claimants: claimants.map(function (c) {
+            return {
+              id: c.id,
+              need: surplus > 0 ? surplus : (c.need || 0),
+              trustWeight: typeof c.trustWeight === "number"
+                ? c.trustWeight
+                : 1,
+            };
+          }),
+        };
+        return ctx.api.epoch_settle(payload);
+      })
+      .then(function (res) {
+        if (res && res.ok) {
+          showStatus(
+            "Settled epoch for " + ctxLabel() + " — flowed out " +
+              fmtNum(res.settledTotal) + " (conserved: " +
+              (res.conserved ? "yes" : "no") + ").",
+            "ok",
+          );
+          renderSettlementResult();
+          loadVelocity();
+        } else {
+          showStatus(
+            "Settle refused: " + ((res && res.error) || "unknown") +
+              (res && res.residual !== undefined
+                ? " (residual " + fmtNum(res.residual) + ")"
+                : ""),
+            "warn",
+          );
+        }
+      }, function (err) {
+        showStatus("Settle failed: " + errMsg(err), "warn");
+      });
+  }
+
+  // Read the committed settlement back (paid/indeterminate per leg) and render it.
+  function renderSettlementResult() {
+    if (typeof ctx.api.get_settlement !== "function") return;
+    var out = vq("#settleResult");
+    ctx.api.get_settlement({ context: state.context }).then(function (r) {
+      if (!out) return;
+      var settlements = (r && r.settlements) || [];
+      if (settlements.length === 0) {
+        out.innerHTML =
+          '<div style="font-size:.82rem;color:var(--text3,#8b939d)">' +
+          "No settlement recorded.</div>";
+        return;
+      }
+      var s = settlements[settlements.length - 1];
+      var legs = (s.legs || []).map(function (l) {
+        var mark = l.status === "paid"
+          ? "paid ✓"
+          : (l.status === "unconfirmed" ? "unconfirmed …" : esc(l.status));
+        return "<li>" + esc(shortDid(l.id)) + " · " + fmtNum(l.amount) + " · " +
+          mark + "</li>";
+      }).join("");
+      out.innerHTML =
+        '<div style="font-size:.82rem;color:var(--text2,#8b949e);margin-bottom:4px">' +
+        "Settlement " + esc(shortDid(String(s.settlementId || ""))) +
+        " — settled " + fmtNum(s.settledTotal) + "</div>" +
+        "<ul style='margin:0;padding-left:18px;font-size:.82rem'>" +
+        (legs ||
+          "<li style='list-style:none;color:var(--text3,#8b939d)'>no legs</li>") +
+        "</ul>";
+    }, function () {/* best-effort render */});
+  }
+
+  function shortDid(d) {
+    d = String(d || "");
+    if (d.length <= 16) return d;
+    return d.slice(0, 10) + "…" + d.slice(-6);
   }
 
   function nodesOf(res) {
@@ -432,16 +881,36 @@
       ctx.graphQuery({ type: "flow_agreement" }),
       ctx.graphQuery({ type: "flow_settlement", where: { holon: self } }),
       ctx.graphQuery({ type: "flow_policy", where: { holon: self } }),
+      // C4/G2 (velocity part) — "Received" reads the cross-boundary flow_outcome
+      // node (the node that ACTUALLY crosses to the payee), NOT self settlements.
+      ctx.graphQuery({ type: "flow_outcome", where: { source: "received" } }),
+      // C2 claimant sourcing — real trust relationships (contacts).
+      ctx.graphQuery({ type: "contact" }),
     ]).then(function (rs) {
       var agreements = nodesOf(rs[0]).map(propsOf).filter(function (a) {
         return !self || a.proposer === self || a.counterparty === self;
       });
       var settlements = nodesOf(rs[1]).map(propsOf);
       var policies = nodesOf(rs[2]).map(propsOf);
+      var outcomes = nodesOf(rs[3]).map(propsOf).filter(function (o) {
+        return o.source === "received" && !o.deleted;
+      });
+      var contacts = nodesOf(rs[4]).map(propsOf);
+
+      // C2 — derive the real claimant set for a settle: active/proposed agreement
+      // counterparties first, else non-self trust contacts. REAL DIDs only.
+      state.settleClaimants = deriveClaimants(agreements, contacts, self);
+      populateSettleCard(self);
+
+      // Incoming proposals I can accept (proposed, I'm the counterparty).
+      var incoming = agreements.filter(function (a) {
+        return (a.status === "proposed") && a.counterparty === self &&
+          a.proposer !== self && a.agreementId;
+      });
 
       if (
         agreements.length === 0 && settlements.length === 0 &&
-        policies.length === 0
+        policies.length === 0 && outcomes.length === 0
       ) {
         if (typeof window.setState === "function") window.setState("firstrun");
         showStatus(
@@ -450,13 +919,99 @@
         );
         return;
       }
-      renderVelocity(agreements, settlements, policies, self);
+      renderVelocity(
+        agreements,
+        settlements,
+        policies,
+        outcomes,
+        incoming,
+        self,
+      );
     }, function (err) {
       showStatus("Could not load flows: " + errMsg(err), "warn");
     });
   }
 
-  function renderVelocity(agreements, settlements, policies, self) {
+  // Real claimant DIDs from the holon's relationships (HC-C1 — no fabrication).
+  function deriveClaimants(agreements, contacts, self) {
+    var seen = {};
+    var out = [];
+    agreements.forEach(function (a) {
+      var who = a.proposer === self ? a.counterparty : a.proposer;
+      if (who && who !== self && !seen[who]) {
+        seen[who] = 1;
+        out.push({ id: who, trustWeight: 1, label: shortDid(who) });
+      }
+    });
+    contacts.forEach(function (c) {
+      var did = c.did || c.peer_did || "";
+      var isSelf = c.is_self === true || c.is_self === "true" || did === self;
+      if (did && !isSelf && !seen[did]) {
+        seen[did] = 1;
+        out.push({ id: did, trustWeight: 1, label: c.name || shortDid(did) });
+      }
+    });
+    return out;
+  }
+
+  function populateSettleCard(_self) {
+    var card = vq("#settleCard");
+    if (card && card.style) card.style.display = "block";
+    var lbl = vq("#settleCtxLabel");
+    if (lbl) lbl.textContent = ctxLabel();
+    var prev = vq("#settlePreview");
+    var claimants = state.settleClaimants || [];
+    // Prefill the balance from the real token balance if we can read it.
+    var balEl = vq("#settleBalance");
+    if (balEl && (balEl.value === "" || balEl.value == null)) {
+      readContextBalance().then(function (bal) {
+        if (bal != null && balEl.value === "") balEl.value = bal;
+      });
+    }
+    if (prev) {
+      if (claimants.length === 0) {
+        prev.innerHTML =
+          "You have no flow relationships to receive surplus yet — propose a " +
+          "flow agreement or add a contact first. Settling now would refuse " +
+          "loud (no claimant to absorb surplus).";
+      } else {
+        prev.innerHTML = "Surplus above your ceiling will flow to " +
+          claimants.length + " trusted relationship(s): " +
+          claimants.map(function (c) {
+            return "<strong>" + esc(c.label) + "</strong>";
+          }).join(", ") + ".";
+      }
+    }
+  }
+
+  // Read the owner's real balance for the flow's REAL token, if available.
+  function readContextBalance() {
+    // C7 — no token held → nothing to read (never query balance for custom).
+    if (!state.tokenId) return Promise.resolve(null);
+    try {
+      if (typeof ctx.api.balance === "function") {
+        return Promise.resolve(ctx.api.balance({ token: state.tokenId })).then(
+          function (r) {
+            var b = r && (r.total != null ? r.total : r.balance);
+            return typeof b === "number" ? b : null;
+          },
+          function () {
+            return null;
+          },
+        );
+      }
+    } catch (_e) { /* no balance op */ }
+    return Promise.resolve(null);
+  }
+
+  function renderVelocity(
+    agreements,
+    settlements,
+    policies,
+    outcomes,
+    incoming,
+    self,
+  ) {
     // Show the river, hide the empty state.
     var fr = vq("#firstRun");
     if (fr) fr.classList.add("hidden");
@@ -466,20 +1021,11 @@
     var totalOut = settlements.reduce(function (s, x) {
       return s + (Number(x.settledTotal) || 0);
     }, 0);
-    var received = settlements.reduce(function (s, x) {
-      var allocs = [];
-      try {
-        allocs = x.allocations
-          ? (typeof x.allocations === "string"
-            ? JSON.parse(x.allocations)
-            : x.allocations)
-          : [];
-      } catch (_e) { /* tolerate */ }
-      return s + (Array.isArray(allocs)
-        ? allocs.reduce(function (a, al) {
-          return a + (al && al.id === self ? Number(al.amount) || 0 : 0);
-        }, 0)
-        : 0);
+    // C4/G2 — Received = the cross-boundary flow_outcome total (what actually
+    // arrived from peers), NOT a self-settlement allocation (which never
+    // replicates to the payee).
+    var received = outcomes.reduce(function (s, o) {
+      return s + (Number(o.total_flowed) || 0);
     }, 0);
     var band = policies.filter(function (p) {
       return p.is_latest === true || p.is_latest === "true";
@@ -487,8 +1033,20 @@
 
     var agRows = agreements.map(function (a) {
       var who = a.proposer === self ? a.counterparty : a.proposer;
-      return "<li><strong>" + esc(who || "peer") + "</strong> · " +
+      return "<li><strong>" + esc(shortDid(who) || "peer") + "</strong> · " +
         esc(a.status || "proposed") + "</li>";
+    }).join("");
+
+    // Incoming proposals with a real Accept control (C3/G4).
+    var incRows = (incoming || []).map(function (a) {
+      return '<li style="margin-bottom:6px"><strong>' +
+        esc(shortDid(a.proposer)) + "</strong> proposed an agreement · " +
+        esc(a.status || "proposed") +
+        ' <button class="btn p" data-testid="flow-agreement-accept" ' +
+        'data-agreement-id="' + esc(a.agreementId) +
+        '" onclick="agreementAccept(\'' + esc(a.agreementId) +
+        '\')" style="margin-left:8px;padding:2px 10px;font-size:.78rem">' +
+        "Accept</button></li>";
     }).join("");
 
     if (rc) {
@@ -505,8 +1063,13 @@
           )
           : "") +
         "</div>" +
+        ((incoming && incoming.length)
+          ? ('<div style="font-size:.8rem;color:var(--text2,#8b949e);margin-bottom:6px">' +
+            "Incoming proposals</div><ul style='margin:0 0 14px;padding-left:18px'>" +
+            incRows + "</ul>")
+          : "") +
         '<div style="font-size:.8rem;color:var(--text2,#8b949e);margin-bottom:6px">' +
-        "Active flow agreements</div><ul style='margin:0;padding-left:18px'>" +
+        "Flow agreements</div><ul style='margin:0;padding-left:18px'>" +
         (agRows ||
           "<li style='list-style:none;color:var(--text3,#8b939d)'>none yet</li>") +
         "</ul>";
@@ -713,19 +1276,27 @@
       if (rf) rf.classList.toggle("hidden", isContract);
       if (cf) cf.classList.toggle("hidden", !isContract);
     };
+    // G9 — contributor tier: record the selected tier (carried into
+    // agreement_propose terms), not just a CSS class.
     window.selectTier = function (el) {
       var opts = document.querySelectorAll("#flow-agreement .tier-opt");
       Array.prototype.forEach.call(opts, function (t) {
         t.classList.remove("on");
       });
       el.classList.add("on");
+      var tier = (el.getAttribute && el.getAttribute("data-tier")) ||
+        ((el.querySelector(".nm") || {}).textContent || "").trim()
+          .toLowerCase();
+      if (tier) state.contributorTier = tier;
     };
+    // G9 — duration: record the selected duration (carried into terms).
     window.selectDur = function (el, val) {
       var bs = document.querySelectorAll("#flow-agreement #durSeg button");
       Array.prototype.forEach.call(bs, function (b) {
         b.classList.remove("on");
       });
       el.classList.add("on");
+      state.duration = val || "none";
       var cd = aq("#customDurField");
       if (cd) cd.classList.toggle("hidden", val !== "custom");
     };
@@ -774,6 +1345,14 @@
         if (isFinite(v) && v > 0) {
           terms.sharePct = Math.max(0, Math.min(1, v / 100));
         }
+      }
+      // G9 — contributor tier + duration from the grid/segmented control.
+      if (state.contributorTier) terms.contributorTier = state.contributorTier;
+      if (state.duration) terms.duration = state.duration;
+      if (state.duration === "custom") {
+        var expEl = aq("#customDurField input");
+        var exp = expEl && expEl.value ? String(expEl.value).trim() : "";
+        if (exp) terms.expiry = exp;
       }
       var revSrc = ((aq("#revenueSource") || {}).value || "").trim();
       if (revSrc) terms.revenueSource = revSrc;
@@ -850,6 +1429,27 @@
 
   function errMsg(err) {
     return err && err.message ? err.message : String(err);
+  }
+
+  // Read the selected radio's value in a deno-dom-tolerant way (no :checked
+  // pseudo-class): prefer the .checked property, fall back to the [checked]
+  // attribute. scope = a container selector prefix, name = the radio group.
+  function readCheckedRadio(scope, name) {
+    var radios = document.querySelectorAll(
+      scope + ' input[name="' + name + '"]',
+    );
+    var byProp = "";
+    var byAttr = "";
+    Array.prototype.forEach.call(radios, function (r) {
+      // deno-dom does not expose `.value` for a markup-set attribute — fall back
+      // to getAttribute("value"). Real browsers return the property directly.
+      var val = r.value || (r.getAttribute && r.getAttribute("value")) || "";
+      if (!byProp && r.checked === true && val) byProp = val;
+      if (
+        !byAttr && r.hasAttribute && r.hasAttribute("checked") && val
+      ) byAttr = val;
+    });
+    return byProp || byAttr || "";
   }
 
   // Explicit hidden toggle (deno-dom's classList.toggle(token, force) is

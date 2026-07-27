@@ -66,12 +66,17 @@ const NAOMS_ROOT = new URL("../../../../", import.meta.url).pathname.replace(
 );
 
 // A settle from the UI settles the SAME (context, tokenKind) the Policy surface
-// arms. The wired Policy surface saves under context "awip" / tokenKind "custom".
-const CONTEXT = "awip";
+// arms. C1 removed the fabricated "awip" context (critic N-2); the wired Policy
+// surface now defaults to the holon-local "Personal" self-context. Settle reads
+// that same context back.
+const CONTEXT = "personal";
 const TOKEN_KIND = "custom";
-// A band well under the holon's synthetic balance so the settle produces surplus.
+// A band well under the balance we settle against so the epoch produces surplus.
 const FLOOR = 100;
 const CEILING = 500;
+// The owner's real epoch balance (design HC-04: settlement is explicit — the
+// caller supplies the balance). Above CEILING so there is surplus to flow out.
+const EPOCH_BALANCE = 700;
 
 const SR = { sanitizeResources: false, sanitizeOps: false } as const;
 
@@ -102,12 +107,18 @@ Deno.test({
     let disposeGrant: (() => void) | null = null;
     let token: number | null = null;
     try {
+      // founder-with-friend-invitee-a: the founder has a REAL active friendship
+      // (a real non-self contact), so the settle UI sources a REAL claimant DID
+      // from a real relationship (HC-C1) — a bare founder fixture has zero peers
+      // and a settle would refuse loud (no claimant to absorb surplus). Vault +
+      // founder identity/password are the SAME as the plain founder fixture, so
+      // unlockFixtureVault(identity:"founder") still applies.
       const started = await startDaemonFromFixture(
         NAOMS_ROOT,
         port,
         "1644-settle-ui",
         undefined,
-        "founder",
+        "founder-with-friend-invitee-a",
       );
       daemon = started.daemon;
 
@@ -304,6 +315,17 @@ Deno.test({
         }
       }, controlSurface);
       await delay(800);
+      // Supply the owner's real epoch balance (design HC-04 — settlement is an
+      // explicit gesture, the caller supplies the balance). Above CEILING so the
+      // gradient engine produces surplus for the real claimant to absorb.
+      await page.evaluate((bal: number) => {
+        const el = document.querySelector(
+          "#flow-velocity #settleBalance",
+        ) as HTMLInputElement | null;
+        if (!el) throw new Error("settle balance input not found");
+        el.value = String(bal);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }, EPOCH_BALANCE);
       // Real-pointer click on the settle control (CDP mouse, not evaluate-click).
       const settleSel =
         "#flow-app [data-flow-settle], #flow-app [data-flow-action='settle'], " +
@@ -323,7 +345,8 @@ Deno.test({
         settlements.length > 0,
         "flow.get_settlement folded no flow_settlement after the UI settle gesture",
       );
-      const legs = (settlements[0].legs as Array<Record<string, unknown>>) ?? [];
+      const legs = (settlements[0].legs as Array<Record<string, unknown>>) ??
+        [];
       assert(
         legs.some((l) => l.status === "paid" || l.status === "unconfirmed"),
         `settlement has no paid/indeterminate leg — ${JSON.stringify(legs)}`,
