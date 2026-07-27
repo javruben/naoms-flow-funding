@@ -155,3 +155,16 @@ CELEBRATE**.
 | M6-IMPLEMENT | `src/packages/flow-funding/` package + **mock-first** wallet surfaces (extend 1627) | ⏳ |
 | M7-TEST | unit → combined-tier → E2E (narrative: a node supports a dependent end-to-end); **per-M-row mock-fidelity gate on the real daemon** (1668 spirit) | ⏳ |
 | M8-CELEBRATE | sign-off + close-gate | ⏳ |
+
+## Landing record — 2026-07-27 cutover (status-neutral)
+
+`1644-flow-completion` merged to `origin/main` as **`85ecf624906`** (fix `8fad9c542bc`;
+C7 tokenId guard reconciled with its sibling harness — 5 RED → GREEN, no production file changed,
+guard protection intact). Five residual 1644-era sibling branches were content-assessed and are
+**all SUPERSEDED** — zero cascade-merges needed; merging the matrix pair would REGRESS main
+(PC-819 roadmap-shaped rule ids). One gap stays **OPEN** and flagged for convergence: two-daemon
+integ coverage for the messaging-adapter substrate.
+
+**This landed one branch; it does not complete the epic — M6/M7/M8 remain `⏳` above.**
+Full evidence:
+[`06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md`](06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md)
