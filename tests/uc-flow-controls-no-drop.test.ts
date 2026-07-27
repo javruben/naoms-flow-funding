@@ -39,7 +39,13 @@
 //   The daemon/WS path is not the subject — whether policy_set / agreement_
 //   propose is actually dispatched over the wire is covered by
 //   integ-flow-policy-set-and-read / integ-flow-agreement-bilateral. No flow
-//   state is pre-seeded; the surface reads only the stubbed ctx it is given.
+//   state is pre-seeded; the surface reads only the stubbed ctx it is given —
+//   that ctx mirrors the production shape, including the `sendReq` the real
+//   feature-context-factory REQUIRES (it throws without one), over which the UI
+//   reuses `token.list` to target a real tokenId (C7). A held token is ordinary
+//   state, not a bypass: `savePolicy` legitimately refuses on an empty holding,
+//   and that refusal is asserted by the "C7 empty-state" test in
+//   uc-flow-policy-surface-wired.test.ts.
 //   The contract is deliberately satisfiable by REMOVING a control from the DOM,
 //   so a build-crew that deletes an unbacked control (rather than wiring it)
 //   still turns this GREEN — it forbids only the silent-drop middle ground.
@@ -116,6 +122,27 @@ async function evalInto(
   fn(env.win, env.doc);
 }
 
+// C7 — the REAL token the user holds. The production feature ctx ALWAYS carries
+// `sendReq` (clients/browser/public/feature-context-factory.js:84-85 THROWS
+// without it), and flow-tab.js reuses the `token.list` op through it to target a
+// real tokenId. A holding is therefore part of the ordinary, non-degenerate
+// state this no-drop contract is written about: `savePolicy` legitimately
+// refuses to dispatch when the user holds NO token (never leaking the "custom"
+// kind label), so a token-less ctx would make every assertion below vacuous.
+// The refusal path itself stays covered — see the "C7 empty-state" test in
+// uc-flow-policy-surface-wired.test.ts, which drives the same `savePolicy` with
+// an empty holding and asserts policy_set is NOT dispatched.
+const HELD_TOKENS: Array<Record<string, unknown>> = [
+  {
+    id: "tok-favor-1",
+    humanLabel: "Flow Favor",
+    kind: "custom",
+    final: 100,
+    pending: 0,
+    role: "issuer",
+  },
+];
+
 /** Mount the feature down the real (non-mock) path with a spy ctx.api. */
 async function mount(): Promise<{
   win: Record<string, unknown>;
@@ -141,12 +168,18 @@ async function mount(): Promise<{
       return Promise.resolve({ ok: true, agreementId: "flow-agreement-x" });
     },
   };
+  // C7 — mirror the production ctx shape: the shell always wires `sendReq`, and
+  // the flow UI reuses the `token.list` op over it to pick a real tokenId.
+  const sendReq = (msg: Record<string, unknown>) =>
+    msg && msg.type === "token.list"
+      ? Promise.resolve({ ok: true, tokens: HELD_TOKENS })
+      : Promise.resolve({ ok: true });
   // deno-lint-ignore no-explicit-any
   const feature = (env.win._naomsFeatures as any)["flow-funding"];
   assert(feature, "flow-funding feature registered");
-  feature.init({ container: env.container, api });
+  feature.init({ container: env.container, api, sendReq });
   feature.activate();
-  // flush the get_policy .then so the Policy surface finishes loading
+  // flush loadTokens (token.list) → mount → the get_policy .then
   await new Promise((r) => setTimeout(r, 0));
   return { win: env.win, doc: env.doc, calls };
 }
