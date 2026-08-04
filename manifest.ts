@@ -132,6 +132,15 @@ export const MANIFEST: NaomsFeatureManifest = {
   // events project flow_agreement the same way (prefix "flow." + nodeKind above).
   eventTypePrefixes: ["flow."],
 
+  // 1328 ENRICHER R2 — `party_to` (flow_agreement → contact) person-edge written
+  // by enrichers/flow-party-edge.ts for each agreement party DID (proposer /
+  // counterparty / accepter) that resolves to a KNOWN contact/friend node via
+  // resolveExistingContactIdByDid. Declared canonical so the query builder's
+  // neighbors_of walk treats it as a first-class verb — "which funding
+  // agreements do I have with X" becomes a one-hop graph walk instead of an
+  // inline DID-property scan. Proven by the graphLink call site in that enricher.
+  canonicalEdgeTypes: ["party_to"],
+
   wsMessageTypes: [
     {
       type: "flow.policy_set",
