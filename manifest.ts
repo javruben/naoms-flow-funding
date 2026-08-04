@@ -60,14 +60,59 @@ export const MANIFEST: NaomsFeatureManifest = {
   ],
 
   graphTypes: [
-    { nodeType: "flow_policy", access: "read-write" },
-    { nodeType: "flow_agreement", access: "read-write" },
-    { nodeType: "flow_settlement", access: "read-write" },
+    // 1328 M-QUERY-BUILDER — typed queryable predicates. Fields verified
+    // against the payloads the generic triple materializer projects:
+    // flow_policy.holon (handlers/policy-set.ts:259);
+    {
+      nodeType: "flow_policy",
+      access: "read-write",
+      indexed_props: [
+        { name: "holon", type: "did", person_ref: true },
+        { name: "context", type: "string" },
+      ],
+      indexed_props_version: 1,
+    },
+    // proposer/counterparty (handlers/agreement.ts:178-179) + status folded in
+    // materializers/flow-agreement.ts:70-85 (proposed|active|revoked).
+    {
+      nodeType: "flow_agreement",
+      access: "read-write",
+      indexed_props: [
+        { name: "proposer", type: "did", person_ref: true },
+        { name: "counterparty", type: "did", person_ref: true },
+        {
+          name: "status",
+          type: "enum",
+          enum: ["proposed", "active", "revoked"],
+        },
+      ],
+      indexed_props_version: 1,
+    },
+    // flow_settlement.holon (handlers/epoch-settle.ts:517).
+    {
+      nodeType: "flow_settlement",
+      access: "read-write",
+      indexed_props: [
+        { name: "holon", type: "did", person_ref: true },
+        { name: "context", type: "string" },
+      ],
+      indexed_props_version: 1,
+    },
     // M-CONFIRM-ON-PUSH: per-leg paid confirmation, written by the confirm-on-push
     // post-commit hook (domain/settlement-confirm-hook.ts) — NOT chain-projected
     // (it is derived from the token.transfer chain event, cross-chain), so it has no
     // eventType binding; the read verb joins it onto flow_settlement's allocations.
-    { nodeType: "flow_settlement_confirm", access: "read-write" },
+    // 1328 — claimant (payee) + status verified at settlement-confirm-hook.ts:122-123.
+    {
+      nodeType: "flow_settlement_confirm",
+      access: "read-write",
+      indexed_props: [
+        { name: "claimant", type: "did", person_ref: true },
+        { name: "settlement_id", type: "string" },
+        { name: "status", type: "enum", enum: ["paid"] },
+      ],
+      indexed_props_version: 1,
+    },
   ],
 
   // M2 (1111 cross-chain hygiene): the flow-agreement events are emitted onto the
