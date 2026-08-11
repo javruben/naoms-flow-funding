@@ -142,7 +142,13 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
     completionEvents: ["flow.agreement_accepted"],
     inputSchema: {
       type: "object",
-      properties: { agreementId: { type: "string" } },
+      properties: {
+        agreementId: {
+          type: "string",
+          description:
+            "agreementId — obtain it from flow-funding.get_agreement.",
+        },
+      },
       required: ["agreementId"],
     },
   },
@@ -163,7 +169,13 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
     completionEvents: ["flow.agreement_revoked"],
     inputSchema: {
       type: "object",
-      properties: { agreementId: { type: "string" } },
+      properties: {
+        agreementId: {
+          type: "string",
+          description:
+            "agreementId — obtain it from flow-funding.get_agreement.",
+        },
+      },
       required: ["agreementId"],
     },
   },
@@ -185,7 +197,12 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
     completionEvents: [],
     inputSchema: {
       type: "object",
-      properties: { agreementId: { type: "string" } },
+      properties: {
+        agreementId: {
+          type: "string",
+          description: "agreementId — obtain it from flow-funding.get_policy.",
+        },
+      },
       required: ["agreementId"],
     },
   },
