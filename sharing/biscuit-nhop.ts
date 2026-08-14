@@ -102,12 +102,25 @@ export function authorizeReshare(
     return { ok: false, reason: "NO_CAPABILITY" };
   }
 
+  // 1314: name the operation. `{op:"reshare"}` supplies
+  // `redistribute_requested(true)` + `current_hops(0)` — "does this token still
+  // authorise ONE MORE hop?" — and every other predicate gets its
+  // doing-nothing default, so an enforcing token is judged on the term that
+  // actually applies rather than denied for a predicate nobody mentioned.
   const v = verify(cap.tokenHex, cap.rootPubHex, {
-    redistribute_requested: true,
-    current_hops: 0,
+    op: "reshare",
+    hopsTravelled: 0,
   });
   if (v.status !== "ALLOW") {
     return { ok: false, reason: `VERIFY_DENY:${v.reason ?? "DENY"}` };
+  }
+  // 1314: reshare is a SEND path. A `DECLARED_ONLY` token — one minted before
+  // enforcement existed — carries no checks, so its ALLOW says nothing about
+  // whether redistribution was permitted. Refusing here is the whole point of
+  // the three-state migration: a non-enforcing contract must never launder
+  // into a permissive one.
+  if (v.enforcement !== "ENFORCED") {
+    return { ok: false, reason: `NOT_ENFORCEABLE:${v.enforcement}` };
   }
 
   const nextHops = Math.max(0, cap.hopsRemaining - 1);
