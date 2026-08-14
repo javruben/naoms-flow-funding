@@ -40,8 +40,12 @@ export interface FlowShareCapability {
  * A new ed25519 root keypair is generated per share — the private key never
  * leaves this call (the token + public key travel with the data; the private
  * key is zeroized). Returns null fail-closed if the Biscuit FFI is unavailable
- * or the build fails — the caller then shares WITHOUT a reshare capability, i.e.
- * direct-only (the privacy-preserving baseline).
+ * or the build fails.
+ *
+ * 🛑 1314: `null` means the caller MUST SHARE NOTHING (`flow-domain.ts` build
+ * returns `null`). It used to mean "share without a capability", which turned
+ * an FFI error into an unbounded, ungated disclosure — a guard whose failure
+ * mode is to permit is not a guard.
  */
 export function mintFlowShareCapability(
   maxHops: number = FLOW_SHARE_MAX_HOPS,
