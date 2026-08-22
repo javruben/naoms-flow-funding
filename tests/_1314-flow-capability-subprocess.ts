@@ -1,3 +1,10 @@
+// === TEST-THEATRE PREVENTION HEADER ===
+// @test-tier helper
+// @covers NONE (test-support module: runs flow-domain.build() in a child Deno process so the mint-fails arm can exist at all)
+// @bypasses NAOMS_FFI_LIB_PATH is pointed at an EMPTY directory in the CHILD process only — that is the failure being produced, and it is confined to the subprocess so no sibling test sharing the cached FFI handle is affected.
+// @canonical-flow N/A
+// @pre-seeds NONE — no chain events are seeded.
+// === END HEADER ===
 // src/packages/flow-funding/tests/_1314-flow-capability-subprocess.ts
 //
 // 1314 §6.0 escape hatch 4 test support. The FFI handle is cached per process,
