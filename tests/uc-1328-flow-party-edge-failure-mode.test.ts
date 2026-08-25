@@ -25,12 +25,20 @@ function makeScope(db: bigint): TripleMaterializerScope {
   return {
     db,
     graphPutAsync: async (opts: Record<string, unknown>) => {
-      await _graphPutAsync(db, { ...opts, _calledFromMaterializer: true } as
-        unknown as Parameters<typeof _graphPutAsync>[1]);
+      await _graphPutAsync(
+        db,
+        { ...opts, _calledFromMaterializer: true } as unknown as Parameters<
+          typeof _graphPutAsync
+        >[1],
+      );
     },
     graphLinkAsync: async (opts: Record<string, unknown>) => {
-      await _graphLinkAsync(db, { ...opts, _calledFromMaterializer: true } as
-        unknown as Parameters<typeof _graphLinkAsync>[1]);
+      await _graphLinkAsync(
+        db,
+        { ...opts, _calledFromMaterializer: true } as unknown as Parameters<
+          typeof _graphLinkAsync
+        >[1],
+      );
     },
     graphQueryAsync: async (opts: Record<string, unknown>) =>
       await graphQueryAsync(
@@ -66,17 +74,20 @@ async function seedAgreement(
   proposer: string,
   counterparty: string,
 ): Promise<void> {
-  await _graphPutAsync(db, {
-    type: "flow_agreement",
-    id,
-    properties: {
-      agreementId: id,
-      proposer,
-      counterparty,
-      status: "proposed",
-    },
-    _calledFromMaterializer: true,
-  } as unknown as Parameters<typeof _graphPutAsync>[1]);
+  await _graphPutAsync(
+    db,
+    {
+      type: "flow_agreement",
+      id,
+      properties: {
+        agreementId: id,
+        proposer,
+        counterparty,
+        status: "proposed",
+      },
+      _calledFromMaterializer: true,
+    } as unknown as Parameters<typeof _graphPutAsync>[1],
+  );
 }
 
 async function drainAndClose(db: bigint): Promise<void> {

@@ -62,11 +62,11 @@ export const flowPartyEdge: MaterializerEnricher = {
 
   async handler(ctx: EnricherContext): Promise<void> {
     const data = extractPayloadDeep(ctx);
-    const agreementId = (typeof data.agreementId === "string"
+    const agreementId = typeof data.agreementId === "string"
       ? data.agreementId
       : typeof data.id === "string"
       ? data.id
-      : null);
+      : null;
     if (!agreementId) return;
 
     const query = ctx.scope.graphQueryAsync ?? ctx.scope.graphQuery;
