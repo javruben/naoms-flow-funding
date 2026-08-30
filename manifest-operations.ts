@@ -191,6 +191,8 @@ export const FLOW_FUNDING_OPERATIONS: PackageOperation[] = [
   },
   {
     name: "epoch_settle",
+    // 1737 RULING 3 — DECLARED: derivation returns null here ("settle" is absent; running the allocation engine produces new allocations for an epoch).
+    world_change: "CREATE funding allocation",
     description:
       "Settle one flow epoch for a (holon, context): run the gradient + allocation " +
       "engines over the holon's balance and below-floor claimants, committing a " +
