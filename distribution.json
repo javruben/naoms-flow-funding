@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 3,
+  "packageId": "flow-funding",
+  "version": "0.0.0",
+  "codeHash": "14455ee0b9c7fd493c6d0ba76ab6e9d8a9133c0e206325e9a86b3710780f18fe",
+  "lockfileHash": "71f607c0cfe364c8f80f3e342bba09a8f3aeac5ef891df31d36209221750ed39",
+  "cargoLockHash": "36482f777051778a86ffe0fad3ffecffb1981c8163bfb26569ee96f5fffeaed3",
+  "moduleCap": 5000,
+  "resolverPin": {
+    "name": "naoms-plugin-graph",
+    "version": "0.1.0"
+  },
+  "assetResolverAlgo": "pc204-narrowed-v1@2026-04-12",
+  "files": {
+    "ui/flow-tab.js": "d713f1f7ce4f6b176a97d97d16a3b9d54b75c1ae53637501f5ab380d2e7650b1",
+    "ui/mock/flow-policy-config.html": "d7252f655243988a10119b31e41c1519a1f8aa437268224fe89f065370b324f8",
+    "ui/mock/flow-agreement-creation.html": "618e00d681a6d8c651c7efd59b75bee843bab0660459cbe9933472403d1e3ab0",
+    "ui/mock/flow-simulation.html": "a5715d3b94fb982996e1194be9dcd23164ca0fba8708d57fcee44535913fd1ec",
+    "ui/mock/flow-velocity-view.html": "d275cc5fcb8662893b3834fad51255c359fb686ea7b0ace48548a4dc2250d28b",
+    "ui/flow-surfaces.js": "35b881bc1dfd3630c4a2c2991ad86cc006ffcf06f62bd2da16c6abea328eeb4e",
+    "ui/flow-surfaces.css": "7f42027080edb82e86881a69ed94125d2287c97a77fcd3ee87e156a985f680e0"
+  }
+}
