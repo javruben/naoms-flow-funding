@@ -85,7 +85,9 @@ Deno.test(
     const commits = getCommits(db, { chainId: fcId, limit: 100 }) as Array<
       { type?: string }
     >;
-    const proposed = commits.filter((c) => c.type === "flow.agreement_proposed");
+    const proposed = commits.filter((c) =>
+      c.type === "flow.agreement_proposed"
+    );
     assertEquals(
       proposed.length,
       1,
