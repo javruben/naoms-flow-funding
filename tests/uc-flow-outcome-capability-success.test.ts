@@ -1,4 +1,4 @@
-// src/packages/flow-funding/tests/uc-1314-flow-outcome-capability-success.test.ts
+// src/packages/flow-funding/tests/uc-flow-outcome-capability-success.test.ts
 //
 // 1314 §6.0 escape hatch 4 — the SHARE arm.
 //
@@ -8,7 +8,7 @@
 // with a WORKING dylib separates them.
 //
 // Run: deno test --allow-all --unstable-ffi --no-check \
-//   src/packages/flow-funding/tests/uc-1314-flow-outcome-capability-success.test.ts
+//   src/packages/flow-funding/tests/uc-flow-outcome-capability-success.test.ts
 
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier unit
