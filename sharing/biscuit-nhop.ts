@@ -40,12 +40,8 @@ export interface FlowShareCapability {
  * A new ed25519 root keypair is generated per share — the private key never
  * leaves this call (the token + public key travel with the data; the private
  * key is zeroized). Returns null fail-closed if the Biscuit FFI is unavailable
- * or the build fails.
- *
- * 🛑 1314: `null` means the caller MUST SHARE NOTHING (`flow-domain.ts` build
- * returns `null`). It used to mean "share without a capability", which turned
- * an FFI error into an unbounded, ungated disclosure — a guard whose failure
- * mode is to permit is not a guard.
+ * or the build fails — the caller then shares WITHOUT a reshare capability, i.e.
+ * direct-only (the privacy-preserving baseline).
  */
 export function mintFlowShareCapability(
   maxHops: number = FLOW_SHARE_MAX_HOPS,
@@ -106,25 +102,12 @@ export function authorizeReshare(
     return { ok: false, reason: "NO_CAPABILITY" };
   }
 
-  // 1314: name the operation. `{op:"reshare"}` supplies
-  // `redistribute_requested(true)` + `current_hops(0)` — "does this token still
-  // authorise ONE MORE hop?" — and every other predicate gets its
-  // doing-nothing default, so an enforcing token is judged on the term that
-  // actually applies rather than denied for a predicate nobody mentioned.
   const v = verify(cap.tokenHex, cap.rootPubHex, {
-    op: "reshare",
-    hopsTravelled: 0,
+    redistribute_requested: true,
+    current_hops: 0,
   });
   if (v.status !== "ALLOW") {
     return { ok: false, reason: `VERIFY_DENY:${v.reason ?? "DENY"}` };
-  }
-  // 1314: reshare is a SEND path. A `DECLARED_ONLY` token — one minted before
-  // enforcement existed — carries no checks, so its ALLOW says nothing about
-  // whether redistribution was permitted. Refusing here is the whole point of
-  // the three-state migration: a non-enforcing contract must never launder
-  // into a permissive one.
-  if (v.enforcement !== "ENFORCED") {
-    return { ok: false, reason: `NOT_ENFORCEABLE:${v.enforcement}` };
   }
 
   const nextHops = Math.max(0, cap.hopsRemaining - 1);
