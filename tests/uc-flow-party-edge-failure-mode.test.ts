@@ -2,7 +2,7 @@
 // @test-tier ffi-integration
 // @covers src/packages/flow-funding/enrichers/flow-party-edge.ts
 // @covers src/core/graph/contact-resolve-existing.ts
-// @mechanism-asserted HONESTY axiom: when an agreement party DID matches NO existing contact/friend node (resolveExistingContactIdByDid returns null), the enricher writes NO `party_to` edge and fabricates NO contact — the party stays a raw DID property on the flow_agreement node. Paired with uc-1328-flow-party-edge-success.test.ts.
+// @mechanism-asserted HONESTY axiom: when an agreement party DID matches NO existing contact/friend node (resolveExistingContactIdByDid returns null), the enricher writes NO `party_to` edge and fabricates NO contact — the party stays a raw DID property on the flow_agreement node. Paired with uc-flow-party-edge-success.test.ts.
 // @bypasses NONE — drives the published handler(ctx) over a REAL createTestDb graph schema.
 // @canonical-flow YES
 // @pre-seeds NONE (flow_agreement seeded; its parties are deliberately UNKNOWN — no contact nodes)

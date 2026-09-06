@@ -2,7 +2,7 @@
 // @test-tier ffi-integration
 // @covers src/packages/flow-funding/enrichers/flow-party-edge.ts
 // @covers src/core/graph/contact-resolve-existing.ts
-// @mechanism-asserted the proposer/counterparty DIDs stored as scalar properties on the flow_agreement node are resolved via the REUSED lookup-only resolveExistingContactIdByDid into REAL `party_to` edges (flow_agreement→contact) on the graph_edges table, AND "funding agreements with Rik" is answerable via graphQueryAsync({neighbors_of:[rikContactId], edge_types:["party_to"]}). Paired with uc-1328-flow-party-edge-failure-mode.test.ts.
+// @mechanism-asserted the proposer/counterparty DIDs stored as scalar properties on the flow_agreement node are resolved via the REUSED lookup-only resolveExistingContactIdByDid into REAL `party_to` edges (flow_agreement→contact) on the graph_edges table, AND "funding agreements with Rik" is answerable via graphQueryAsync({neighbors_of:[rikContactId], edge_types:["party_to"]}). Paired with uc-flow-party-edge-failure-mode.test.ts.
 // @bypasses NONE — drives the published handler(ctx) over a REAL createTestDb graph schema; the flow_agreement node + the two contacts (with `did` surfaces) are seeded via _graphPutAsync.
 // @canonical-flow YES
 // @pre-seeds NONE (flow_agreement + contacts seeded via _graphPutAsync)
