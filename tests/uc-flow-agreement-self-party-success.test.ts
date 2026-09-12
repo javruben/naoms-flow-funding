@@ -10,7 +10,7 @@
 // === END HEADER ===
 // @roadmap 1785
 
-import { assert, assertEquals } from "jsr:@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
   createTestDb,
   initTestSigning,
