@@ -116,10 +116,22 @@ export async function build(
   if (ctx.level === "detailed") data.by_context = byContext;
 
   // Mint the N-hop redistribution capability that bounds onward reshare of THIS
-  // outcome (T-27). Fail-closed: if the Biscuit FFI is unavailable, `cap` is
-  // null and we share direct-only (no reshare authority) — the privacy baseline.
+  // outcome (T-27).
+  //
+  // 🛑 1314 §6.0 escape hatch 4 — A GUARD WHOSE FAILURE MODE IS TO PERMIT IS
+  // NOT A GUARD. This used to read `if (cap) data._capability = …`, so a mint
+  // failure (FFI unavailable, build error) shipped the holon's circulation
+  // totals with NO capability attached at all: the one path that was supposed
+  // to bound onward redistribution degraded, on error, to an unbounded ungated
+  // payload. The comment called that "the privacy baseline"; it is the
+  // opposite — the baseline is to disclose NOTHING we cannot bound.
+  //
+  // Fail-closed: no capability ⇒ no share. `null` is the engine's
+  // share-nothing signal and is already the level-`off` / no-settlements
+  // return, so a refusal here costs privacy nothing and leaks nothing.
   const cap = mintFlowShareCapability();
-  if (cap) data._capability = capabilityToWire(cap);
+  if (!cap) return null;
+  data._capability = capabilityToWire(cap);
 
   // N-hop relay: forward outcomes we RECEIVED from other peers, each gated by
   // its own Biscuit caveat. `authorizeReshare` REFUSES (fail-closed) any outcome
