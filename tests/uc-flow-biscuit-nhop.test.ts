@@ -51,8 +51,8 @@ Deno.test("mint: minted capability verifies in-scope at its budget", SR, () => {
 
   // Direct mechanism check: the caveat ALLOWs a hop while budget remains.
   const v = verify(cap.tokenHex, cap.rootPubHex, {
-    redistribute_requested: true,
-    current_hops: 0,
+    op: "reshare",
+    hopsTravelled: 0,
   });
   assertEquals(v.status, "ALLOW", "0 < max_hops(2) → ALLOW");
 });
@@ -88,10 +88,29 @@ Deno.test("authorizeReshare: spent budget is REFUSED by the Biscuit caveat (T-25
   if (!d3.ok) assert(d3.reason.startsWith("VERIFY_DENY"), d3.reason);
 
   const vSpent = verify(d2.next.tokenHex, d2.next.rootPubHex, {
-    redistribute_requested: true,
-    current_hops: 0,
+    op: "reshare",
+    hopsTravelled: 0,
   });
-  assertEquals(vSpent.status, "DENY", "0 < max_hops(0) is false → DENY");
+  assertEquals(
+    vSpent.status,
+    "DENY",
+    "a spent budget must refuse the FORWARD",
+  );
+
+  // 1314 CONTROL: the spent token is refused for RESHARE only — it must still
+  // be READABLE. Pre-1314 `max_hops:0` emitted `check if current_hops($h),
+  // $h < 0`, which is unsatisfiable and denied plain IMPORT too; the DENY
+  // above would have passed while the receiver could no longer open the thing
+  // at all. Without this line the assertion cannot tell "correctly refused the
+  // forward" from "bricked the token".
+  const vRead = verify(d2.next.tokenHex, d2.next.rootPubHex, {
+    op: "import",
+  });
+  assertEquals(
+    vRead.status,
+    "ALLOW",
+    "a spent hop budget must leave the outcome readable, not brick it",
+  );
 });
 
 Deno.test("authorizeReshare: empty/absent capability is fail-closed", SR, () => {
