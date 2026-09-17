@@ -1,4 +1,4 @@
-// src/packages/flow-funding/tests/uc-1314-flow-outcome-capability-failure-mode.test.ts
+// src/packages/flow-funding/tests/uc-flow-outcome-capability-failure-mode.test.ts
 //
 // 1314 §6.0 escape hatch 4 — A GUARD WHOSE FAILURE MODE IS TO PERMIT IS NOT A
 // GUARD. The REFUSE arm.
@@ -25,7 +25,7 @@
 // as one that shares unbounded. NEITHER file may be read alone.
 //
 // Run: deno test --allow-all --unstable-ffi --no-check \
-//   src/packages/flow-funding/tests/uc-1314-flow-outcome-capability-failure-mode.test.ts
+//   src/packages/flow-funding/tests/uc-flow-outcome-capability-failure-mode.test.ts
 
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier unit
