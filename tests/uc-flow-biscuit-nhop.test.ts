@@ -29,7 +29,7 @@ import {
   assert,
   assertEquals,
   assertNotEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 import { verify } from "@naoms/packages/packs/biscuit-contract.ts";
 import {
   authorizeReshare,
