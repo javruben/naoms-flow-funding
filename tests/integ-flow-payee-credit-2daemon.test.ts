@@ -44,7 +44,7 @@
 //   tracked as an M-row, NOT a correctness gate for this proof.
 // === END HEADER ===
 
-import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert } from "@std/assert";
 import {
   performWsInviteCeremony,
   spawnSingleDaemon,

@@ -27,7 +27,7 @@
 //     deno test --allow-all --no-check --unstable-ffi --unstable-worker-options \
 //     src/packages/flow-funding/tests/e2e-flow-funding-simulation.test.ts
 
-import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert } from "@std/assert";
 import puppeteer from "npm:puppeteer-core";
 import {
   delay,
