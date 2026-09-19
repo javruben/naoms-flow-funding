@@ -2,7 +2,7 @@
 id: 1644
 title: "Each node sets thresholds that automatically flow surplus income to its dependents and draw support from them, so value keeps circulating and no one hoards"
 phase: 06-implement
-status: in-progress
+status: implement
 last-verified: 2026-08-24
 opened: 2026-06-09
 opened_by: 1644 (owner-initiated)
@@ -308,3 +308,21 @@ integ coverage for the messaging-adapter substrate.
 **This landed one branch; it does not complete the epic — M6/M7/M8 remain `⏳` above.**
 Full evidence:
 [`06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md`](06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md)
+
+<!-- STATE-SYNC:BEGIN 2026-09-19-p2 -->
+## Second-pass review (2026-09-19)
+
+Checked against `origin/main` = `cacd530207c` (this worktree HEAD `4e5aec615aa` is **100 commits behind** it; every path below was read with `git show origin/main:<path>` / `git grep origin/main`, never from the stale worktree).
+**Remaining:** engineering
+**Verdict:** implement
+
+Real code work remains and it is not close. `M6-IMPLEMENT`, `M7-TEST` and `M8-CELEBRATE` are all
+`⏳` in the item's own milestone table, and both `10-bug` registers on main still read
+`Status: OPEN` (`BUG-01` settlement-cap 🔴 CRITICAL, `BUG-02` control surface 0/5 green). The
+`flow-funding` package is genuinely on main (64 files, `ui/flow-tab.js` 1503 lines), so this is a
+half-built epic, not an unstarted one. The `e2e-flow-funding-*` suite is recorded RED pending the
+multi-device Kronos runner and 🟡 I did not run it this turn either — the next session's first
+act is still `deno test --allow-all src/packages/flow-funding/tests/uc-flow-controls-no-drop.test.ts`
+against main. `status:` normalised `in-progress` → `implement` (canonical set). The unresolved id
+collision with `.naoms/roadmap/1644-matrix-package/` stands.
+<!-- STATE-SYNC:END -->
