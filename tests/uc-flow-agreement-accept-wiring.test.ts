@@ -29,7 +29,7 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 // deno-lint-ignore no-explicit-any
 type AnyDoc = any;
 // deno-lint-ignore no-explicit-any
