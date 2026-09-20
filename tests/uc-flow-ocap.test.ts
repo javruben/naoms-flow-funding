@@ -29,7 +29,7 @@
 //   FAILED | 0 passed | 0 failed
 // GREEN (this file, post-implementation): ok | N passed | 0 failed (banked in M4 note)
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "@std/assert";
 import * as ed from "jsr:@noble/ed25519@2";
 import { sha512 } from "jsr:@noble/hashes@1/sha512";
 import {
