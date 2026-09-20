@@ -1,9 +1,6 @@
 ---
 id: 1644
 title: "Each node sets thresholds that automatically flow surplus income to its dependents and draw support from them, so value keeps circulating and no one hoards"
-phase: 07-test
-status: test
-last-verified: 2026-09-19
 phase: 06-implement
 status: implement
 last-verified: 2026-08-24
