@@ -4,6 +4,9 @@ title: "Each node sets thresholds that automatically flow surplus income to its 
 phase: 07-test
 status: test
 last-verified: 2026-09-19
+phase: 06-implement
+status: implement
+last-verified: 2026-08-24
 opened: 2026-06-09
 opened_by: 1644 (owner-initiated)
 star: "What if money knew when to keep moving — flowing on to those who depend on us, and back to us when we are the ones in need — so no node hoards while a dependent goes without?"
@@ -331,4 +334,22 @@ record, left intact; where it disagrees, this is newer.
 
 ### What is left
 (1) Correct the milestone table — M6 and M7 are not `⏳`. (2) Run the suite and record a green result; I did NOT execute any test, so "built" here means the files exist, not that they pass. (3) M8-CELEBRATE: no `08-celebrate/` dir and no sign-off.md exists. (4) The `1644` number collision with `.naoms/roadmap/1644-matrix-package/` flagged in the 2026-08-24 block is still unresolved.
+<!-- STATE-SYNC:END -->
+
+<!-- STATE-SYNC:BEGIN 2026-09-19-p2 -->
+## Second-pass review (2026-09-19)
+
+Checked against `origin/main` = `cacd530207c` (this worktree HEAD `4e5aec615aa` is **100 commits behind** it; every path below was read with `git show origin/main:<path>` / `git grep origin/main`, never from the stale worktree).
+**Remaining:** engineering
+**Verdict:** implement
+
+Real code work remains and it is not close. `M6-IMPLEMENT`, `M7-TEST` and `M8-CELEBRATE` are all
+`⏳` in the item's own milestone table, and both `10-bug` registers on main still read
+`Status: OPEN` (`BUG-01` settlement-cap 🔴 CRITICAL, `BUG-02` control surface 0/5 green). The
+`flow-funding` package is genuinely on main (64 files, `ui/flow-tab.js` 1503 lines), so this is a
+half-built epic, not an unstarted one. The `e2e-flow-funding-*` suite is recorded RED pending the
+multi-device Kronos runner and 🟡 I did not run it this turn either — the next session's first
+act is still `deno test --allow-all src/packages/flow-funding/tests/uc-flow-controls-no-drop.test.ts`
+against main. `status:` normalised `in-progress` → `implement` (canonical set). The unresolved id
+collision with `.naoms/roadmap/1644-matrix-package/` stands.
 <!-- STATE-SYNC:END -->
