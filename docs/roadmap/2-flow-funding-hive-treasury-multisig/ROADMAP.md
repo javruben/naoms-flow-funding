@@ -51,3 +51,24 @@ block is the older record, left intact; where it disagrees, this is newer.
 - First concrete step: run the DESIGN phase. `01-backlog/scope-intake.md` carries the two deferred 1644 surfaces; no milestone deliverables are declared yet, so nothing can be picked up as build work until design names them.
 - The reuse surface to design against is the existing FROST quorum machinery (`src/core/chain/signer/quorum.ts`) plus the 1644 FlowPolicy files cited above.
 <!-- STATE-SYNC:END -->
+
+<!-- STATE-SYNC:BEGIN 2026-09-19-p2 -->
+## Second-pass review (2026-09-19)
+
+Checked against `origin/main` = `cacd530207c`. This worktree's HEAD `59a961809d9` is
+104 commits BEHIND that tip, so every path below was read out of `origin/main`
+directly (`git show origin/main:<path>` / `git grep origin/main`), not out of the
+worktree. No file cited below appears in `git diff --name-only HEAD origin/main`
+for this item unless the paragraph says so.
+
+**Remaining:** engineering
+**Verdict:** backlog
+
+DESIGN has not been run. The item has `01-backlog/scope-intake.md` and a
+ROADMAP.md whose Problem section is the intent verbatim; no milestone
+deliverables are declared, so there is nothing pickup-able as build work yet.
+That makes it design ENGINEERING, not a human gate — no decision is pending on
+anyone's desk. The reuse base is real on `origin/main`
+(`src/core/chain/signer/quorum.ts` for FROST n-of-m, plus the 1644 FlowPolicy
+files), so the design starts from existing quorum machinery.
+<!-- STATE-SYNC:END -->
