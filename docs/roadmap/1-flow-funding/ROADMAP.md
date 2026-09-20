@@ -2,7 +2,7 @@
 id: 1644
 title: "Each node sets thresholds that automatically flow surplus income to its dependents and draw support from them, so value keeps circulating and no one hoards"
 phase: 06-implement
-status: in-progress
+status: implement
 last-verified: 2026-08-24
 opened: 2026-06-09
 opened_by: 1644 (owner-initiated)
@@ -12,6 +12,7 @@ related: [1596, 1627, 1595, 30, 31, 32, 33, 34]
 work_type: new-feature
 lifecycle: PROC-NEW-FEATURE
 scope: "A new `flow-funding` package layered on the token ledger (1596) and wallet UI (1627). Each node declares per-relationship thresholds (a viability band: floor + ceiling) and split rules; when a node's holdings rise above its ceiling, surplus automatically flows out along its dependent/relationship edges; when they fall below its floor, support is automatically drawn in from those it has flowed to. Idle balances decay (demurrage) so value cannot sit still. Trust-edges set the channels and caps. The result is a homeostatic, relationship-building, anti-hoarding value-circulation layer. RESEARCH + DESIGN first; implementation gated on owner + user (Tree) intake."
+verified-by: "roadmap triage sweep 2026-09-19"
 ---
 
 # 1644 — Flow Funding
@@ -308,3 +309,44 @@ integ coverage for the messaging-adapter substrate.
 **This landed one branch; it does not complete the epic — M6/M7/M8 remain `⏳` above.**
 Full evidence:
 [`06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md`](06-implement/LANDING-RECORD-flow-completion-merged-and-5-residual-siblings-adjudicated-2026-07-27.md)
+
+<!-- STATE-SYNC:BEGIN 2026-09-19 -->
+## Current State (verified 2026-09-19)
+
+Checked against the triage worktree ref **`a284c7a4c2f`** (`rt-a1`), which is
+**94 commits behind `origin/main` = `960b5d8b772`** — expected for this sweep, not
+fast-forwarded. Every file cited below was confirmed ABSENT from
+`git diff --name-only HEAD origin/main` (1103 paths) unless the block says otherwise,
+so the citation holds at `origin/main` too. Everything below this block is the older
+record, left intact; where it disagrees, this is newer.
+
+**Verdict:** test
+
+**Where the work lives:** ON main, and FURTHER ALONG THAN THE MILESTONE TABLE BELOW SAYS. The table marks M6-IMPLEMENT and M7-TEST as `⏳`; both have substantial landed output at this ref. `status: in-progress` was also a vocabulary defect — normalized to `test`.
+
+### What is actually built
+- M6 — `src/packages/flow-funding/` is a full package on main: `engine/{accrual,activity-decay,allocate,gradient}.ts`, `handlers/{agreement,epoch-settle,policy-set,simulate}.ts`, plus `domain/`, `enrichers/`, `materializers/`, `sharing/`, `sim/`, `ui/`, `manifest.ts`, `manifest-operations.ts`, `register.ts`.
+- M7 — `src/packages/flow-funding/tests/` holds **37** files including the narrative e2e the M7 row names (`e2e-flow-funding-narrative.test.ts`), plus `e2e-flow-funding-{agreement,policy,settle-from-ui,simulation,velocity,wallet-receipt}.test.ts` and `integ-flow-{agreement-bilateral,consent,epoch-settle-conservation,payee-credit-2daemon}.test.ts`.
+- Landing record already in the body: `1644-flow-completion` merged as `85ecf624906`.
+
+### What is left
+(1) Correct the milestone table — M6 and M7 are not `⏳`. (2) Run the suite and record a green result; I did NOT execute any test, so "built" here means the files exist, not that they pass. (3) M8-CELEBRATE: no `08-celebrate/` dir and no sign-off.md exists. (4) The `1644` number collision with `.naoms/roadmap/1644-matrix-package/` flagged in the 2026-08-24 block is still unresolved.
+<!-- STATE-SYNC:END -->
+
+<!-- STATE-SYNC:BEGIN 2026-09-19-p2 -->
+## Second-pass review (2026-09-19)
+
+Checked against `origin/main` = `cacd530207c` (this worktree HEAD `4e5aec615aa` is **100 commits behind** it; every path below was read with `git show origin/main:<path>` / `git grep origin/main`, never from the stale worktree).
+**Remaining:** engineering
+**Verdict:** implement
+
+Real code work remains and it is not close. `M6-IMPLEMENT`, `M7-TEST` and `M8-CELEBRATE` are all
+`⏳` in the item's own milestone table, and both `10-bug` registers on main still read
+`Status: OPEN` (`BUG-01` settlement-cap 🔴 CRITICAL, `BUG-02` control surface 0/5 green). The
+`flow-funding` package is genuinely on main (64 files, `ui/flow-tab.js` 1503 lines), so this is a
+half-built epic, not an unstarted one. The `e2e-flow-funding-*` suite is recorded RED pending the
+multi-device Kronos runner and 🟡 I did not run it this turn either — the next session's first
+act is still `deno test --allow-all src/packages/flow-funding/tests/uc-flow-controls-no-drop.test.ts`
+against main. `status:` normalised `in-progress` → `implement` (canonical set). The unresolved id
+collision with `.naoms/roadmap/1644-matrix-package/` stands.
+<!-- STATE-SYNC:END -->
