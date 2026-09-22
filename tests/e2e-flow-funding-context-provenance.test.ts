@@ -36,6 +36,7 @@
 //     --config <repoRoot>/deno.json \
 //     src/packages/flow-funding/tests/e2e-flow-funding-context-provenance.test.ts
 
+import type { FlowPageWindow } from "./_flow-e2e-page.ts";
 import {
   assert,
   assertEquals,
@@ -100,10 +101,9 @@ Deno.test({
       Deno.env.set("NAOMS_FFI_LIB_PATH", `${NAOMS_ROOT}/rust/target/release`);
     }
     const port = await getRandomPort();
-    // deno-lint-ignore no-explicit-any
-    let daemon: any = null;
-    // deno-lint-ignore no-explicit-any
-    let browser: any = null;
+    let daemon: Awaited<ReturnType<typeof startDaemonFromFixture>>["daemon"] | null =
+      null;
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
     let ws: WebSocket | null = null;
     let disposeGrant: (() => void) | null = null;
     let token: number | null = null;
@@ -229,8 +229,7 @@ Deno.test({
       await delay(2000);
 
       await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (!w._naoms || typeof w._naoms.activateApp !== "function") {
           throw new Error(
             "_naoms.activateApp not exposed — shell init incomplete",
