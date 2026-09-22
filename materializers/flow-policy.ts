@@ -44,12 +44,15 @@ export const flowPolicySupersede: MaterializerEnricher = {
       !holon || !context || !tokenKind || !Number.isFinite(version) ||
       version <= 0
     ) {
-      L.warn("flow-policy supersede: missing holon/context/token_kind/version", {
-        holon,
-        context,
-        tokenKind,
-        version,
-      });
+      L.warn(
+        "flow-policy supersede: missing holon/context/token_kind/version",
+        {
+          holon,
+          context,
+          tokenKind,
+          version,
+        },
+      );
       return;
     }
 

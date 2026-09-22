@@ -92,8 +92,10 @@ export function validateFlowAgreementTerms(
   terms: FlowAgreementTerms | undefined,
 ): string | null {
   if (!terms || typeof terms !== "object") return "terms required";
-  if (typeof terms.formality !== "number" || terms.formality < 0 ||
-    terms.formality > 1) {
+  if (
+    typeof terms.formality !== "number" || terms.formality < 0 ||
+    terms.formality > 1
+  ) {
     return "terms.formality must be a number in [0,1] (the dial)";
   }
   const tiers: FlowAgreementTier[] = [
@@ -105,8 +107,10 @@ export function validateFlowAgreementTerms(
   if (!tiers.includes(terms.tier)) {
     return `terms.tier must be one of ${tiers.join("/")}`;
   }
-  if (terms.sharePct !== undefined &&
-    (terms.sharePct < 0 || terms.sharePct > 1)) {
+  if (
+    terms.sharePct !== undefined &&
+    (terms.sharePct < 0 || terms.sharePct > 1)
+  ) {
     return "terms.sharePct must be a fraction in [0,1]";
   }
   if (terms.durationMs !== undefined && terms.durationMs <= 0) {

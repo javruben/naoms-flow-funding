@@ -24,8 +24,8 @@ import { canonicalPeerDid } from "@naoms/packages/contacts/peer-did.ts";
 import { createLogger } from "@naoms/logging";
 
 import {
-  type FlowAgreementTerms,
   flowAgreementId,
+  type FlowAgreementTerms,
   validateFlowAgreementTerms,
 } from "../domain/agreement.ts";
 
@@ -152,15 +152,18 @@ async function appendAgreementEvent(
   // bilateral agreement is already scoped by friendship-chain membership (both
   // parties are members), so it replicates plainly like message.sent / task.* —
   // which also omit `domain`. tripleFormat still drives the graph projection.
-  const commit = await securedAppend(ctx.dbHandle, {
-    chainId: fcId,
-    branch: "content",
-    type,
-    payload: JSON.stringify(payload),
-    signerDid,
-    signerKeyId: `${signerDid}#key-0`,
-    tripleFormat: { featureId: "flow-funding", entityId },
-  } as Parameters<typeof securedAppend>[1]);
+  const commit = await securedAppend(
+    ctx.dbHandle,
+    {
+      chainId: fcId,
+      branch: "content",
+      type,
+      payload: JSON.stringify(payload),
+      signerDid,
+      signerKeyId: `${signerDid}#key-0`,
+      tripleFormat: { featureId: "flow-funding", entityId },
+    } as Parameters<typeof securedAppend>[1],
+  );
   return (commit as { id: string }).id;
 }
 
@@ -282,8 +285,7 @@ export async function handleAgreementAccept(
     return respond({
       type: "flow.agreement_accept.result",
       ok: false,
-      error:
-        `no proposed agreement ${agreementId} visible locally yet ` +
+      error: `no proposed agreement ${agreementId} visible locally yet ` +
         `(has the proposer's lane replicated?)`,
     });
   }
