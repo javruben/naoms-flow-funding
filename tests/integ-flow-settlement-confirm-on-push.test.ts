@@ -45,8 +45,10 @@
 //   ceremony; no ceremony key material exists in an in-process integ DB, so the commit
 //   input must be constructed (to its exact production shape) — removing the bypass would
 //   require the full 2-daemon ceremony, which is the sibling e2e's job, not this tier's.
-// @canonical-flow YES — real _hook_flow_settlement_confirm + real handleGetSettlement over
-//   a real DB; only the transfer-commit input is constructed (to its production shape).
+//   [canonical-flow YES] real _hook_flow_settlement_confirm + real
+//   handleGetSettlement over a real DB; only the transfer-commit input is
+//   constructed (to its production shape).
+// @canonical-flow YES
 // === END HEADER ===
 
 import { assertEquals } from "jsr:@std/assert@1";
