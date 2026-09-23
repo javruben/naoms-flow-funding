@@ -111,16 +111,25 @@ Deno.test({
     "token.pay (non-interactive capability)",
   fn: async () => {
     if (!Deno.env.get("NAOMS_FFI_LIB_PATH")) {
-      const repoRoot = new URL("../../../../", import.meta.url).pathname.replace(/\/$/, "");
+      const repoRoot = new URL("../../../../", import.meta.url).pathname
+        .replace(/\/$/, "");
       Deno.env.set("NAOMS_FFI_LIB_PATH", `${repoRoot}/rust/target/release`);
     }
-    console.error(`[1644-cli] spawning holon(issuer/payer) + claimant(payee)...`);
-    const holon = await spawnSingleDaemon("alice", { bootTimeoutMs: BOOT_BUDGET_MS });
+    console.error(
+      `[1644-cli] spawning holon(issuer/payer) + claimant(payee)...`,
+    );
+    const holon = await spawnSingleDaemon("alice", {
+      bootTimeoutMs: BOOT_BUDGET_MS,
+    });
     await delay(3_000);
-    const claimant = await spawnSingleDaemon("bob", { bootTimeoutMs: BOOT_BUDGET_MS });
+    const claimant = await spawnSingleDaemon("bob", {
+      bootTimeoutMs: BOOT_BUDGET_MS,
+    });
 
     // Auto-grant the SETUP gates (define/mint/admit) on each daemon's authed WS.
-    let disposeHolon: (() => void) | undefined = installActionApprovalAutoGrant(holon.handle.ws);
+    let disposeHolon: (() => void) | undefined = installActionApprovalAutoGrant(
+      holon.handle.ws,
+    );
     const disposeClaimant = installActionApprovalAutoGrant(claimant.handle.ws);
 
     try {
@@ -128,8 +137,14 @@ Deno.test({
       const claimantCli = cliFor(claimant.handle);
       const holonDid = await fetchFounderDidFromHealth(holon.handle.port);
       const claimantDid = await fetchFounderDidFromHealth(claimant.handle.port);
-      assert(typeof holonDid === "string" && holonDid.length > 0, "holon owner DID");
-      assert(typeof claimantDid === "string" && claimantDid.length > 0, "claimant owner DID");
+      assert(
+        typeof holonDid === "string" && holonDid.length > 0,
+        "holon owner DID",
+      );
+      assert(
+        typeof claimantDid === "string" && claimantDid.length > 0,
+        "claimant owner DID",
+      );
       assert(holonDid !== claimantDid, "distinct holon/claimant owner DIDs");
       const holonUrl = `ws://127.0.0.1:${holon.handle.port}/ws`;
       const claimantUrl = `ws://127.0.0.1:${claimant.handle.port}/ws`;
@@ -138,36 +153,56 @@ Deno.test({
 
       // ── (1) PEER-PAIR via the REAL `naoms contacts handshake` CLI verb. ──
       const pair = await holonCli([
-        "contacts", "handshake",
-        "--daemon-url", holonUrl,
-        "--peer-daemon-url", claimantUrl,
+        "contacts",
+        "handshake",
+        "--daemon-url",
+        holonUrl,
+        "--peer-daemon-url",
+        claimantUrl,
         "--json",
       ], { timeoutMs: 180_000 });
-      assert(pair.code === 0, `contacts handshake exit=${pair.code}: ${pair.stderr.slice(0, 600)}`);
+      assert(
+        pair.code === 0,
+        `contacts handshake exit=${pair.code}: ${pair.stderr.slice(0, 600)}`,
+      );
       const pairJson = lastJson(pair.stdout);
       assert(
         pairJson !== null && typeof pairJson.chainId === "string" &&
           (pairJson.chainId as string).startsWith("fc-"),
-        `peer-pair did not return an fc-* friendship chain: ${pair.stdout.slice(0, 600)}`,
+        `peer-pair did not return an fc-* friendship chain: ${
+          pair.stdout.slice(0, 600)
+        }`,
       );
       console.error(`[1644-cli] paired ${pairJson!.chainId}`);
 
       // ── (2) holon defines a quorum-t2 flow-favor token, mints, admits the claimant. ──
       const def = await holonCli([
-        "token", "define",
-        "--kind", "custom",
-        "--label", "flow-favor",
-        "--value-basis", "favor",
-        "--cap", String(CAP),
-        "--ttl", "72h",
-        "--privacy", "clear",
+        "token",
+        "define",
+        "--kind",
+        "custom",
+        "--label",
+        "flow-favor",
+        "--value-basis",
+        "favor",
+        "--cap",
+        String(CAP),
+        "--ttl",
+        "72h",
+        "--privacy",
+        "clear",
         "--non-transferable",
-        "--min-attesters", "2",
+        "--min-attesters",
+        "2",
         "--yes",
-        "--daemon-url", holonUrl,
+        "--daemon-url",
+        holonUrl,
         "--json",
       ], { timeoutMs: 120_000 });
-      assert(def.code === 0, `token define exit=${def.code}: ${def.stderr.slice(0, 600)}`);
+      assert(
+        def.code === 0,
+        `token define exit=${def.code}: ${def.stderr.slice(0, 600)}`,
+      );
       const defJson = lastJson(def.stdout);
       assert(
         defJson?.ok === true && typeof defJson.tokenId === "string",
@@ -177,29 +212,63 @@ Deno.test({
       console.error(`[1644-cli] token defined ${tokenId}`);
 
       const mint = await holonCli([
-        "token", "mint", "--token", tokenId, "--amount", String(MINT),
-        "--daemon-url", holonUrl, "--json",
+        "token",
+        "mint",
+        "--token",
+        tokenId,
+        "--amount",
+        String(MINT),
+        "--daemon-url",
+        holonUrl,
+        "--json",
       ], { timeoutMs: 120_000 });
-      assert(mint.code === 0, `token mint exit=${mint.code}: ${mint.stderr.slice(0, 600)}`);
-      assert(lastJson(mint.stdout)?.ok === true, `token mint not ok: ${mint.stdout.slice(0, 600)}`);
+      assert(
+        mint.code === 0,
+        `token mint exit=${mint.code}: ${mint.stderr.slice(0, 600)}`,
+      );
+      assert(
+        lastJson(mint.stdout)?.ok === true,
+        `token mint not ok: ${mint.stdout.slice(0, 600)}`,
+      );
 
       const admit = await holonCli([
-        "token", "admit", claimantDid, "--token", tokenId, "--yes",
-        "--daemon-url", holonUrl, "--json",
+        "token",
+        "admit",
+        claimantDid,
+        "--token",
+        tokenId,
+        "--yes",
+        "--daemon-url",
+        holonUrl,
+        "--json",
       ], { timeoutMs: 120_000 });
-      assert(admit.code === 0, `token admit exit=${admit.code}: ${admit.stderr.slice(0, 600)}`);
-      assert(lastJson(admit.stdout)?.ok === true, `token admit not ok: ${admit.stdout.slice(0, 600)}`);
+      assert(
+        admit.code === 0,
+        `token admit exit=${admit.code}: ${admit.stderr.slice(0, 600)}`,
+      );
+      assert(
+        lastJson(admit.stdout)?.ok === true,
+        `token admit not ok: ${admit.stdout.slice(0, 600)}`,
+      );
       console.error(`[1644-cli] claimant admitted`);
 
       // ── (3) Sequence the async co-sign precondition: poll `naoms token balance` on the
       //    CLAIMANT until ok (the durable token chain + FROST share replicated). 1596's
       //    deterministic CLI-observable signal; budget 150s OUTSIDE the settle window. ──
-      console.error(`[1644-cli] polling claimant token balance for replication (150s)...`);
+      console.error(
+        `[1644-cli] polling claimant token balance for replication (150s)...`,
+      );
       let replicated = false;
       const shareDeadline = Date.now() + 150_000;
       while (Date.now() < shareDeadline) {
         const probe = await claimantCli([
-          "token", "balance", "--token", tokenId, "--daemon-url", claimantUrl, "--json",
+          "token",
+          "balance",
+          "--token",
+          tokenId,
+          "--daemon-url",
+          claimantUrl,
+          "--json",
         ], { timeoutMs: 30_000 });
         if (probe.code === 0 && lastJson(probe.stdout)?.ok === true) {
           replicated = true;
@@ -207,16 +276,28 @@ Deno.test({
         }
         await delay(3_000);
       }
-      assert(replicated, `claimant never replicated the token (balance token-not-found) within 150s`);
+      assert(
+        replicated,
+        `claimant never replicated the token (balance token-not-found) within 150s`,
+      );
       console.error(`[1644-cli] claimant replicated the token (co-sign-ready)`);
 
       // Claimant credit BEFORE (CLI witness on the claimant daemon).
       const balBefore = await claimantCli([
-        "token", "balance", "--token", tokenId, "--daemon-url", claimantUrl, "--json",
+        "token",
+        "balance",
+        "--token",
+        tokenId,
+        "--daemon-url",
+        claimantUrl,
+        "--json",
       ], { timeoutMs: 30_000 });
-      const beforeBals = (lastJson(balBefore.stdout)?.balances as Array<Record<string, unknown>>) ?? [];
+      const beforeBals = (lastJson(balBefore.stdout)?.balances as Array<
+        Record<string, unknown>
+      >) ?? [];
       const beforeCredit = beforeBals.reduce(
-        (s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0), 0,
+        (s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0),
+        0,
       );
       console.error(`[1644-cli] claimant credit BEFORE: ${beforeCredit}`);
 
@@ -226,7 +307,9 @@ Deno.test({
         disposeHolon();
         disposeHolon = undefined;
       }
-      console.error(`[1644-cli] holon approval auto-grant DISPOSED — settlement pay must ride the capability`);
+      console.error(
+        `[1644-cli] holon approval auto-grant DISPOSED — settlement pay must ride the capability`,
+      );
 
       // ── (4) holon arms the owner-signed delegation root + K (automatedSettlementCap). ──
       // NOTE: the CLI command group is the PACKAGE area `flow-funding`, NOT `flow`
@@ -234,31 +317,62 @@ Deno.test({
       // shadows the manifest-op verbs; the generated dispatch nests flow-funding ops
       // under `naoms flow-funding <verb>` (area == pkg id).
       const arm = await holonCli([
-        "flow-funding", "policy-set",
-        "--context", context,
-        "--token-kind", tokenId,
-        "--params", JSON.stringify({
-          floor: 100, ceiling: 500, gradient: 0,
-          perClaimantCap: 1.0, perEpochCap: 0.5, automatedSettlementCap: 1000,
+        "flow-funding",
+        "policy-set",
+        "--context",
+        context,
+        "--token-kind",
+        tokenId,
+        "--params",
+        JSON.stringify({
+          floor: 100,
+          ceiling: 500,
+          gradient: 0,
+          perClaimantCap: 1.0,
+          perEpochCap: 0.5,
+          automatedSettlementCap: 1000,
         }),
-        "--daemon-url", holonUrl, "--json",
+        "--daemon-url",
+        holonUrl,
+        "--json",
       ], { timeoutMs: 120_000 });
-      assert(arm.code === 0, `flow policy-set exit=${arm.code}: ${arm.stderr.slice(0, 600)}`);
+      assert(
+        arm.code === 0,
+        `flow policy-set exit=${arm.code}: ${arm.stderr.slice(0, 600)}`,
+      );
       const armJson = lastJson(arm.stdout);
-      assert(armJson?.ok === true, `policy-set not ok: ${arm.stdout.slice(0, 600)}`);
-      assert(armJson?.delegationArmed === true, `delegation root must be armed — ${JSON.stringify(armJson)}`);
+      assert(
+        armJson?.ok === true,
+        `policy-set not ok: ${arm.stdout.slice(0, 600)}`,
+      );
+      assert(
+        armJson?.delegationArmed === true,
+        `delegation root must be armed — ${JSON.stringify(armJson)}`,
+      );
 
       // ── (5) holon settles (balance 700 → surplus 200; claimant need 200). ──
       const settle = await holonCli([
-        "flow-funding", "epoch-settle",
-        "--context", context,
-        "--balance", "700",
-        "--claimants", JSON.stringify([{ id: claimantDid, need: 200, trustWeight: 1 }]),
-        "--daemon-url", holonUrl, "--json",
+        "flow-funding",
+        "epoch-settle",
+        "--context",
+        context,
+        "--balance",
+        "700",
+        "--claimants",
+        JSON.stringify([{ id: claimantDid, need: 200, trustWeight: 1 }]),
+        "--daemon-url",
+        holonUrl,
+        "--json",
       ], { timeoutMs: 120_000 });
-      assert(settle.code === 0, `flow epoch-settle exit=${settle.code}: ${settle.stderr.slice(0, 600)}`);
+      assert(
+        settle.code === 0,
+        `flow epoch-settle exit=${settle.code}: ${settle.stderr.slice(0, 600)}`,
+      );
       const settleJson = lastJson(settle.stdout);
-      assert(settleJson?.ok === true, `epoch-settle not ok: ${settle.stdout.slice(0, 600)}`);
+      assert(
+        settleJson?.ok === true,
+        `epoch-settle not ok: ${settle.stdout.slice(0, 600)}`,
+      );
       const vm = settleJson!.valueMovement as {
         attempted: boolean;
         paid: Array<{ id: string; amount: number; entryId?: string }>;
@@ -266,23 +380,36 @@ Deno.test({
         indeterminate: Array<{ id: string; amount: number; reason: string }>;
       };
       console.error(`[1644-cli] valueMovement: ${JSON.stringify(vm)}`);
-      assert(vm && vm.attempted, `value movement attempted — ${JSON.stringify(vm)}`);
+      assert(
+        vm && vm.attempted,
+        `value movement attempted — ${JSON.stringify(vm)}`,
+      );
       // The capability satisfied CORE_APPROVAL_REQUIRED non-interactively (auto-grant
       // disposed): the allocation is NOT refused — paid, or honestly-indeterminate.
       assert(
         vm.refused.length === 0,
         `gated token.pay must NOT be refused (a refusal = capability did not satisfy the ` +
-          `gate, interactive fall-through with the auto-grant gone) — ${JSON.stringify(vm.refused)}`,
+          `gate, interactive fall-through with the auto-grant gone) — ${
+            JSON.stringify(vm.refused)
+          }`,
       );
       assert(
         vm.paid.length + vm.indeterminate.length === 1,
-        `the allocation rode the gated pay (paid or honestly-indeterminate) — ${JSON.stringify(vm)}`,
+        `the allocation rode the gated pay (paid or honestly-indeterminate) — ${
+          JSON.stringify(vm)
+        }`,
       );
 
       // ── MECHANISM: the gated pay fired the cross-device FROST 2-of-2 ceremony. ──
-      const holonCeremony = holon.handle.stderrLines.some((l) => l.includes("chain-quorum ceremony complete"));
-      const claimantPeer = claimant.handle.stderrLines.some((l) => l.includes("peer ceremony released on sign_result"));
-      console.error(`[1644-cli] dual-sign: holon=${holonCeremony} claimant=${claimantPeer}`);
+      const holonCeremony = holon.handle.stderrLines.some((l) =>
+        l.includes("chain-quorum ceremony complete")
+      );
+      const claimantPeer = claimant.handle.stderrLines.some((l) =>
+        l.includes("peer ceremony released on sign_result")
+      );
+      console.error(
+        `[1644-cli] dual-sign: holon=${holonCeremony} claimant=${claimantPeer}`,
+      );
       assert(
         holonCeremony && claimantPeer,
         `MECHANISM dual-sign: the gated token.pay MUST fire the cross-device FROST 2-of-2 ` +
@@ -296,22 +423,37 @@ Deno.test({
       const creditDeadline = Date.now() + 90_000;
       while (Date.now() < creditDeadline) {
         const balAfter = await claimantCli([
-          "token", "balance", "--token", tokenId, "--daemon-url", claimantUrl, "--json",
+          "token",
+          "balance",
+          "--token",
+          tokenId,
+          "--daemon-url",
+          claimantUrl,
+          "--json",
         ], { timeoutMs: 30_000 });
-        const bals = (lastJson(balAfter.stdout)?.balances as Array<Record<string, unknown>>) ?? [];
-        afterCredit = bals.reduce((s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0), 0);
+        const bals = (lastJson(balAfter.stdout)?.balances as Array<
+          Record<string, unknown>
+        >) ?? [];
+        afterCredit = bals.reduce(
+          (s, b) => s + Number(b.final ?? 0) + Number(b.pending ?? 0),
+          0,
+        );
         if (afterCredit > beforeCredit) break;
         await delay(3_000);
       }
       const credited = afterCredit - beforeCredit;
-      console.error(`[1644-cli] claimant credit AFTER: ${afterCredit} (credited=${credited})`);
+      console.error(
+        `[1644-cli] claimant credit AFTER: ${afterCredit} (credited=${credited})`,
+      );
       assert(
         credited > 0,
         `MECHANISM credit: the claimant daemon MUST credit its token_balance via member push ` +
           `of the gated cross-device token.pay. before=${beforeCredit} after=${afterCredit}. A ` +
           `single-writer t=1 pay never pushes → claimant stays 0 — RED.`,
       );
-      console.error(`[1644-cli] ✅ e2e-CLI 2-daemon flow payee-credit PROVEN: claimant credited ${credited}`);
+      console.error(
+        `[1644-cli] ✅ e2e-CLI 2-daemon flow payee-credit PROVEN: claimant credited ${credited}`,
+      );
     } finally {
       if (disposeHolon) disposeHolon();
       disposeClaimant();

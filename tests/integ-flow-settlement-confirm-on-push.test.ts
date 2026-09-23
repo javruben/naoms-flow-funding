@@ -47,7 +47,6 @@
 //   require the full 2-daemon ceremony, which is the sibling e2e's job, not this tier's.
 // @canonical-flow YES
 //   constructed (to its production shape).
-// @canonical-flow YES — real _hook_flow_settlement_confirm + real handleGetSettlement over
 //   a real DB; only the transfer-commit input is constructed (to its production shape).
 // === END HEADER ===
 
