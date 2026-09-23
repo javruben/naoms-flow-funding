@@ -12,7 +12,8 @@
 // === TEST-THEATRE PREVENTION HEADER ===
 // @test-tier unit
 // @covers src/packages/flow-funding/sharing/flow-domain.ts:1
-// @canonical-flow N/A — pure builder/materializer unit (mechanism RED→GREEN is
+// @canonical-flow N/A
+// @honesty-rationale canonical-flow N/A: pure builder/materializer unit (mechanism RED→GREEN is
 //   the multi-daemon integ; this is the deterministic logic underneath)
 // === END HEADER ===
 //
