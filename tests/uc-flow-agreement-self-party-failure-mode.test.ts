@@ -11,7 +11,7 @@
 // === END HEADER ===
 // @roadmap 1785
 
-import { assert, assertEquals } from "jsr:@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
   createTestDb,
   initTestSigning,
@@ -146,7 +146,10 @@ function assertRefused(rig: Rig, resultType: string, what: string): void {
     [],
     `${what}: a self-party agreement MUST NOT resolve any friendship chain`,
   );
-  const commits = getCommits(rig.db, { chainId: rig.fcId, limit: 100 }) as Array<
+  const commits = getCommits(rig.db, {
+    chainId: rig.fcId,
+    limit: 100,
+  }) as Array<
     { type?: string }
   >;
   assertEquals(
