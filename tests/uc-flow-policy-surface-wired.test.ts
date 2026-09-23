@@ -32,10 +32,13 @@ import {
   assert,
   assertEquals,
 } from "@std/assert";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -46,21 +49,6 @@ const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
 const SURFACES_PATH =
   `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) (el as AnyEl).style = { cssText: "" };
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) (el as AnyEl).style = { cssText: "" };
-  }
-  docAny.__styleShimmed = true;
-}
 
 interface ApiCalls {
   get: Array<Record<string, unknown>>;
@@ -140,8 +128,7 @@ async function mountWired(
     msg && msg.type === "token.list"
       ? Promise.resolve({ ok: true, tokens })
       : Promise.resolve({ ok: true });
-  // deno-lint-ignore no-explicit-any
-  const feature = (env.win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(env.win);
   assert(feature, "flow-funding feature registered");
   feature.init({ container: env.container, api, sendReq });
   feature.activate();
@@ -240,10 +227,8 @@ Deno.test("M6.1b save: Save dispatches policy_set with band params + humanLabel"
   floor.value = "1200";
   ceil.value = "5000";
   // pick a denomination (NAO hours) via the surface's own handler
-  // deno-lint-ignore no-explicit-any
-  (win as any).setCurrency("NAO");
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  winFn(win, "setCurrency")("NAO");
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched once");
   const sent = calls.set[0];
@@ -319,8 +304,7 @@ Deno.test('C7 empty-state: user holds NO token → save refuses (no policy_set),
   const ceil = doc.querySelector("#flow-policy #ceilingInput") as AnyEl;
   floor.value = "1200";
   ceil.value = "5000";
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  await winFn(win, "savePolicy")();
   assertEquals(
     calls.set.length,
     0,
