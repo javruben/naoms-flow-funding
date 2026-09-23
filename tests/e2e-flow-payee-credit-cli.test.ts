@@ -54,7 +54,7 @@
 //   is materialized by the real member-push (E1 gate-4) + read via `naoms token balance` —
 //   never pre-seeded. The settle may report paid OR honestly-indeterminate (cross-device
 //   ceremony vs the 15s deadline); the credit on bob is the authoritative outcome.
-//   [canonical-flow YES] every state mutation goes through the production
+//   canonical-flow YES: every state mutation goes through the production
 //   `naoms` CLI verbs (contacts handshake, token define/mint/admit, flow
 //   policy-set/epoch-settle) routed through the real handlers; the credit
 //   witness is `naoms token balance` on bob.

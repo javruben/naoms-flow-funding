@@ -26,7 +26,7 @@
 //   a STRUCTURAL fact of buildRow (renders entryKind label OR a notice banner —
 //   never signerDid, amount, or a from/to line), independent of cross-device
 //   timing: even when the credit lands and the number grows, no row names the payer.
-//   [canonical-flow YES] every state mutation goes through the production
+//   canonical-flow YES: every state mutation goes through the production
 //   `naoms` CLI verbs + real handlers; the receipt witness is the payee's real
 //   browser wallet UI after a real cross-identity settlement.
 // @pre-seeds NONE

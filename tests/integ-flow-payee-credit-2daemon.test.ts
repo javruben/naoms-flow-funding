@@ -40,10 +40,10 @@
 //   credit is asserted on the claimant daemon by polling (E1-style). The settle reporting
 //   `paid` for a cross-device leg is a UX refinement (cross-device-aware confirm-on-push)
 //   tracked as an M-row, NOT a correctness gate for this proof.
-//   [canonical-flow YES] token.define/mint/admit + flow.policy_set (arm root+K)
+//   canonical-flow YES: token.define/mint/admit + flow.policy_set (arm root+K)
 //   + flow.epoch_settle via the production WS ops; the credit witness is a
-//   PAYEE-side graph.query {type:"token_balance"} on the claimant daemon, never
-//   the holon's history.
+//   PAYEE-side graph.query {type:"token_balance"} on the claimant daemon,
+//   never the holon's history.
 // === END HEADER ===
 
 import { assert } from "@std/assert";

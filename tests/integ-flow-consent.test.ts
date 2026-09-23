@@ -54,7 +54,7 @@
 //   driven through the real flow.epoch_settle handler. The settlement's token.pay is
 //   satisfied by the CAPABILITY (no interactive approval answered for it — that IS
 //   the M4 claim). Payee credit is read back from the token fold, never pre-seeded.
-//   [canonical-flow YES] token.define/mint/admit → flow.policy_set (arm root +
+//   canonical-flow YES: token.define/mint/admit → flow.policy_set (arm root +
 //   K) → flow.epoch_settle → token.pay (handlePay) under
 //   args._capability={leaf,root}
 // === END HEADER ===
