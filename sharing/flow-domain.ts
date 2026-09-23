@@ -116,10 +116,22 @@ export async function build(
   if (ctx.level === "detailed") data.by_context = byContext;
 
   // Mint the N-hop redistribution capability that bounds onward reshare of THIS
-  // outcome (T-27). Fail-closed: if the Biscuit FFI is unavailable, `cap` is
-  // null and we share direct-only (no reshare authority) — the privacy baseline.
+  // outcome (T-27).
+  //
+  // 🛑 1314 §6.0 escape hatch 4 — A GUARD WHOSE FAILURE MODE IS TO PERMIT IS
+  // NOT A GUARD. This used to read `if (cap) data._capability = …`, so a mint
+  // failure (FFI unavailable, build error) shipped the holon's circulation
+  // totals with NO capability attached at all: the one path that was supposed
+  // to bound onward redistribution degraded, on error, to an unbounded ungated
+  // payload. The comment called that "the privacy baseline"; it is the
+  // opposite — the baseline is to disclose NOTHING we cannot bound.
+  //
+  // Fail-closed: no capability ⇒ no share. `null` is the engine's
+  // share-nothing signal and is already the level-`off` / no-settlements
+  // return, so a refusal here costs privacy nothing and leaks nothing.
   const cap = mintFlowShareCapability();
-  if (cap) data._capability = capabilityToWire(cap);
+  if (!cap) return null;
+  data._capability = capabilityToWire(cap);
 
   // N-hop relay: forward outcomes we RECEIVED from other peers, each gated by
   // its own Biscuit caveat. `authorizeReshare` REFUSES (fail-closed) any outcome
@@ -157,7 +169,9 @@ interface ForwardedOutcome extends WireCapability {
  * that fail the gate (spent budget / denied token) are dropped (T-25).
  */
 async function buildForwardedOutcomes(
-  gq: (q: Record<string, unknown>) => Promise<{ nodes?: unknown[] } | undefined>,
+  gq: (
+    q: Record<string, unknown>,
+  ) => Promise<{ nodes?: unknown[] } | undefined>,
   excludePeer: string,
 ): Promise<ForwardedOutcome[]> {
   const res = await gq({
@@ -166,7 +180,9 @@ async function buildForwardedOutcomes(
     limit: 10000,
   });
   // naoms-check-ignore: PC-489 graphQueryAsync optional-call result may be undefined on async arm
-  const nodes = (res?.nodes ?? []) as Array<{ properties?: Record<string, unknown> }>;
+  const nodes = (res?.nodes ?? []) as Array<
+    { properties?: Record<string, unknown> }
+  >;
   const out: ForwardedOutcome[] = [];
   for (const node of nodes) {
     const p = node.properties ?? {};
@@ -216,7 +232,11 @@ export function materialize(
   const termsJson = JSON.stringify(terms);
 
   const cap = data._capability as
-    | { contract?: unknown; root_pub_hex?: unknown; max_hops_remaining?: unknown }
+    | {
+      contract?: unknown;
+      root_pub_hex?: unknown;
+      max_hops_remaining?: unknown;
+    }
     | undefined;
 
   // The direct outcome from this peer (keyed per origin peer DID).
@@ -229,9 +249,7 @@ export function materialize(
       source: "received",
       total_flowed: (data.total_flowed as number) ?? null,
       epoch_count: (data.epoch_count as number) ?? null,
-      by_context_json: data.by_context
-        ? JSON.stringify(data.by_context)
-        : null,
+      by_context_json: data.by_context ? JSON.stringify(data.by_context) : null,
       level,
       terms_json: termsJson,
       shared_at: sharedAt,

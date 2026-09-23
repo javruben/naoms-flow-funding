@@ -9,7 +9,7 @@
 // === END HEADER ===
 
 import "../../../../tests/helpers/_disable-ffi-hash-sidecar.ts";
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals } from "@std/assert";
 import {
   _graphLinkAsync,
   _graphPutAsync,

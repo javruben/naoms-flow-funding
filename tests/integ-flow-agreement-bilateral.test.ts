@@ -25,7 +25,7 @@
 // @canonical-flow YES
 // === END HEADER ===
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "@std/assert";
 import { withDevices } from "../../../../tests/helpers/with-devices.ts";
 import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
 

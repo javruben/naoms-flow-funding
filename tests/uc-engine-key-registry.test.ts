@@ -17,7 +17,9 @@
 //   core `verifyToken(token, K.pub)` (real Ed25519, NOT a JS-field check);
 //   fingerprint === keyFingerprint(K.pub); revoke + re-arm DISCARD the prior key so
 //   its fingerprint no longer resolves (revoke-by-policy-version)
-// @canonical-flow flow-funding/domain/engine-key-registry.ts armEngineKey
+// @canonical-flow YES
+// @honesty-rationale canonical-flow YES: flow-funding/domain/engine-key-registry.ts
+//   armEngineKey
 // === END HEADER ===
 //
 // Requires the naoms_core dylib (keyFingerprint/verifyToken use FFI blake3/ed25519).
@@ -29,7 +31,7 @@ import {
   assertEquals,
   assertExists,
   assertNotEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 import {
   keyFingerprint,
   mintDelegationRoot,

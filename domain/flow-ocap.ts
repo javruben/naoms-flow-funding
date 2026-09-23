@@ -37,8 +37,8 @@ import {
   keyFingerprint,
   mintActionLeaf,
   mintDelegationRoot,
-  mintToken,
   type MintSignFn,
+  mintToken,
   type TokenScope,
   verifyToken,
 } from "@naoms/core/ucan/capability-token.ts";
@@ -245,7 +245,9 @@ export function verifyFlowOcapForAllocation(
 
   // Gate evidence: without an approval receipt the token.pay gate would reject
   // this anyway — refuse here so the failure is named, not deferred.
-  if (!token.approval_receipt) return { ok: false, reason: "no-approval-receipt" };
+  if (!token.approval_receipt) {
+    return { ok: false, reason: "no-approval-receipt" };
+  }
 
   // Scope: the capability must actually authorize token.pay.
   if (!token.scope.tools.includes("token.pay")) {

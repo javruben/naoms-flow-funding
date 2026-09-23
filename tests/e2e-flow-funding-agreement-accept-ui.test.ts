@@ -30,11 +30,13 @@
 //   BOTH daemons' real flow.get_agreement, so a status flip on one side alone
 //   cannot pass. Also names: cross, unlock, identity, keychain, kronos, vault,
 //   biometric, iroh.
-// @canonical-flow YES — A proposes (WS) → proposed lane replicates to B → B's
-//   Flow UI renders the incoming proposal → real ACCEPT click → agreement_accept
-//   → accepted lane replicates to A → bilateral fold `active` on both.
-// @pre-seeds NONE — the agreement is produced by the real propose write path; no
-//   flow_agreement / flow-state row is seeded.
+//   pre-seeds NONE: the agreement is produced by the real propose write path;
+//   no flow_agreement / flow-state row is seeded.  EXPECTED-RED-ON-MAC (run
+//   env): the canonical 2-daemon real-browser E2Es carry an EXPECTED-RED-ON-
+//   MAC note (see e2e-trust-notifications-peer-pair.test.ts + M-1494-M25) —
+//   Mac co-tenancy with sibling claude / rustc / git starves real-browser
+// @pre-seeds NONE
+// @canonical-flow YES
 //
 // EXPECTED-RED-ON-MAC (run env): the canonical 2-daemon real-browser E2Es carry
 // an EXPECTED-RED-ON-MAC note (see e2e-trust-notifications-peer-pair.test.ts +
@@ -49,6 +51,7 @@
 //     src/packages/flow-funding/tests/e2e-flow-funding-agreement-accept-ui.test.ts
 // === END HEADER ===
 
+import type { FlowPageWindow } from "./_flow-e2e-page.ts";
 import { assert, assertEquals } from "jsr:@std/assert";
 import { withNDaemonNBrowser } from "../../../../tests/helpers/n-daemon-n-browser.ts";
 import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
@@ -152,8 +155,7 @@ Deno.test({
         // ── Daemon B's browser: open the Flow feature, view "Flow" (your
         //    flows / incoming agreements).
         await bobB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           await w._naoms.activateApp("flow-funding");
         });
         // wait for the wired flow shell (its exposed surface-nav hook).

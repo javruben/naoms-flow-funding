@@ -42,10 +42,12 @@
 //   agreement accept, settlement, and cross-boundary flow_outcome all remain produced
 //   by real UI gestures / real op write paths.
 // @canonical-flow YES
-// @pre-seeds NONE — the policy, agreement, acceptance, settlement, and cross-boundary
-//   flow_outcome are all produced by real UI gestures / real op write paths; no
-//   flow_policy / flow_agreement / flow_settlement / flow_outcome row is seeded.
+// @pre-seeds NONE
 // @cross-identity 2-daemon, real-pointer (HC-09) — NOT env-gated (HC-C5): runs by default.
+// @honesty-rationale pre-seeds NONE: the policy, agreement, acceptance, settlement, and cross-
+//   boundary flow_outcome are all produced by real UI gestures / real op write
+//   paths; no flow_policy / flow_agreement / flow_settlement / flow_outcome
+//   row is seeded.
 // === END HEADER ===
 //
 // 1644 COMPLETION C6/G5 — the whole-loop narrative (original frozen-plan M7, the STAR:
@@ -91,6 +93,7 @@
 //     deno test -A --no-check --unstable-sloppy-imports --config <repoRoot>/deno.json \
 //     src/packages/flow-funding/tests/e2e-flow-funding-narrative.test.ts
 
+import type { FlowPageWindow } from "./_flow-e2e-page.ts";
 import { assert, assertEquals } from "jsr:@std/assert";
 import { withNDaemonNBrowser } from "../../../../tests/helpers/n-daemon-n-browser.ts";
 import { wsSend } from "../../../../tests/helpers/shared-harness.ts";
@@ -145,7 +148,6 @@ function parseAllocations(
   return out;
 }
 
-// deno-lint-ignore no-explicit-any
 async function graphNodes(
   ws: WebSocket,
   type: string,
@@ -294,8 +296,7 @@ Deno.test({
 
         // ── (1) Payer UI: open Flow Funding, arm a FlowPolicy via the Save gesture. ──
         await payerB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           if (!w._naoms || typeof w._naoms.activateApp !== "function") {
             throw new Error(
               "_naoms.activateApp not exposed — shell init incomplete",
@@ -325,8 +326,7 @@ Deno.test({
             // armed policy (and the settle) target a real tokenId node, not the
             // KIND label "custom" (which moves no value). Set the <select> value +
             // drive the real onchange handler.
-            // deno-lint-ignore no-explicit-any
-            const w = window as any;
+            const w = window as FlowPageWindow;
             const sel = document.querySelector(
               "#flow-policy #tokenSelect",
             ) as HTMLSelectElement | null;
@@ -372,8 +372,7 @@ Deno.test({
 
         // ── (2) Payer UI: propose a flow agreement to the payee. ──
         await payerB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           if (typeof w.__flowShowSurface === "function") {
             w.__flowShowSurface("agreement");
           }
@@ -447,8 +446,7 @@ Deno.test({
 
         // ── (4) Payee UI: open Flow Funding, view Flow, ACCEPT via the real control. ──
         await payeeB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           await w._naoms.activateApp("flow-funding");
         });
         await payeeB.page.waitForFunction(
@@ -527,8 +525,7 @@ Deno.test({
         //        agreement counterparty (deriveClaimants); surplus above the ceiling is
         //        allocated to the below-floor dependent. ──
         await payerB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           if (typeof w.__flowShowSurface === "function") {
             w.__flowShowSurface("velocity");
           }
@@ -676,8 +673,7 @@ Deno.test({
         // e2e-flow-funding-wallet-receipt.test.ts, but the delegation is UI-armed here.
         const directedAmt = directed!.amount;
         await payeeB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           if (!w._naoms || typeof w._naoms.activateApp !== "function") {
             throw new Error("_naoms.activateApp not exposed");
           }
@@ -697,8 +693,7 @@ Deno.test({
         );
         await delay(2000);
         await payeeB.page.evaluate(async () => {
-          // deno-lint-ignore no-explicit-any
-          const w = window as any;
+          const w = window as FlowPageWindow;
           const feat = w._naomsFeatures && w._naomsFeatures.token;
           if (!feat || typeof feat.openActivity !== "function") {
             throw new Error("wallet openActivity nav surface not exposed");

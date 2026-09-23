@@ -26,11 +26,14 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+} from "@std/assert";
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -42,23 +45,6 @@ const SURFACES_PATH =
   `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 const SELF = "did:self";
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) (el as AnyEl).style = { cssText: "", setProperty() {} };
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-  }
-  docAny.__styleShimmed = true;
-}
 
 function buildEnv() {
   const doc = new DOMParser().parseFromString(
@@ -119,13 +105,11 @@ async function mountVelocity(
       return Promise.resolve({ nodes: [] });
     },
   };
-  // deno-lint-ignore no-explicit-any
-  const feature = (env.win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(env.win);
   feature.init(ctx);
   feature.activate();
   await new Promise((r) => setTimeout(r, 0));
-  // deno-lint-ignore no-explicit-any
-  (env.win as any).__flowShowSurface("velocity");
+  winFn(env.win, "__flowShowSurface")("velocity");
   await new Promise((r) => setTimeout(r, 0));
   return { win: env.win, doc: env.doc };
 }

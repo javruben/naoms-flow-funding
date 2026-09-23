@@ -27,7 +27,7 @@
 // exercises (the leg is unconfirmed FIRST, then a separate late commit confirms it).
 //
 // === TEST-THEATRE PREVENTION HEADER ===
-// @test-tier integration
+// @test-tier unit
 // @covers src/packages/flow-funding/domain/settlement-confirm-hook.ts:1
 // @covers src/packages/flow-funding/handlers/epoch-settle.ts:handleGetSettlement
 // @mechanism-asserted M-CONFIRM-ON-PUSH indeterminate→paid — a flow_settlement leg with NO
@@ -45,10 +45,7 @@
 //   ceremony; no ceremony key material exists in an in-process integ DB, so the commit
 //   input must be constructed (to its exact production shape) — removing the bypass would
 //   require the full 2-daemon ceremony, which is the sibling e2e's job, not this tier's.
-//   [canonical-flow YES] real _hook_flow_settlement_confirm + real
-//   handleGetSettlement over a real DB; only the transfer-commit input is
-//   constructed (to its production shape).
-// @canonical-flow YES
+// @canonical-flow YES — real _hook_flow_settlement_confirm + real handleGetSettlement over a real DB; only the transfer-commit input is constructed (to its production shape).
 // === END HEADER ===
 
 import { assertEquals } from "jsr:@std/assert@1";

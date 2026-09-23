@@ -42,7 +42,9 @@ export const flowAgreementFold: MaterializerEnricher = {
     const data = extractPayloadDeep(ctx);
     const agreementId = (data.agreementId ?? data.id) as string | undefined;
     if (!agreementId) {
-      L.warn("flow-agreement fold: missing agreementId", { eventType: ctx.eventType });
+      L.warn("flow-agreement fold: missing agreementId", {
+        eventType: ctx.eventType,
+      });
       return;
     }
 

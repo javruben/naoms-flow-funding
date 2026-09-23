@@ -29,11 +29,14 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+} from "@std/assert";
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -48,23 +51,6 @@ const SELF = "did:key:zSelfAccepter";
 const PEER = "did:key:zPeerProposer";
 const AGREEMENT_ID = "flow-agreement-incoming-1";
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) (el as AnyEl).style = { cssText: "", setProperty() {} };
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-  }
-  docAny.__styleShimmed = true;
-}
 
 async function evalInto(
   env: { doc: AnyDoc; win: Record<string, unknown> },
@@ -117,8 +103,7 @@ Deno.test("C3/G4: an incoming flow proposal renders an Accept control that calls
       return Promise.resolve({ ok: true });
     },
   };
-  // deno-lint-ignore no-explicit-any
-  const feature = (win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(win);
   assert(feature, "flow-funding feature registered");
   feature.init({ container, api, graphQuery, ownerDid: SELF });
   feature.activate();
@@ -126,8 +111,7 @@ Deno.test("C3/G4: an incoming flow proposal renders an Accept control that calls
   await new Promise((r) => setTimeout(r, 0));
 
   // Show the Flow (velocity) surface where incoming proposals + accept live.
-  // deno-lint-ignore no-explicit-any
-  (win as any).__flowShowSurface("velocity");
+  winFn(win, "__flowShowSurface")("velocity");
   // flush loadVelocity graphQuery .then chain
   await new Promise((r) => setTimeout(r, 0));
   await new Promise((r) => setTimeout(r, 0));
@@ -148,8 +132,7 @@ Deno.test("C3/G4: an incoming flow proposal renders an Accept control that calls
 
   // Drive the accept via its real exposed handler and assert the op fired with
   // the right id (the same call the 2-daemon e2e makes via a real pointer click).
-  // deno-lint-ignore no-explicit-any
-  await (win as any).agreementAccept(AGREEMENT_ID);
+  await winFn(win, "agreementAccept")(AGREEMENT_ID);
   assertEquals(
     acceptCalls.length,
     1,

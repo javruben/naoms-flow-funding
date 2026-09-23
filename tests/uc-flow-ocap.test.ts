@@ -18,7 +18,9 @@
 //   forged/edited token fails verifyToken — NOT a JS-field check); over-cap /
 //   stale-policy-version / wrong-context / vault-locked / missing-receipt all
 //   REFUSE LOUD (T-12/T-13/T-14)
-// @canonical-flow flow-funding/domain/flow-ocap.ts verifyFlowOcapForAllocation
+// @canonical-flow YES
+// @honesty-rationale canonical-flow YES: flow-funding/domain/flow-ocap.ts
+//   verifyFlowOcapForAllocation
 // === END HEADER ===
 //
 // Requires the naoms_core dylib (verifyToken uses FFI ed25519/blake3). Run:
@@ -29,7 +31,7 @@
 //   FAILED | 0 passed | 0 failed
 // GREEN (this file, post-implementation): ok | N passed | 0 failed (banked in M4 note)
 
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "@std/assert";
 import * as ed from "jsr:@noble/ed25519@2";
 import { sha512 } from "jsr:@noble/hashes@1/sha512";
 import {

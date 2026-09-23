@@ -30,11 +30,14 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+} from "@std/assert";
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -45,23 +48,6 @@ const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
 const SURFACES_PATH =
   `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) (el as AnyEl).style = { cssText: "", setProperty() {} };
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-  }
-  docAny.__styleShimmed = true;
-}
 
 interface ApiCalls {
   propose: Array<Record<string, unknown>>;
@@ -111,14 +97,12 @@ async function mountAgreement(): Promise<{
       return Promise.resolve({ ok: true, agreementId: "flow-agreement-x" });
     },
   };
-  // deno-lint-ignore no-explicit-any
-  const feature = (env.win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(env.win);
   feature.init({ container: env.container, api });
   feature.activate();
   await new Promise((r) => setTimeout(r, 0));
   // switch to the Agreement surface via the exposed nav hook
-  // deno-lint-ignore no-explicit-any
-  (env.win as any).__flowShowSurface("agreement");
+  winFn(env.win, "__flowShowSurface")("agreement");
   return { win: env.win, doc: env.doc, calls };
 }
 
@@ -164,8 +148,7 @@ Deno.test("M6.2 create: Create dispatches agreement_propose with counterparty + 
   cp.value = "did:key:zPeer";
   const dial = doc.querySelector("#flow-agreement #formalityDial") as AnyEl;
   dial.value = "30"; // 0.30 → "channel"
-  // deno-lint-ignore no-explicit-any
-  await (win as any).handleCreate();
+  await winFn(win, "handleCreate")();
 
   assertEquals(calls.propose.length, 1, "agreement_propose dispatched once");
   const sent = calls.propose[0];
@@ -177,8 +160,7 @@ Deno.test("M6.2 create: Create dispatches agreement_propose with counterparty + 
 
 Deno.test("M6.2 create: missing counterparty does NOT dispatch (loud, no silent propose)", async () => {
   const { win, calls } = await mountAgreement();
-  // deno-lint-ignore no-explicit-any
-  await (win as any).handleCreate();
+  await winFn(win, "handleCreate")();
   assertEquals(
     calls.propose.length,
     0,

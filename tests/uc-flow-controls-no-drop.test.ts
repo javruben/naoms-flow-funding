@@ -55,11 +55,14 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+} from "@std/assert";
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -70,25 +73,6 @@ const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
 const SURFACES_PATH =
   `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-  }
-  docAny.__styleShimmed = true;
-}
 
 interface ApiCalls {
   get: Array<Record<string, unknown>>;
@@ -174,8 +158,7 @@ async function mount(): Promise<{
     msg && msg.type === "token.list"
       ? Promise.resolve({ ok: true, tokens: HELD_TOKENS })
       : Promise.resolve({ ok: true });
-  // deno-lint-ignore no-explicit-any
-  const feature = (env.win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(env.win);
   assert(feature, "flow-funding feature registered");
   feature.init({ container: env.container, api, sendReq });
   feature.activate();
@@ -229,10 +212,8 @@ Deno.test("C5/G6: felt-threshold toggle — present ⇒ value persists to policy
   const { win, doc, calls } = await mount();
   setBand(doc);
   // Engage the felt toggle via its REAL handler (the only user action wired).
-  // deno-lint-ignore no-explicit-any
-  (win as any).toggleFelt();
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  winFn(win, "toggleFelt")();
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
   const params = calls.set[0].params as Record<string, unknown>;
@@ -257,8 +238,7 @@ Deno.test("C5/G7: commons-tithe slider — present ⇒ value round-trips into po
     "#flow-policy .range-row input[type=range]",
   ) as AnyEl | null;
   if (tithe) tithe.value = "7"; // distinctive, != default "3"
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
   const params = calls.set[0].params as Record<string, unknown>;
@@ -292,8 +272,7 @@ Deno.test("C5/G8: policy transparency radios — present ⇒ selection round-tri
     pick.checked = true;
     pick.setAttribute("checked", "");
   }
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
   const params = calls.set[0].params as Record<string, unknown>;
@@ -312,8 +291,7 @@ Deno.test("C5/G8: policy transparency radios — present ⇒ selection round-tri
 
 Deno.test("C5/G9: agreement contributor-tier grid — present ⇒ selection round-trips into agreement_propose terms", async () => {
   const { win, doc, calls } = await mount();
-  // deno-lint-ignore no-explicit-any
-  (win as any).__flowShowSurface("agreement");
+  winFn(win, "__flowShowSurface")("agreement");
 
   const cp = doc.querySelector(
     "#flow-agreement #flowAgreementCounterparty",
@@ -331,11 +309,9 @@ Deno.test("C5/G9: agreement contributor-tier grid — present ⇒ selection roun
     // Select "Active" (index 1) — a value distinct from the dial-derived
     // formality tier ("revenue-share" at 0.70), so a match proves the
     // CONTRIBUTOR tier reached the payload.
-    // deno-lint-ignore no-explicit-any
-    (win as any).selectTier(tiers[1] || tiers[0]);
+    winFn(win, "selectTier")(tiers[1] || tiers[0]);
   }
-  // deno-lint-ignore no-explicit-any
-  await (win as any).handleCreate();
+  await winFn(win, "handleCreate")();
 
   assertEquals(calls.propose.length, 1, "agreement_propose dispatched once");
   const terms = calls.propose[0].terms as Record<string, unknown>;
@@ -360,8 +336,7 @@ Deno.test("C5/G10: policy fairness caps — present ⇒ perClaimantCap/perEpochC
   // params.perClaimantCap / params.perEpochCap).
   if (pcc) pcc.value = "0.4";
   if (pec) pec.value = "0.25";
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
   const params = calls.set[0].params as Record<string, unknown>;
@@ -407,8 +382,7 @@ Deno.test("CRITICAL: automated-settlement cap — present ⇒ absolute cap round
   // A distinctive absolute token ceiling (NOT a 0–1 fraction — this is the
   // owner-signed aggregate cap the delegation root enforces, policy-set.ts B3).
   cap.value = "1000";
-  // deno-lint-ignore no-explicit-any
-  await (win as any).savePolicy();
+  await winFn(win, "savePolicy")();
 
   assertEquals(calls.set.length, 1, "policy_set dispatched (band valid)");
   const params = calls.set[0].params as Record<string, unknown>;
@@ -426,8 +400,7 @@ Deno.test("CRITICAL: automated-settlement cap — present ⇒ absolute cap round
 
 Deno.test("C5/G9: agreement duration — present ⇒ selection round-trips into agreement_propose terms", async () => {
   const { win, doc, calls } = await mount();
-  // deno-lint-ignore no-explicit-any
-  (win as any).__flowShowSurface("agreement");
+  winFn(win, "__flowShowSurface")("agreement");
 
   const cp = doc.querySelector(
     "#flow-agreement #flowAgreementCounterparty",
@@ -444,11 +417,9 @@ Deno.test("C5/G9: agreement duration — present ⇒ selection round-trips into 
       durSeg.querySelectorAll("button"),
     ) as AnyEl[];
     // "1 year" is the 2nd button (value '1y') in the real markup.
-    // deno-lint-ignore no-explicit-any
-    (win as any).selectDur(btns[1] || btns[0], "1y");
+    winFn(win, "selectDur")(btns[1] || btns[0], "1y");
   }
-  // deno-lint-ignore no-explicit-any
-  await (win as any).handleCreate();
+  await winFn(win, "handleCreate")();
 
   assertEquals(calls.propose.length, 1, "agreement_propose dispatched once");
   const terms = calls.propose[0].terms as Record<string, unknown>;

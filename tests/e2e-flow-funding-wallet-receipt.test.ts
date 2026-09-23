@@ -18,9 +18,7 @@
 //   flow-settle: memo) → payee wallet Activity feed shows a row ATTRIBUTING the
 //   +200 to the PAYER identity (not merely a larger number). A bare balance bump
 //   with no from/to attribution is RED.
-// @canonical-flow YES — every state mutation goes through the production `naoms`
-//   CLI verbs + real handlers; the receipt witness is the payee's real browser
-//   wallet UI after a real cross-identity settlement.
+// @canonical-flow YES
 // @honesty-rationale Two real fresh-founder daemons (distinct ownerDids), real
 //   `naoms contacts handshake`. The settlement rides the M4 capability
 //   (payer auto-grant disposed before it). The credit is materialized by real
@@ -28,6 +26,9 @@
 //   a STRUCTURAL fact of buildRow (renders entryKind label OR a notice banner —
 //   never signerDid, amount, or a from/to line), independent of cross-device
 //   timing: even when the credit lands and the number grows, no row names the payer.
+//   canonical-flow YES: every state mutation goes through the production
+//   `naoms` CLI verbs + real handlers; the receipt witness is the payee's real
+//   browser wallet UI after a real cross-identity settlement.
 // @pre-seeds NONE
 // === END HEADER ===
 //
@@ -39,6 +40,7 @@
 //     deno test -A --no-check --unstable-sloppy-imports --config <repo>/deno.json \
 //     src/packages/flow-funding/tests/e2e-flow-funding-wallet-receipt.test.ts
 
+import type { FlowPageWindow } from "./_flow-e2e-page.ts";
 import { assert } from "jsr:@std/assert";
 import { join } from "node:path";
 import puppeteer from "npm:puppeteer-core";
@@ -117,8 +119,7 @@ Deno.test({
     );
     const disposeClaimant = installActionApprovalAutoGrant(claimant.handle.ws);
 
-    // deno-lint-ignore no-explicit-any
-    let browser: any = null;
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
     let browserTok: number | null = null;
     try {
       const holonCli = cliFor(holon.handle);
@@ -388,8 +389,7 @@ Deno.test({
 
       // Open the wallet (registered under manifest id "token").
       await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (!w._naoms || typeof w._naoms.activateApp !== "function") {
           throw new Error("_naoms.activateApp not exposed");
         }
@@ -433,8 +433,7 @@ Deno.test({
       // Open the Activity feed via the registered feature's imperative nav
       // surface (documented non-window.__ path; wallet-tab.js openActivity).
       await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         const feat = w._naomsFeatures && w._naomsFeatures.token;
         if (!feat || typeof feat.openActivity !== "function") {
           throw new Error("wallet openActivity nav surface not exposed");

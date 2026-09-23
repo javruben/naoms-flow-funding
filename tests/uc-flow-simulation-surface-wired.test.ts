@@ -24,11 +24,14 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-// deno-lint-ignore no-explicit-any
-type AnyDoc = any;
-// deno-lint-ignore no-explicit-any
-type AnyEl = any;
+} from "@std/assert";
+import {
+  ensureStyleShim,
+  flowFeature,
+  type ShimDoc as AnyDoc,
+  type ShimEl as AnyEl,
+  winFn,
+} from "./_flow-ui-dom-shim.ts";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
 const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
@@ -39,23 +42,6 @@ const TAB_PATH = `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-tab.js`;
 const SURFACES_PATH =
   `${NAOMS_ROOT}/src/packages/flow-funding/ui/flow-surfaces.js`;
 
-function ensureStyleShim(doc: AnyDoc): void {
-  // deno-lint-ignore no-explicit-any
-  const docAny = doc as any;
-  if (docAny.__styleShimmed) return;
-  const orig = docAny.createElement.bind(doc);
-  docAny.createElement = (tagName: string) => {
-    const el = orig(tagName);
-    if (!el.style) (el as AnyEl).style = { cssText: "", setProperty() {} };
-    return el;
-  };
-  for (const el of doc.querySelectorAll("*")) {
-    if (!(el as AnyEl).style) {
-      (el as AnyEl).style = { cssText: "", setProperty() {} };
-    }
-  }
-  docAny.__styleShimmed = true;
-}
 
 interface ApiCalls {
   simulate: Array<Record<string, unknown>>;
@@ -132,13 +118,11 @@ async function mountSimulate(): Promise<{
       return Promise.resolve({ ok: true, committed: false, report: REPORT });
     },
   };
-  // deno-lint-ignore no-explicit-any
-  const feature = (env.win._naomsFeatures as any)["flow-funding"];
+  const feature = flowFeature(env.win);
   feature.init({ container: env.container, api });
   feature.activate();
   await new Promise((r) => setTimeout(r, 0));
-  // deno-lint-ignore no-explicit-any
-  (env.win as any).__flowShowSurface("simulate");
+  winFn(env.win, "__flowShowSurface")("simulate");
   return { win: env.win, doc: env.doc, calls };
 }
 
@@ -162,8 +146,7 @@ Deno.test("M6.2-sim mount: Simulation surface mounts from flow-surfaces.js", asy
 
 Deno.test("M6.2-sim run: Run dispatches simulate(holons, epochs) and renders the REAL report", async () => {
   const { win, doc, calls } = await mountSimulate();
-  // deno-lint-ignore no-explicit-any
-  await (win as any).runSimulation();
+  await winFn(win, "runSimulation")();
 
   assertEquals(calls.simulate.length, 1, "simulate dispatched once");
   const sent = calls.simulate[0];

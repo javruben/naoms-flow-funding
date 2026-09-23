@@ -20,11 +20,12 @@
 
 import { securedAppend } from "@naoms/core/chain";
 import { deriveFriendshipChainId } from "@naoms/packages/contacts/friendship-chain-id.ts";
+import { canonicalPeerDid } from "@naoms/packages/contacts/peer-did.ts";
 import { createLogger } from "@naoms/logging";
 
 import {
-  type FlowAgreementTerms,
   flowAgreementId,
+  type FlowAgreementTerms,
   validateFlowAgreementTerms,
 } from "../domain/agreement.ts";
 
@@ -56,8 +57,56 @@ function actorDid(ctx: AgreementHandlerContext): string {
   return ctx.callerDid || ctx.ownerDid;
 }
 
+/**
+ * 1785 — is this "agreement" between one party and itself?
+ *
+ * Compared on the CANONICAL (fragmentless) DID form, the same normalisation
+ * `deriveFriendshipChainId` applies, so a `did:key:z6…#key-0` on one side and
+ * the bare `did:key:z6…` on the other cannot slip past. The pre-1785 guard in
+ * `handleAgreementPropose` compared the raw strings and a fragment defeated it.
+ *
+ * Empty on either side is NOT a self-pair — that shape has its own honest
+ * refusal upstream ("counterparty (peer DID) required").
+ */
+function isSelfParty(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return canonicalPeerDid(a) === canonicalPeerDid(b);
+}
+
+/**
+ * 1785 — refuse a self-party agreement honestly, naming the REAL reason.
+ *
+ * Before this, only `propose` guarded (and only on raw strings). Everywhere
+ * else the self-pair throw from `deriveFriendshipChainId` was swallowed by
+ * `probeFriendshipChain`, which returned null, and the caller reported
+ * "no friendship chain with <you> — pair with this peer first". That refusal
+ * is loud but DISHONEST: it names a cause that is not the cause, and asks the
+ * user to pair with themselves, which can never succeed. Honesty axiom.
+ */
+function refuseSelfPartyAgreement(
+  respond: RespondFn,
+  resultType: string,
+  selfDid: string,
+): void {
+  const canon = canonicalPeerDid(selfDid);
+  L.warn("flow agreement refused: self-party", { resultType, selfDid: canon });
+  respond({
+    type: resultType,
+    ok: false,
+    reason: "SELF_TARGETED_AGREEMENT",
+    error:
+      `a flow-agreement is between two distinct parties — both sides resolve ` +
+      `to your own DID (${canon}). The agreement rides the bilateral ` +
+      `friendship chain, which requires a counterparty other than yourself.`,
+  });
+}
+
 /** Resolve the bilateral friendship chain between self and peer; null when the
- *  peer is not yet paired locally (caller refuses loud — no silent drop). */
+ *  peer is not yet paired locally (caller refuses loud — no silent drop).
+ *
+ *  1785: a SELF-pair no longer reaches here — every call site refuses it by
+ *  name first (`refuseSelfPartyAgreement`). Reaching this with self DIDs would
+ *  produce the honest-looking but WRONG "pair with this peer first" reason. */
 function probeFriendshipChain(
   ctx: AgreementHandlerContext,
   selfDid: string,
@@ -103,15 +152,18 @@ async function appendAgreementEvent(
   // bilateral agreement is already scoped by friendship-chain membership (both
   // parties are members), so it replicates plainly like message.sent / task.* —
   // which also omit `domain`. tripleFormat still drives the graph projection.
-  const commit = await securedAppend(ctx.dbHandle, {
-    chainId: fcId,
-    branch: "content",
-    type,
-    payload: JSON.stringify(payload),
-    signerDid,
-    signerKeyId: `${signerDid}#key-0`,
-    tripleFormat: { featureId: "flow-funding", entityId },
-  } as Parameters<typeof securedAppend>[1]);
+  const commit = await securedAppend(
+    ctx.dbHandle,
+    {
+      chainId: fcId,
+      branch: "content",
+      type,
+      payload: JSON.stringify(payload),
+      signerDid,
+      signerKeyId: `${signerDid}#key-0`,
+      tripleFormat: { featureId: "flow-funding", entityId },
+    } as Parameters<typeof securedAppend>[1],
+  );
   return (commit as { id: string }).id;
 }
 
@@ -134,12 +186,12 @@ export async function handleAgreementPropose(
       error: "counterparty (peer DID) required",
     });
   }
-  if (counterparty === proposer) {
-    return respond({
-      type: "flow.agreement_propose.result",
-      ok: false,
-      error: "a flow-agreement is between two distinct parties (got self)",
-    });
+  if (isSelfParty(counterparty, proposer)) {
+    return refuseSelfPartyAgreement(
+      respond,
+      "flow.agreement_propose.result",
+      proposer,
+    );
   }
   const termsErr = validateFlowAgreementTerms(terms);
   if (termsErr) {
@@ -233,8 +285,7 @@ export async function handleAgreementAccept(
     return respond({
       type: "flow.agreement_accept.result",
       ok: false,
-      error:
-        `no proposed agreement ${agreementId} visible locally yet ` +
+      error: `no proposed agreement ${agreementId} visible locally yet ` +
         `(has the proposer's lane replicated?)`,
     });
   }
@@ -248,6 +299,13 @@ export async function handleAgreementAccept(
     });
   }
 
+  if (isSelfParty(accepter, proposer)) {
+    return refuseSelfPartyAgreement(
+      respond,
+      "flow.agreement_accept.result",
+      accepter,
+    );
+  }
   const fcId = probeFriendshipChain(ctx, accepter, proposer);
   if (!fcId) {
     return respond({
@@ -321,6 +379,13 @@ export async function handleAgreementRevoke(
     });
   }
   const peer = revoker === proposer ? counterparty! : proposer;
+  if (isSelfParty(revoker, peer)) {
+    return refuseSelfPartyAgreement(
+      respond,
+      "flow.agreement_revoke.result",
+      revoker,
+    );
+  }
   const fcId = probeFriendshipChain(ctx, revoker, peer);
   if (!fcId) {
     return respond({
