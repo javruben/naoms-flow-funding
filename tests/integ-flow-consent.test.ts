@@ -45,8 +45,7 @@
 //   (non-interactive, non-bypass) — NOT a pre-seeded balance; an under-cap arm
 //   REFUSES the over-cap allocation before value moves (valueMovement.refused, no
 //   credit). Cross-daemon payee-credit REPLICATION is E1/1596 (separate proof).
-// @canonical-flow YES — token.define/mint/admit → flow.policy_set (arm root + K) →
-//   flow.epoch_settle → token.pay (handlePay) under args._capability={leaf,root}
+// @canonical-flow YES
 // @bypasses db-unlock=fixture-password, identity=pre-onboarded, kronos-disabled, device-pair=pre-onboarded-fixture, iroh-mdns-disabled, keychain=fixture-shares-file, llm-mocked, mls-real-ffi-forced
 // @honesty-rationale Single-daemon: a flow token is defined + minted + the claimants
 //   admitted (real token.define/mint/admit, action-tier approved with the fixture
@@ -55,12 +54,12 @@
 //   driven through the real flow.epoch_settle handler. The settlement's token.pay is
 //   satisfied by the CAPABILITY (no interactive approval answered for it — that IS
 //   the M4 claim). Payee credit is read back from the token fold, never pre-seeded.
+//   canonical-flow YES: token.define/mint/admit → flow.policy_set (arm root +
+//   K) → flow.epoch_settle → token.pay (handlePay) under
+//   args._capability={leaf,root}
 // === END HEADER ===
 
-import {
-  assert,
-  assertEquals,
-} from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
   delay,
   getRandomPort,
@@ -71,7 +70,10 @@ import { sendWithActionApproval } from "../../../../tests/helpers/drive-action-a
 import { createLogger } from "@naoms/logging";
 
 const L = createLogger("integ-flow-consent");
-const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(/\/$/, "");
+const NAOMS_ROOT = new URL("../../../..", import.meta.url).pathname.replace(
+  /\/$/,
+  "",
+);
 const SR = { sanitizeResources: false, sanitizeOps: false };
 
 // Gated OFF by default — build-host only (MBP flow-integ forbidden).
@@ -80,13 +82,20 @@ const RUN = Deno.env.get("NAOMS_INTEG_FLOW_CONSENT") === "1";
 let _port: number;
 let _daemon: Awaited<ReturnType<typeof startDaemonFromFixture>> | null = null;
 let _ws: WebSocket;
-let _wsSend: (ws: WebSocket, msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
+let _wsSend: (
+  ws: WebSocket,
+  msg: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
 let _appPassword: string;
 
 async function ensureDaemon(): Promise<void> {
   if (_daemon) return;
   _port = await getRandomPort();
-  _daemon = await startDaemonFromFixture(NAOMS_ROOT, _port, "integ-flow-consent");
+  _daemon = await startDaemonFromFixture(
+    NAOMS_ROOT,
+    _port,
+    "integ-flow-consent",
+  );
   assert(_daemon, "Daemon started");
   try {
     await waitForBootReady(_port, 120000);
@@ -100,7 +109,9 @@ async function ensureDaemon(): Promise<void> {
   assert(ws.readyState === WebSocket.OPEN, "WS authenticated");
   _ws = ws;
   _wsSend = ceremony.wsSend;
-  const { unlockFixtureVault } = await import("../../../../tests/helpers/fixture-unlock.ts");
+  const { unlockFixtureVault } = await import(
+    "../../../../tests/helpers/fixture-unlock.ts"
+  );
   await unlockFixtureVault(_ws, { identity: "founder", naomsRoot: NAOMS_ROOT });
   _appPassword = Deno.readTextFileSync(
     `${NAOMS_ROOT}/tests/fixtures/state-seeds/founder/keys/founder-password.txt`,
@@ -140,7 +151,8 @@ async function creditedBalance(did: string, tokenId: string): Promise<number> {
   }) as { nodes?: Array<{ properties?: Record<string, unknown> }> };
   let total = 0;
   for (const n of res.nodes ?? []) {
-    total += Number(n.properties?.settled ?? 0) + Number(n.properties?.provisional ?? 0);
+    total += Number(n.properties?.settled ?? 0) +
+      Number(n.properties?.provisional ?? 0);
   }
   // Fallback to the token_holder.balance projection (older materializer).
   if (total === 0) {
@@ -173,7 +185,10 @@ async function defineMintAdmit(opts: {
   }, { timeoutMs: 120_000, appPassword: _appPassword });
   assert(def.ok === true, `token.define failed: ${JSON.stringify(def)}`);
   const tokenId = String(def.tokenId ?? def.id);
-  assert(tokenId.length > 0, `token.define returned no tokenId: ${JSON.stringify(def)}`);
+  assert(
+    tokenId.length > 0,
+    `token.define returned no tokenId: ${JSON.stringify(def)}`,
+  );
 
   const mint = await sendWithActionApproval(_ws, {
     type: "token.mint",
@@ -188,7 +203,10 @@ async function defineMintAdmit(opts: {
       token: tokenId,
       admittedDid: c,
     }, { timeoutMs: 120_000, appPassword: _appPassword });
-    assert(admit.ok === true, `token.admit(${c}) failed: ${JSON.stringify(admit)}`);
+    assert(
+      admit.ok === true,
+      `token.admit(${c}) failed: ${JSON.stringify(admit)}`,
+    );
   }
   return tokenId;
 }
@@ -209,7 +227,11 @@ Deno.test({
 
       // Setup: define a flow token, mint a spendable balance to the holon (issuer),
       // admit both claimants — all action-tier, approved with the fixture password.
-      const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A, B] });
+      const tokenId = await defineMintAdmit({
+        cap: 100000,
+        mint: 10000,
+        claimants: [A, B],
+      });
 
       // Arm a viability band [100,500] WITH an ABSOLUTE automatedSettlementCap (the
       // owner-signed total ceiling that mints + bounds the delegation root) plus the
@@ -229,7 +251,11 @@ Deno.test({
         },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assertEquals(arm.delegationArmed, true, "delegation root must be armed (automatedSettlementCap + signer ready)");
+      assertEquals(
+        arm.delegationArmed,
+        true,
+        "delegation root must be armed (automatedSettlementCap + signer ready)",
+      );
 
       // Settle: balance 800 → surplus 300 above ceiling; two claimants need 200 each
       // → 150 each (within the 200 per-claimant cap). REAL engine; conserved.
@@ -261,15 +287,38 @@ Deno.test({
         refused: Array<{ id: string; amount: number; reason: string }>;
         indeterminate: Array<{ id: string; amount: number; reason: string }>;
       };
-      assert(vm && vm.attempted, `value movement must be attempted — ${JSON.stringify(vm)}`);
-      assertEquals(vm.refused.length, 0, `no allocation refused (gate allowed non-interactively) — ${JSON.stringify(vm.refused)}`);
-      assertEquals(vm.indeterminate.length, 0, `no gated-pay timed out — both completed in time — ${JSON.stringify(vm.indeterminate)}`);
-      assertEquals(vm.paid.length, 2, `both allocations rode the gated token.pay — ${JSON.stringify(vm.paid)}`);
+      assert(
+        vm && vm.attempted,
+        `value movement must be attempted — ${JSON.stringify(vm)}`,
+      );
+      assertEquals(
+        vm.refused.length,
+        0,
+        `no allocation refused (gate allowed non-interactively) — ${
+          JSON.stringify(vm.refused)
+        }`,
+      );
+      assertEquals(
+        vm.indeterminate.length,
+        0,
+        `no gated-pay timed out — both completed in time — ${
+          JSON.stringify(vm.indeterminate)
+        }`,
+      );
+      assertEquals(
+        vm.paid.length,
+        2,
+        `both allocations rode the gated token.pay — ${
+          JSON.stringify(vm.paid)
+        }`,
+      );
       for (const p of vm.paid) {
         assert(
           typeof p.entryId === "string" && p.entryId.length > 0,
           `gated token.pay for ${p.id} must commit a REAL token.transfer entry ` +
-            `(entryId present) — the M4 mechanism witness, not a stub: ${JSON.stringify(p)}`,
+            `(entryId present) — the M4 mechanism witness, not a stub: ${
+              JSON.stringify(p)
+            }`,
         );
         assertEquals(p.amount, 150, `allocation ${p.id} is the conserved 150`);
       }
@@ -320,7 +369,11 @@ Deno.test({
       const context = "nao-unarmed";
       const A = "did:nao:unarmed-claimant";
 
-      const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A] });
+      const tokenId = await defineMintAdmit({
+        cap: 100000,
+        mint: 10000,
+        claimants: [A],
+      });
 
       // Arm WITHOUT an automatedSettlementCap → no owner-signed delegation root is
       // minted (delegationArmed:false). Automated value movement is NOT authorized.
@@ -329,10 +382,20 @@ Deno.test({
         type: "flow.policy_set",
         context,
         tokenKind: tokenId,
-        params: { floor: 100, ceiling: 500, gradient: 0, perClaimantCap: 1.0, perEpochCap: 0.5 },
+        params: {
+          floor: 100,
+          ceiling: 500,
+          gradient: 0,
+          perClaimantCap: 1.0,
+          perEpochCap: 0.5,
+        },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assertEquals(arm.delegationArmed, false, "no automatedSettlementCap ⇒ no delegation root armed");
+      assertEquals(
+        arm.delegationArmed,
+        false,
+        "no automatedSettlementCap ⇒ no delegation root armed",
+      );
 
       // One claimant whose need absorbs the whole surplus (perClaimantCap 1.0 of
       // surplus) → conserved settlement that records, so we can assert NO value moves.
@@ -342,16 +405,39 @@ Deno.test({
         balance: 800,
         claimants: [{ id: A, need: 300, trustWeight: 1 }],
       });
-      assert(settle.ok, `epoch_settle ok (records the allocation) — ${JSON.stringify(settle)}`);
-      assertEquals(settle.settledTotal, 300, "conserved surplus 300 (still recorded)");
+      assert(
+        settle.ok,
+        `epoch_settle ok (records the allocation) — ${JSON.stringify(settle)}`,
+      );
+      assertEquals(
+        settle.settledTotal,
+        300,
+        "conserved surplus 300 (still recorded)",
+      );
 
-      const vm = settle.valueMovement as { attempted: boolean; reason?: string; paid: unknown[] };
-      assertEquals(vm.attempted, false, `no value moved without an armed root — ${JSON.stringify(vm)}`);
-      assertEquals(vm.reason, "no-delegation-armed", "records-but-no-value reason surfaced LOUD");
+      const vm = settle.valueMovement as {
+        attempted: boolean;
+        reason?: string;
+        paid: unknown[];
+      };
+      assertEquals(
+        vm.attempted,
+        false,
+        `no value moved without an armed root — ${JSON.stringify(vm)}`,
+      );
+      assertEquals(
+        vm.reason,
+        "no-delegation-armed",
+        "records-but-no-value reason surfaced LOUD",
+      );
 
       // And the claimant is NOT credited (no silent value movement).
       const bal = await creditedBalance(A, tokenId);
-      assertEquals(bal, 0, `claimant must NOT be credited without an armed capability (got ${bal})`);
+      assertEquals(
+        bal,
+        0,
+        `claimant must NOT be credited without an armed capability (got ${bal})`,
+      );
     } finally {
       await cleanupDaemon();
     }
@@ -374,7 +460,11 @@ Deno.test({
     try {
       const context = "nao-overcap";
       const A = "did:nao:overcap-claimant";
-      const tokenId = await defineMintAdmit({ cap: 100000, mint: 10000, claimants: [A] });
+      const tokenId = await defineMintAdmit({
+        cap: 100000,
+        mint: 10000,
+        claimants: [A],
+      });
 
       // Arm with a TINY absolute automatedSettlementCap (100) — below the conserved
       // allocation the engine computes (300) — so the per-root aggregate ceiling
@@ -393,7 +483,11 @@ Deno.test({
         },
       });
       assert(arm.ok, `policy_set ok — ${JSON.stringify(arm)}`);
-      assertEquals(arm.delegationArmed, true, "delegation root armed (small cap)");
+      assertEquals(
+        arm.delegationArmed,
+        true,
+        "delegation root armed (small cap)",
+      );
 
       const settle = await _wsSend(_ws, {
         type: "flow.epoch_settle",
@@ -401,7 +495,12 @@ Deno.test({
         balance: 800,
         claimants: [{ id: A, need: 300, trustWeight: 1 }],
       });
-      assert(settle.ok, `epoch_settle ok (records even when value refused) — ${JSON.stringify(settle)}`);
+      assert(
+        settle.ok,
+        `epoch_settle ok (records even when value refused) — ${
+          JSON.stringify(settle)
+        }`,
+      );
       assertEquals(settle.settledTotal, 300, "conserved surplus 300 recorded");
 
       const vm = settle.valueMovement as {
@@ -410,16 +509,37 @@ Deno.test({
         refused: Array<{ id: string; amount: number; reason: string }>;
         indeterminate: Array<{ id: string; amount: number; reason: string }>;
       };
-      assertEquals(vm.paid.length, 0, `over-cap: nothing paid — ${JSON.stringify(vm.paid)}`);
-      assertEquals(vm.indeterminate.length, 0, `over-cap is DETERMINATE, not indeterminate — ${JSON.stringify(vm.indeterminate)}`);
-      assert(vm.refused.length >= 1, `the over-cap allocation must be refused — ${JSON.stringify(vm.refused)}`);
+      assertEquals(
+        vm.paid.length,
+        0,
+        `over-cap: nothing paid — ${JSON.stringify(vm.paid)}`,
+      );
+      assertEquals(
+        vm.indeterminate.length,
+        0,
+        `over-cap is DETERMINATE, not indeterminate — ${
+          JSON.stringify(vm.indeterminate)
+        }`,
+      );
+      assert(
+        vm.refused.length >= 1,
+        `the over-cap allocation must be refused — ${
+          JSON.stringify(vm.refused)
+        }`,
+      );
       assert(
         vm.refused.some((r) => r.reason.includes("aggregate-cap-exceeded")),
-        `the refusal must name the aggregate cap (refused before any value moves) — ${JSON.stringify(vm.refused)}`,
+        `the refusal must name the aggregate cap (refused before any value moves) — ${
+          JSON.stringify(vm.refused)
+        }`,
       );
 
       // No value moved — the claimant holds nothing.
-      assertEquals(await creditedBalance(A, tokenId), 0, "over-cap claimant NOT credited");
+      assertEquals(
+        await creditedBalance(A, tokenId),
+        0,
+        "over-cap claimant NOT credited",
+      );
     } finally {
       await cleanupDaemon();
     }

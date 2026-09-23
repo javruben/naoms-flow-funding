@@ -13,6 +13,7 @@ work_type: new-feature
 lifecycle: PROC-NEW-FEATURE
 scope: "A new `flow-funding` package layered on the token ledger (1596) and wallet UI (1627). Each node declares per-relationship thresholds (a viability band: floor + ceiling) and split rules; when a node's holdings rise above its ceiling, surplus automatically flows out along its dependent/relationship edges; when they fall below its floor, support is automatically drawn in from those it has flowed to. Idle balances decay (demurrage) so value cannot sit still. Trust-edges set the channels and caps. The result is a homeostatic, relationship-building, anti-hoarding value-circulation layer. RESEARCH + DESIGN first; implementation gated on owner + user (Tree) intake."
 verified-by: "roadmap triage sweep 2026-09-19"
+type: roadmap
 ---
 
 # 1644 — Flow Funding

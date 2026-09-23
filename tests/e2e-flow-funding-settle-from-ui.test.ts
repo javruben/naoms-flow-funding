@@ -36,6 +36,7 @@
 //     deno test -A --no-check --unstable-sloppy-imports --config <repo>/deno.json \
 //     src/packages/flow-funding/tests/e2e-flow-funding-settle-from-ui.test.ts
 
+import type { FlowPageWindow } from "./_flow-e2e-page.ts";
 import {
   assert,
   assertEquals,
@@ -99,10 +100,9 @@ Deno.test({
     "settle control commits a flow_settlement the daemon folds back (flow.get_settlement)",
   fn: async () => {
     const port = await getRandomPort();
-    // deno-lint-ignore no-explicit-any
-    let daemon: any = null;
-    // deno-lint-ignore no-explicit-any
-    let browser: any = null;
+    let daemon: Awaited<ReturnType<typeof startDaemonFromFixture>>["daemon"] | null =
+      null;
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
     let ws: WebSocket | null = null;
     let disposeGrant: (() => void) | null = null;
     let token: number | null = null;
@@ -168,8 +168,7 @@ Deno.test({
 
       // Open the Flow Funding feature via the canonical shell entry.
       await page.evaluate(async () => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (!w._naoms || typeof w._naoms.activateApp !== "function") {
           throw new Error(
             "_naoms.activateApp not exposed — shell init incomplete",
@@ -274,8 +273,7 @@ Deno.test({
       // lives, then re-scan (the scan also sees the Policy surface's controls
       // when that surface is active).
       await page.evaluate(() => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (typeof w.__flowShowSurface === "function") {
           w.__flowShowSurface("velocity");
         }
@@ -284,8 +282,7 @@ Deno.test({
       const velScan = await scanForSettleControl();
 
       await page.evaluate(() => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (typeof w.__flowShowSurface === "function") {
           w.__flowShowSurface("policy");
         }
@@ -308,8 +305,7 @@ Deno.test({
       //    leg is paid or honestly-indeterminate, and the surface renders it.
       const controlSurface = velScan.found ? "velocity" : "policy";
       await page.evaluate((surface: string) => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (typeof w.__flowShowSurface === "function") {
           w.__flowShowSurface(surface);
         }
@@ -354,8 +350,7 @@ Deno.test({
 
       // UI witness: the Flow (velocity) surface renders the settlement count.
       await page.evaluate(() => {
-        // deno-lint-ignore no-explicit-any
-        const w = window as any;
+        const w = window as FlowPageWindow;
         if (typeof w.__flowShowSurface === "function") {
           w.__flowShowSurface("velocity");
         }
