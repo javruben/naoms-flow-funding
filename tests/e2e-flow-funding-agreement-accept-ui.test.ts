@@ -30,11 +30,13 @@
 //   BOTH daemons' real flow.get_agreement, so a status flip on one side alone
 //   cannot pass. Also names: cross, unlock, identity, keychain, kronos, vault,
 //   biometric, iroh.
-// @canonical-flow YES — A proposes (WS) → proposed lane replicates to B → B's
+//   [canonical-flow YES] A proposes (WS) → proposed lane replicates to B → B's
 //   Flow UI renders the incoming proposal → real ACCEPT click → agreement_accept
 //   → accepted lane replicates to A → bilateral fold `active` on both.
-// @pre-seeds NONE — the agreement is produced by the real propose write path; no
-//   flow_agreement / flow-state row is seeded.
+//   [pre-seeds NONE] the agreement is produced by the real propose write path;
+//   no flow_agreement / flow-state row is seeded.
+// @canonical-flow YES
+// @pre-seeds NONE
 //
 // EXPECTED-RED-ON-MAC (run env): the canonical 2-daemon real-browser E2Es carry
 // an EXPECTED-RED-ON-MAC note (see e2e-trust-notifications-peer-pair.test.ts +

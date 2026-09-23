@@ -42,10 +42,12 @@
 //   agreement accept, settlement, and cross-boundary flow_outcome all remain produced
 //   by real UI gestures / real op write paths.
 // @canonical-flow YES
-// @pre-seeds NONE — the policy, agreement, acceptance, settlement, and cross-boundary
-//   flow_outcome are all produced by real UI gestures / real op write paths; no
-//   flow_policy / flow_agreement / flow_settlement / flow_outcome row is seeded.
+// @pre-seeds NONE
 // @cross-identity 2-daemon, real-pointer (HC-09) — NOT env-gated (HC-C5): runs by default.
+// @honesty-rationale [pre-seeds NONE] the policy, agreement, acceptance, settlement, and
+//   cross-boundary flow_outcome are all produced by real UI gestures / real op
+//   write paths; no flow_policy / flow_agreement / flow_settlement /
+//   flow_outcome row is seeded.
 // === END HEADER ===
 //
 // 1644 COMPLETION C6/G5 — the whole-loop narrative (original frozen-plan M7, the STAR:
