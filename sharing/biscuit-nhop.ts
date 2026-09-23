@@ -66,7 +66,9 @@ export function mintFlowShareCapability(
       },
       privHex,
     );
-    if (built.status !== "OK" || typeof built.root_public_key_hex !== "string") {
+    if (
+      built.status !== "OK" || typeof built.root_public_key_hex !== "string"
+    ) {
       return null;
     }
     return {
@@ -132,7 +134,9 @@ export function authorizeReshare(
   if (att.status !== "OK" || typeof att.token_hex !== "string") {
     return {
       ok: false,
-      reason: `ATTENUATE_FAIL:${att.status === "ERROR" ? att.reason : "no_token"}`,
+      reason: `ATTENUATE_FAIL:${
+        att.status === "ERROR" ? att.reason : "no_token"
+      }`,
     };
   }
 
