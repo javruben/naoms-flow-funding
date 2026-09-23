@@ -36,6 +36,7 @@
 //   MAC note (see e2e-trust-notifications-peer-pair.test.ts + M-1494-M25) —
 //   Mac co-tenancy with sibling claude / rustc / git starves real-browser
 // @pre-seeds NONE
+// @canonical-flow YES
 //
 // EXPECTED-RED-ON-MAC (run env): the canonical 2-daemon real-browser E2Es carry
 // an EXPECTED-RED-ON-MAC note (see e2e-trust-notifications-peer-pair.test.ts +
