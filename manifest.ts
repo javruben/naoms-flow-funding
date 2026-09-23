@@ -54,7 +54,11 @@ export const MANIFEST: NaomsFeatureManifest = {
         { type: "flow.policy_set", nodeKind: "flow_policy", dataClass: "vow" },
         // M3: an epoch settlement is an explicit, auditable event on the holon's
         // own flow chain (HC-04 — settlement is an event, not an implicit clock).
-        { type: "flow.epoch_settled", nodeKind: "flow_settlement", dataClass: "vow" },
+        {
+          type: "flow.epoch_settled",
+          nodeKind: "flow_settlement",
+          dataClass: "vow",
+        },
       ],
     },
   ],
@@ -122,9 +126,21 @@ export const MANIFEST: NaomsFeatureManifest = {
   // `flow_agreement` node keyed by agreementId; the flow-agreement fold enricher
   // (materializers/flow-agreement.ts) computes the bilateral status.
   crossChainEventTypes: [
-    { type: "flow.agreement_proposed", nodeKind: "flow_agreement", dataClass: "vow" },
-    { type: "flow.agreement_accepted", nodeKind: "flow_agreement", dataClass: "vow" },
-    { type: "flow.agreement_revoked", nodeKind: "flow_agreement", dataClass: "vow" },
+    {
+      type: "flow.agreement_proposed",
+      nodeKind: "flow_agreement",
+      dataClass: "vow",
+    },
+    {
+      type: "flow.agreement_accepted",
+      nodeKind: "flow_agreement",
+      dataClass: "vow",
+    },
+    {
+      type: "flow.agreement_revoked",
+      nodeKind: "flow_agreement",
+      dataClass: "vow",
+    },
   ],
 
   // flow.policy_set projects flow_policy via the generic triple materializer

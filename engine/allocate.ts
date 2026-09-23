@@ -77,7 +77,8 @@ export function allocate(
   const perClaimantCap = opts.perClaimantCap;
   if (
     perClaimantCap !== undefined &&
-    (!Number.isFinite(perClaimantCap) || perClaimantCap < 0 || perClaimantCap > 1)
+    (!Number.isFinite(perClaimantCap) || perClaimantCap < 0 ||
+      perClaimantCap > 1)
   ) {
     throw new FlowConservationError(
       `perClaimantCap must be in [0,1] (got ${perClaimantCap})`,
@@ -131,7 +132,9 @@ export function allocate(
     remaining -= distributed;
     // Drop claimants that have reached their ceiling; the spillover redistributes
     // to those with remaining headroom on the next pass.
-    active = active.filter((c) => maxReceive(c) - (alloc.get(c.id) ?? 0) > epsilon);
+    active = active.filter((c) =>
+      maxReceive(c) - (alloc.get(c.id) ?? 0) > epsilon
+    );
     if (distributed <= epsilon) break; // no progress — avoid a spin
   }
 

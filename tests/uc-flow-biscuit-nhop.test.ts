@@ -16,7 +16,8 @@
 // @covers src/packages/flow-funding/sharing/biscuit-nhop.ts:1
 // @mechanism-asserted Biscuit max_hops caveat (verify DENY on spent budget +
 //   attenuate monotonic hop-tightening); NOT an outcome-only/JS-counter check
-// @canonical-flow flow-funding/sharing/biscuit-nhop.ts authorizeReshare
+// @canonical-flow YES
+// @honesty-rationale canonical-flow YES: flow-funding/sharing/biscuit-nhop.ts authorizeReshare
 // === END HEADER ===
 //
 // RED (pre-biscuit-nhop.ts):
