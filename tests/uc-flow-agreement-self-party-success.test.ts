@@ -10,7 +10,7 @@
 // === END HEADER ===
 // @roadmap 1785
 
-import { assert, assertEquals } from "jsr:@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
   createTestDb,
   initTestSigning,
@@ -85,7 +85,9 @@ Deno.test(
     const commits = getCommits(db, { chainId: fcId, limit: 100 }) as Array<
       { type?: string }
     >;
-    const proposed = commits.filter((c) => c.type === "flow.agreement_proposed");
+    const proposed = commits.filter((c) =>
+      c.type === "flow.agreement_proposed"
+    );
     assertEquals(
       proposed.length,
       1,
