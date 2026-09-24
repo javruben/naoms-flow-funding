@@ -1,0 +1,87 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# flow-funding — repository CI pipeline (1797 extraction, 2026-09-24)
+#
+# 🛑 LOCATION MATTERS. This file must live at `.naoms/ci.yml`. A `ci.yml` at the
+# repository ROOT is read by NOTHING. The published office-suite repo shipped
+# exactly that mistake, so it appeared to have CI and had none — which is worse
+# than having none, because nobody goes looking for what looks present.
+#
+# ⚠️ THIS PIPELINE IS EXPECTED TO BE RED ON DAY ONE, DELIBERATELY.
+#
+# Measured at extraction time this package is NOT standalone-buildable:
+# #   - 24 distinct bare `@naoms/*` specifiers, no import map present
+#   - 15 escaping relative targets over 80 edges; the whole 42-file test suite
+#     reaches ../../../tests/helpers/ and is unrunnable standalone
+# A pipeline written to go green under those conditions would have to skip the
+# stages that matter, which is test-theatre. `typecheck` is real and WILL fail
+# until the standalone-build work is done. The red is the to-do list.
+#
+# Do NOT make it green by weakening a stage, adding a blanket `skip_when`, or
+# setting `on_failure: warn` on typecheck. Make it green by giving the package an
+# import map that resolves its dependencies, or by vendoring them.
+#
+# Every gate that can pass also has a `--self-test` red arm, because a gate with
+# no demonstrated failure mode is indistinguishable from `exit 0`.
+#
+# Licence: MIT (owner ruling 2026-09-24)
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 1
+
+# M-LIMITS-LIVE-IN-THE-MANIFEST. Declared once here rather than per stage, and
+# never omitted: the monorepo's own orphan-reap and venue-health stages were
+# REFUSED 239 and 120 times respectively for exactly this — a stage with no
+# silence budget does not run, and because those stages were `on_failure: warn`
+# the scheduled job still reported a verdict having executed nothing. A janitor
+# that cannot run and cannot fail loudly is indistinguishable from a clean house.
+defaults:
+  silence_budget: 900
+
+pipelines:
+  - id: verify
+    on:
+      push:
+        branches: [main]
+      pull_request:
+        base: [main]
+        from-non-members: deny
+    stages:
+      - id: no-monorepo-paths
+        name: no src/packages/ or .naoms/roadmap/ path survived the extraction
+        mutating: false
+        run:
+          cmd: ./scripts/ci-no-monorepo-paths.sh
+        timeout: 120
+        on_failure: abort
+
+      - id: licence-present
+        name: LICENSE exists and is non-empty (MIT (owner ruling 2026-09-24))
+        mutating: false
+        run:
+          cmd: ./scripts/ci-licence-gate.sh
+        timeout: 120
+        on_failure: abort
+
+      - id: licence-gate-selftest
+        name: licence gate can REFUSE (red arm on an absent file)
+        mutating: false
+        run:
+          cmd: ./scripts/ci-licence-gate.sh --self-test
+        timeout: 120
+        on_failure: abort
+
+      - id: typecheck
+        name: deno check (package-scoped; red until the import map exists)
+        mutating: false
+        run:
+          cmd: ./scripts/ci-typecheck.sh
+        timeout: 900
+        on_failure: abort
+
+      - id: unit
+        name: package unit + integ tests
+        mutating: false
+        run:
+          cmd: deno test -A
+        timeout: 1800
+        on_failure: abort
