@@ -44,13 +44,13 @@ Deno.test(
     });
 
     const responses: Array<Record<string, unknown>> = [];
-    // deno-lint-ignore no-explicit-any
-    const ctx: any = {
+    // Partial ctx: the propose handler reads only these fields.
+    const ctx = {
       dbHandle: db,
       ownerDid: proposer,
       chain: { get: (id: string) => (id === fcId ? { id } : null) },
       graph: { queryAsync: () => Promise.resolve({ nodes: [] }) },
-    };
+    } as unknown as Parameters<typeof handleAgreementPropose>[0];
 
     await handleAgreementPropose(
       ctx,
